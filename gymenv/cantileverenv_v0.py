@@ -1,8 +1,24 @@
 '''
-TODO env with supports created at end
+TODO env with supports created at end?
 TODO Env - random placement of supports, target load 
         - connect all (as collection problem) -> FEA on final structure - likely will not be interesting solutions, make sure to make nodal weight heavy
         - connect all with limited options to add support? -> FEA on final structure
+
+TODO render function 
+TODO rollout with manual control?
+
+Resources
+- Dynamic action masking : 
+    
+https://www.reddit.com/r/reinforcementlearning/comments/rlixoo/openai_gym_custom_environments_dynamically/
+    -> use largest action space possible, use dummy values 
+    -> give large negative reward to illegal action 
+https://www.reddit.com/r/reinforcementlearning/comments/zj31h6/has_anyone_experience_usingimplementing_masking/
+    -> changing the logits (distribution) but... 
+<Termination vs Invalid actions>
+    Effect on Training: Ignoring invalid actions might slow down learning since the agent isn't directly penalized for choosing them. 
+    The agent might spend more time exploring invalid actions, leading to inefficient training. 
+    However, it does avoid destabilizing the training process.
 '''
 import gymnasium as gym
 from gymnasium import spaces
@@ -25,9 +41,16 @@ import gc
 
 import random
 
-class CantileverEnv_0(gym.Env):
+class CantileverEnv_0(gym.Env, obs_mode='frame_grid'):
     '''
         use - gymnasium.make("CartPole-v1", render_mode="human")
+
+        Initialize the environment with a specified observation mode.
+        Observation Modes: 
+        - 'frame_grid': Only use the frame grid.
+        - 'fea_graph': Only use the FEA graph.
+        - 'frame_graph': Only use the frame graph.
+        
         Render modes:
             human : occur during step, render, returns None
             rgb  : Return a single plot images representing the current state of the environment.
@@ -120,6 +143,7 @@ class CantileverEnv_0(gym.Env):
                  frame_size=2,
                  video_save_interval_steps=500,
                  max_episode_length = 20,
+                 obs_mode='frame_grid'
                  ):
         
         self.board_size_x = board_size_x # likely divisable with self.frame_size
@@ -148,46 +172,18 @@ class CantileverEnv_0(gym.Env):
         self.frame_grid_size_x = self.board_size_x // self.frame_size
         self.frame_grid_size_y = self.board_size_y // self.frame_size
 
-        # Initialize the current frame grid with zeros (unoccupied=0)
+        # Initialize current state
         self.curr_frame_grid = np.zeros((self.frame_grid_size_y, self.frame_grid_size_x), dtype=int)
-        self.curr_fea_graph = None #FEAGraph object TODO init default object
+        self.curr_fea_graph = FEAGraph() #FEAGraph object
         self.curr_frame_graph = None # TODO graph representation of adjacent frames
-
-        # Visualize board as frame_grid, fea_graph (Visualizing representations)
-
         self.valid_pos = set() # set of board pos (x,y) in which new frame can be placed 
 
-        # Mask actions
-        # self.action_maps = self.get_all_actions()
-        # self.initial_state = self.curr_state.graph # Used for replaybuffer
+        self.obs_mode = obs_mode  # Set the observation mode
+        self.curr_obs = None # Set according to obs_mode
 
-        # Handle overlap and connecting elements for Frame -> Structural Model node, edges
-        # TODO Handle within fea graph!
-        self.vertices = dict() # dictionary of vertices with coordinate as key and Vertex object as value
-        self.edges = [] # adjacency list of tuples of vertex indices pairs
-        self.maximal_edges = {
-            'horizontal': [],
-            'vertical': [],
-            'LB_RT': [], 
-            'LT_RB': []
-        }
+        self.initBoundaryConditions() # TODO is this necessary? 
 
-        # Boundary Conditions 
-        
-        # default_frames, supports, target_load = TrussFrameASAP.generate_env.set_cantilever_env(self.board_size_x, self.square_size, seed=seed)
-        # print(f'default_frames : {default_frames}, supports : {supports}, target load : {target_load}')
-        # self.supports = supports # dictionary of vertex.id : grid coordinates that are designated as supports / pinned as opposed to free
-        
-        # Init frames according to BC TODO is this necessary at init?
-        # for f_coords in default_frames:
-        #     new_frame = TrussFrameRL(f_coords, support=True)
-        #     self.frames.append(new_frame)
-        #     self.update_valid_pos(new_frame)
-        #     self.update_board(new_frame)
-        #     self.update_frame_graph(new_frame)
-        #     # self.update_fea_graph(new_frame)
-
-            
+        # TODO Visualize board as frame_grid, fea_graph (Visualizing representations)
 
         print("Initialized Cantilever Env!")
 
@@ -207,7 +203,75 @@ class CantileverEnv_0(gym.Env):
         self.frames = []
         self.curr_frame_type = self.default_frame_type
 
-        # Get boundary conditions
+        # Reset the current state
+        self.curr_frame_grid = np.zeros((self.frame_grid_size_y, self.frame_grid_size_x), dtype=int)
+        self.curr_fea_graph = FEAGraph() #FEAGraph object
+        self.curr_frame_graph = None # TODO graph representation of adjacent frames
+        self.valid_pos = set()
+
+        self.curr_obs = self._update_curr_obs()
+
+        # Set boundary conditions
+        self.initBoundaryConditions()
+
+        obs = self.curr_frame_grid 
+        info = None # TODO what is this used for?
+
+        return obs, info
+    
+    def step(self, action):
+        '''
+        Accepts an action, computes the state, reward of the environment after applying that action 
+        and returns the 5-tuple (observation, reward, terminated, truncated, info).
+        Action is (frame_x, frame_y) coordinate chosen by agent
+        If action is invalid, produce large negative reaction &/ terminate
+            registers transition (s=curr_state, a=action, s_prime=curr_state, r=-10, truncated=False)
+            In theory with termination agent may learn how to connect faster?
+            But also not terminating creates more valid transitions
+        
+        Input 
+            action : (frame_x, frame_y) 
+                
+        Returns:
+            observation, reward, terminated, truncated, info
+        '''
+        # Check if action is valid
+        if not self.is_valid_action(action):
+            reward = -10  # Negative reward for invalid action
+            terminated = False  # Continue episode
+            obs = self.curr_obs()  # Return the current state
+        else:
+            # Apply valid action and update environment state
+            self.apply_action(action)
+            reward = self.compute_reward() # based on changed state
+            obs = self.curr_obs()  # New observation after applying the action
+            terminated = self.check_termination()
+        truncated = False  # Assuming truncation is handled elsewhere or is not used
+
+        return obs, reward, terminated, truncated, {}
+    
+    def apply_action(self, valid_action):
+        '''
+        Apply action to current state
+        Assumed that valid action has been checked, thus only used with valid actions
+        Input 
+            valid_action : (frame_x, frame_y) coordinate 
+        '''
+        # create free TrussFrameRL at valid_action board coordinate
+        frame_center = self._framegrid_to_board(valid_action)
+        new_frame = TrussFrameRL(pos = frame_center)
+        
+        # update current state 
+        self.update_frame_grid(new_frame)
+        self.update_fea_graph(new_frame)
+        # TODO self.update_frame_graph(new_frame)
+
+        self._update_curr_obs()
+
+        self.frames.append(new_frame)
+
+
+    def initBoundaryConditions(self):
         support_frames, targetload_frames = generate_env.set_cantilever_env_framegrid(self.frame_grid_size_x) # within frame grid
 
         # init supports in curr_frame_grid according to bc
@@ -219,7 +283,6 @@ class CantileverEnv_0(gym.Env):
             self.update_frame_graph(new_s_frame)
             self.update_fea_graph(new_s_frame)
 
-
         for t_frame in targetload_frames:
             t_frame_coord, t_load_mag = t_frame
             # convert from frame grid coords to board coords 
@@ -230,7 +293,27 @@ class CantileverEnv_0(gym.Env):
             self.update_frame_grid(new_t_frame)
             self.update_frame_graph(new_t_frame)
             self.update_fea_graph(new_t_frame, t_load_mag)
+
+    def compute_reward(self):
+        '''
+        Compute reward based on current state
+        Make sure that action is taken before computing reward
+        '''
+        pass
     
+    def _update_curr_obs(self):
+        '''
+        Update the current observation based on the selected mode.
+        Make sure to use after updating states of different modes
+        '''
+        if self.obs_mode == 'frame_grid':
+            self.curr_obs = self.curr_frame_grid
+        elif self.obs_mode == 'fea_graph':
+            self.curr_obs = self.curr_fea_graph.get_state()
+        elif self.obs_mode == 'frame_graph':
+            self.curr_obs = self.curr_frame_graph.get_state() if self.curr_frame_graph else None
+        else:
+            raise ValueError(f"Invalid observation mode: {self.obs_mode}")
 
     def update_frame_grid(self, new_frame):
         '''
