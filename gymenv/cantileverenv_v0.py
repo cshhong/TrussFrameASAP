@@ -1,5 +1,6 @@
 '''
 TODO env with supports created at end
+TODO update_curr_fea_graph : handle support Vertex type within fea graph - add type within Vertex object
 
 '''
 import gymnasium as gym
@@ -7,11 +8,11 @@ from gymnasium import spaces
 from gymnasium.spaces import Box, Dict, Graph
 from gymnasium.spaces.graph import *
 
-import TrussFrameASAP.generate_env
 from TrussFrameASAP.trussframe import FrameType, TrussFrameRL
 from  TrussFrameASAP.vertex import Vertex
 from  TrussFrameASAP.maximaledge import MaximalEdge
 from  TrussFrameASAP.feagraph import FEAGraph
+import TrussFrameASAP.generate_env as generate_env
 
 
 import numpy as np
@@ -33,15 +34,80 @@ class CantileverEnv_0(gym.Env):
             rgb_list :  Returns a list of plots
 
         State / Observation : 
-            board 
+            board (implicit as basis for other state representations)
                 - (cell state for array size board_size_x, board_size_y) 
-                - board grid where each cell has value unoccupied= 0, free frame = 1, support frame = 2, force = -1
+                - A grid where each cell has a length of 1 unit.
+                - Structural nodes are created at the intersection points of the grid lines. 
+                     y
+                     ↑
+                4    •----•----•----•----•----•----•
+                     |    |    |    |    |    |    |
+                3    •----•----•----•----•----•----•
+                     |    |    |    |    |    |    |
+                2    •----•----•----•----•----•----•
+                     |    |    |    |    |    |    |
+                1    •----•----•----•----•----•----•
+                     |    |    |    |    |    |    |
+                0    •----•----•----•----•----•----•
+                     0    1    2    3    4    5    6   
+                
+            frame_grid
+                - np.array dtype=int with size (self.frame_grid_size_y, self.frame_grid_size_x)
+                - Modeled on cells of board
+                - Grid cells are occupied with with TrussFrameRL objects (support and non-support) and proxy frames for external load
+                - frames are created with a side length of 2 units (2 * cell) of the board.
+                - Each TrussFrameRL object has properties defined by the coordinates of its centroid, which aligns with frame distance intersections on the board.
+                - (external forces are represented as frames but in fea_graph apply external load to the bottom right vertex of the frame)
+                - grid where each cell has value unoccupied= 0, free frame = 1, support frame = 2, force = -1
+                
+                     y
+                     ↑
+                     •----•----•----•----•----•----•
+                     |    |    |    |    |    |    |
+                1    •-  -1-  -|-  -1-  -|-  -0-  -|
+                     |    |    |    |    |    |    |
+                     •----•----•----•----•----•----•
+                     |    |    |    |    |    |    |
+                0    •-  -2-  -|-  -0-  -|-  -0-  -|
+                     |    |    |    |    |    |    | 
+                     •----•----•----•----•----•----•
+                          0         1         2         
+            
             frame_graph 
-                - nodes represent frames and edges represent adjacency, and relative distance to support/external force
+                - Based on the frame_grid representation
+                - Nodes represent frames and Edges represent adjacency, and relative distance to support/external force
+                - TrussFrameRL objects are connected based on adjacency, all free TrussFrameRL objects are connected with external force object 
+
+            fea_graph
+                     y
+                     ↑
+                4    •----•----•----•----•----•----•
+                     |    |    |   ||    |    |    |
+                3    •----•----o----o----•----•----•
+                     |    |    |    |    |    |    |
+                2    •----o----o----o----•----•----•
+                     |    |    |    |    |    |    |
+                1    o----o----o----o----•----•----•
+                     |    |    |    |    |    |    |
+                0    ^----^----•----•----•----•----•
+                     0    1    2    3    4    5    6   
+                
+                - FEAGraph Object with properties
+                    vertices : A dictionary where keys are coordinates and values are Vertex objects.
+                                Vertex objects have properties coordinates, id, edges, is_free, load
+                    supports : list of vertex idx where the nodes in the frame are supports / pinned (as opposed to free)
+                    edges : An adjacency list of tuples representing edges, where each tuple contains vertex indices.
+                    maximal_edges : A dictionary where keys are directions and values are a list of MaximalEdge objects.
+                                    MaximalEdge objects have properties direction, vertices
+                    loads :  A list of tuples (node.id, [load.x, load.y, load.z]) 
+                - Modeled on intersections of the board 
+                - Nodes are Vertex objects which are modeled as structural nodes in ASAP
+                - Edges connect nodes as modeled as structural elements in ASAP
 
         Action : (end episode boolean, relative_x, relative_y)
-            create frame (constrainted to cell adjacent of existing frame) : (x,y) coordinate relative to start support 
-            end episode 
+            create frame within framegrid masked to cell adjacent of existing frame 
+            coordinates are relative to start support 
+            end episode boolean indicates that the structure is complete (there is no deterministic end condition)
     
     '''
     metadata = {"render_modes": ["human", "rgb", "rgb_list"], "render_fps": 1}
@@ -50,15 +116,13 @@ class CantileverEnv_0(gym.Env):
                  render_mode = None,
                  board_size_x=20,
                  board_size_y=10,
-                 cell_size=1,
                  frame_size=2,
                  video_save_interval_steps=500,
                  max_episode_length = 20,
                  ):
         
-        self.board_size_x = board_size_x
-        self.board_size_y = board_size_y
-        self.cell_size = cell_size
+        self.board_size_x = board_size_x # likely divisable with self.frame_size
+        self.board_size_y = board_size_y # likely divisable with self.frame_size
         self.frame_size = frame_size
         self.max_episode_length = max_episode_length
         self.env_num_steps = 0 # activated taking valid action in main (not env.step!)
@@ -77,12 +141,19 @@ class CantileverEnv_0(gym.Env):
         self.frames=[] # stores frames in sequence of creation
         self.default_frame_type = FrameType.DIAGONAL_LT_RB
         self.curr_frame_type = self.default_frame_type
-        self.support = [] # list of TrussFrameRL objects
-        self.external_force = [] # list of ? objects
+        # self.support_frames = [] # list of TrussFrameRL objects
         
-        self.curr_board = np.zeros(self.board_size_x, self.board_size_y) # TODO np.array?
-        self.curr_fea_graph = None #FEAGraph object
+        # Calculate the size of the frame grid based on the frame size
+        self.frame_grid_size_x = self.board_size_x // self.frame_size
+        self.frame_grid_size_y = self.board_size_y // self.frame_size
+
+        # Initialize the current frame grid with zeros (unoccupied=0)
+        self.curr_frame_grid = np.zeros((self.frame_grid_size_y, self.frame_grid_size_x), dtype=int)
+        self.curr_fea_graph = None #FEAGraph object TODO init default object
         self.curr_frame_graph = None # TODO graph representation of adjacent frames
+
+        # Visualize board as frame_grid, fea_graph (Visualizing representations)
+
         self.valid_pos = [] # list of board pos (x,y) in which new frame can be placed 
 
         # Mask actions
@@ -101,26 +172,32 @@ class CantileverEnv_0(gym.Env):
         }
 
         # Boundary Conditions 
-        self.per_node_load = -0.4
-        default_frames, supports, target_load = TrussFrameASAP.generate_env.set_cantilever_env(self.board_size_x, self.square_size, seed=seed)
-        print(f'default_frames : {default_frames}, supports : {supports}, target load : {target_load}')
-        self.target_loads = target_load 
-        self.supports = supports # dictionary of vertex.id : grid coordinates that are designated as supports / pinned as opposed to free
         
-        # Init frames according to BC 
-        for f_coords in default_frames:
-            new_frame = TrussFrameRL(f_coords, support=True)
-            self.frames.append(new_frame)
-            self.update_valid_pos(new_frame)
-            self.update_curr_board(new_frame)
-            self.update_curr_frame_graph(new_frame)
-            # self.update_curr_fea_graph(new_frame)
+        # default_frames, supports, target_load = TrussFrameASAP.generate_env.set_cantilever_env(self.board_size_x, self.square_size, seed=seed)
+        # print(f'default_frames : {default_frames}, supports : {supports}, target load : {target_load}')
+        # self.supports = supports # dictionary of vertex.id : grid coordinates that are designated as supports / pinned as opposed to free
+        
+        # Init frames according to BC TODO is this necessary at init?
+        # for f_coords in default_frames:
+        #     new_frame = TrussFrameRL(f_coords, support=True)
+        #     self.frames.append(new_frame)
+        #     self.update_valid_pos(new_frame)
+        #     self.update_curr_board(new_frame)
+        #     self.update_curr_frame_graph(new_frame)
+        #     # self.update_curr_fea_graph(new_frame)
 
             
 
         print("Initialized Cantilever Env!")
 
     def reset(self, seed=None, **kwargs):
+        '''
+        Create boundary condition within environment with 
+            generate_env.set_cantilever_env_framegrid(self.frame_grid_size_x)
+        that returns support_frames, targetload_frames within the frame grid
+        self.frames, self.valid_pos, self.curr_frame_grid, self.curr_frame_graph, self.curr_fea_graph is updated
+
+        '''
         print('Resetting Env!')
 
         self.render_list = []
@@ -129,6 +206,32 @@ class CantileverEnv_0(gym.Env):
         self.frames = []
         self.curr_frame_type = self.default_frame_type
 
+        # Get boundary conditions
+        support_frames, targetload_frames = generate_env.set_cantilever_env_framegrid(self.frame_grid_size_x)
+
+        # init supports in curr_frame_grid according to bc
+        for s_frame_coords in support_frames:
+            s_board_coords = self._framegrid_to_board(s_frame_coords) #convert from frame grid coords to board coords
+            new_s_frame = TrussFrameRL(s_board_coords, type=2)
+            self.frames.append(new_s_frame)
+            self.update_valid_pos(new_s_frame)
+            self.update_curr_frame_grid(new_s_frame)
+            self.update_curr_frame_graph(new_s_frame)
+            self.update_curr_fea_graph(new_s_frame)
+
+
+        for t_frame in targetload_frames:
+            t_frame_coord, t_load_mag = t_frame
+            # convert from frame grid coords to board coords 
+            t_board_coord = self._framegrid_to_board(t_frame_coord) # center of proxy frame
+            # t_board_coord = (self._framegrid_to_board(t_frame_coord)[0] + self.frame_size//2, self._framegrid_to_board(t_frame_coord)[1] - self.frame_size//2) 
+            new_t_frame = TrussFrameRL(t_board_coord, type=2)
+            self.frames.append(new_t_frame)
+            self.update_valid_pos(new_t_frame)
+            self.update_curr_frame_grid(new_t_frame)
+            self.update_curr_frame_graph(new_t_frame)
+            self.update_curr_fea_graph(new_t_frame, t_load_mag)
+            
 
     
     def update_valid_pos(self, new_frame):
@@ -137,16 +240,18 @@ class CantileverEnv_0(gym.Env):
         '''
         pass #TODO
 
-    def update_curr_board(self, new_frame):
+    def update_frame_grid(self, new_frame):
         '''
-        Given new TrussFrameRL object that is placed, update current board where 
+        Given new frame object, update current frame grid where 
+        Input
+            TrussFrameRL object 
         board 
-            - (cell state for array size board_size_x, board_size_y) 
+            - (cell state for array size frame_grid_size_x frame_grid_size_y) 
             - grid where each cell has value unoccupied= 0, free frame = 1, support frame = 2, force = -1
         '''
-        pass #TODO
+        self.curr_frame_grid[new_frame.x_frame, new_frame.y_frame] = new_frame.type_structure
 
-    def update_curr_frame_graph(self, new_frame):
+    def update_frame_graph(self, new_frame):
         '''
         Given new TrussFrameRL object that is placed, update current frame graph where 
             - nodes are TrussFrameRL objects
@@ -154,7 +259,7 @@ class CantileverEnv_0(gym.Env):
         '''
         pass #TODO
     
-    def update_curr_fea_graph(self, new_frame):
+    def update_fea_graph(self, new_frame, t_load_mag=[0,0,0]):
         '''
         Input 
             new_frame : TrussFrameRL object (centroid, frame type)
@@ -175,6 +280,7 @@ class CantileverEnv_0(gym.Env):
         1. merge overlapping new nodes with existing nodes
         2. check line overlap with existing edge using maximal edge representation 
         3. update edge list with new line segments
+
         '''
         # Calculate the positions of the four vertices
         half_size = self.square_size / 2
@@ -186,86 +292,45 @@ class CantileverEnv_0(gym.Env):
         ]
 
         vertices = self.curr_fea_graph.vertices # dictionary of vertices with coordinate as key and Vertex object as value
+        def_load = self.curr_fea_graph.default_node_load
 
-        # Merge overlapping new nodes with existing nodes
-        new_vertices = [] # Vertex object in order of bottom-left, bottom-right, top-right, top-left
-        for pos in vert_pos:
-            # get node index if node exists in self.nodes
-            if pos in vertices:
-                new_v = vertices[pos]
-            else: # If the node does not exist in the current graph, create new node
-                vert_idx = len(vertices)  # Assign a new index to the node
-                new_v = Vertex(pos)
-                self._update_load(new_v) # update load 
-                assert len(vertices)+1 == new_v.id, f'node index mismatch between {len(self.vertices)} and {vert.id}'
-                self.curr_fea_graph.vertices[pos] = new_v # add node with coordinate and index info
-            new_vertices.append(new_v) 
+        if new_frame.type_structure == -1: # target frame
+            # Bottom right vertex of proxy frame is registered as load but not as Vertex object
+            target_load_pos = vert_pos[1]
+            self.curr_fea_graph.external_loads[target_load_pos] = t_load_mag
+            # TODO need to cross check with existing Vertices if target load is added after environment init
+        else: # free or support
+            new_vertices = [] # Vertex object in order of bottom-left, bottom-right, top-right, top-left
+            for i, pos in enumerate(vert_pos):
+                if new_frame.type_structure == 1:
+                    is_free = True
+                elif new_frame.type_structure == 2:
+                    if i==0 or i==1: # Bottom left, Bottom right
+                        is_free = False
+                    else:
+                        is_free = True
+                if pos in vertices: # node exists in current fea graph merge overlapping new nodes with existing nodes
+                    new_v = vertices[pos]
+                    new_v.is_free = is_free # DEBUG change existing node is free property
+                else: # If the node does not exist in the current graph, create new node
+                    new_v = Vertex(pos, is_free=is_free, load=def_load)
+                    if pos in self.curr_fea_graph.external_loads:
+                        self._add_external_load(new_v)
+                    vertices[pos] = new_v # add node to fea graph
+                new_vertices.append(new_v) 
 
-
-        # Check line overlap with existing edge using maximal edge representation 
-        # check horizontal edges 
-        h1 = (new_vertices[0], new_vertices[1]) # Vertex objects 
-        h2 = (new_vertices[3], new_vertices[2])
-        # check vertical edges
-        v1 = (new_vertices[1], new_vertices[2])
-        v2 = (new_vertices[0], new_vertices[3])
-        # check diagonal lines
-        d1, d2 = None, None
-        if self.curr_frame_type == FrameType.DIAGONAL_LB_RT:
-            d1 = (new_vertices[0], new_vertices[2])
-        elif self.curr_frame_type == FrameType.DIAGONAL_LT_RB:
-            d2 = (new_vertices[1], new_vertices[3])
-        elif self.curr_frame_type == FrameType.DOUBLE_DIAGONAL:
-            d1 = (new_vertices[0], new_vertices[2])
-            d2 = (new_vertices[1], new_vertices[3])
-        segments = {
-                    'horizontal': [h1, h2],
-                    'vertical': [v1, v2],
-                    'LB_RT': [d1],
-                    'LT_RB': [d2]
-                }
-        for direction, segs in segments.items():
-            self.curr_fea_graph.combine_segments(segs, direction)
-
-        # Update edge list with new line segments
-        # get minimal edge list from each maximal edge
-        maximal_edges = self.curr_fea_graph.maximal_edges
-        all_edges = []
-        for dir in maximal_edges:
-            self.curr_fea_graph.merge_maximal_edges() # update maximal edges that are merged from new frame 
-            for me in maximal_edges[dir]:
-                # print(f'extracting edge from maximal edge : {me}')
-                all_edges.extend(me.get_edge_list()) # get list of tuples of vertex indices
-        self.curr_fea_graph.edges = all_edges
+            # Check line overlap with existing edge using maximal edge representation 
+            self.curr_fea_graph.combine_and_merge_edges(frame_type=self.curr_frame_type, new_vertices=new_vertices)
 
 
-    # Check if in place change is equlivalent to this 
-    # G = FEAGraph(vertices=copy.deepcopy(self.vertices), 
-            #           supports = copy.deepcopy(self.supports),
-            #           edges=copy.deepcopy(self.edges), 
-            #           maximal_edges=copy.deepcopy(self.maximal_edges),
-            #           loads = self.get_loads(), # update default and external(if connected) frame loads 
-            #     )
-            # self.curr_fea_graph = G
-
-    def _update_load(self, new_vert):
+    def _framegrid_to_board(self, framegrid_coords):
         '''
-        Input:
-            new_vert : Vertex Object
+        Input
+            framegrid_coords : (x_frame, y_frame) coordinates within frame grid
+        Output
+            board_coords : (x,y) centroid board coords of frame 
         '''
-        # TODO Update loads
-        # loads = []
-        # Iterate over all vertices in the graph
-        # for vertex in self.vertices.values(): # Vertex objects
-        # Start with the default load applied to the node
-        load = [0.0, self.per_node_load, 0.0]
-
-        # Check if this vertex's coordinates match any target load coordinates
-        if new_vert.coordinates in self.target_loads:
-            # If it's a target node, add the final load to the default load (element-wise)
-            target_load = self.target_loads[new_vert.coordinates]
-            load = [load[i] + target_load[i] for i in range(len(load))]
-
-        self.curr_fea_graph.loads.append((new_vert.id, load))
-        # Append the vertex id and load to the final loads list
-        # loads.append((vertex.id, load))
+        board_x = framegrid_coords[0]*self.frame_size + self.frame_size//2
+        board_y = framegrid_coords[1]*self.frame_size + self.frame_size//2
+        return (board_x, board_y)
+        
