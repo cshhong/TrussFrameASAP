@@ -4,6 +4,7 @@ TODO Env - random placement of supports, target load
         - connect all (as collection problem) -> FEA on final structure - likely will not be interesting solutions, make sure to make nodal weight heavy
         - connect all with limited options to add support? -> FEA on final structure
 
+DONE step and reset
 TODO render function 
 TODO rollout with manual control?
 
@@ -30,6 +31,9 @@ from  TrussFrameASAP.vertex import Vertex
 from  TrussFrameASAP.maximaledge import MaximalEdge
 from  TrussFrameASAP.feagraph import FEAGraph
 import TrussFrameASAP.generate_env as generate_env
+
+import matplotlib.patches as patches
+from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 
 
 import numpy as np
@@ -216,6 +220,8 @@ class CantileverEnv_0(gym.Env, obs_mode='frame_grid'):
 
         obs = self.curr_frame_grid 
         info = None # TODO what is this used for?
+        
+        self._render()
 
         return obs, info
     
@@ -248,6 +254,8 @@ class CantileverEnv_0(gym.Env, obs_mode='frame_grid'):
             terminated = self.check_termination()
         truncated = False  # Assuming truncation is handled elsewhere or is not used
 
+        self._render()
+
         return obs, reward, terminated, truncated, {}
     
     def apply_action(self, valid_action):
@@ -269,6 +277,117 @@ class CantileverEnv_0(gym.Env, obs_mode='frame_grid'):
         self._update_curr_obs()
 
         self.frames.append(new_frame)
+
+    def draw_fea_graph(self):
+        '''
+        Update self.fig and self.ax based on self.curr_fea_graph
+        used in _render_frame
+        '''
+        text_offset = 0.1
+
+        vertices = self.curr_fea_graph.vertices.items() # coord, Vertex object pairs
+        maximal_edges = self.curr_fea_graph.maximal_edges.items()
+        # Draw vertices
+        for coord, vertex in vertices:
+            if vertex.id in list(self.supports.keys()):
+                self.ax.add_patch(patches.Rectangle((coord[0] - 0.1, coord[1] - 0.1), 0.2, 0.2, color='blue', lw=1.5, fill=True))
+            else:
+                self.ax.add_patch(patches.Circle(coord, radius=0.1, color='blue', lw=1.5, fill=False ))
+            self.ax.text(coord[0]-text_offset, coord[1]+text_offset, 
+                         str(vertex.id), 
+                         fontsize=10, ha='right', color='black')
+
+        # Draw maximal edges (optional, if visually distinct from normal edges)
+        for direction, edges in maximal_edges:
+            for edge in edges:
+                if len(edge.vertices) >= 2:
+                    # Get start and end vertices from the list of vertices
+                    start_me = edge.vertices[0]
+                    end_me = edge.vertices[-1]
+                    
+                    # Draw the line connecting the start and end vertices
+                    self.ax.plot([start_me.coordinates[0], end_me.coordinates[0]], 
+                                [start_me.coordinates[1], end_me.coordinates[1]], 
+                                color='black', linestyle='-', linewidth=1)
+                else:
+                    print(f"Warning: Maximal edge in direction {direction} has less than 2 vertices and cannot be drawn.")
+
+    def _render_frame(self):
+        '''
+        used in _render to plot figure 
+        initialize and updates self.ax self.fig object 
+        '''
+        # Create the figure and axes
+        self.fig, self.ax = self.plt.subplots(figsize=self.figsize)
+        self.ax.set_xlim([0, self.board_size_x])
+        self.ax.set_ylim([0, self.board_size_y])
+        self.ax.set_aspect('equal', adjustable='box')
+        self.ax.set_xticks(range(self.board_size_x + 1))
+        self.ax.set_yticks(range(self.board_size_y + 1))
+
+        # Draw grid lines
+        self.ax.grid(True, which='both', color='lightblue', linestyle='-', linewidth=1)
+        for i in range(0, self.board_size_x + 1, 2):
+            self.ax.axvline(x=i, color='lightblue', linestyle='-', linewidth=2)
+        for j in range(0, self.board_size_y + 1, 2):
+            self.ax.axhline(y=j, color='lightblue', linestyle='-', linewidth=2)
+
+        self.draw_fea_graph() # update with current fea graph 
+
+        self.plt.grid(True)
+
+
+    def _render(self):
+        '''
+        used in reset,step to accumulate plt in render_list or show plt
+        '''
+        if self.render_mode == "human":
+                self._render_frame()
+                self.plt.show()
+                self.plt.close(fig)
+            
+        elif self.render_mode == "rgb_list":
+            if self.n_epi % self.video_save_interval == 0:
+                # save frames for one episode
+                fig = self._render_frame()
+                img = self._fig_to_rgb_array(fig)
+                self.render_list.append(img)
+                self.plt.close(fig)
+
+    def render(self, render_dir=None):
+        '''
+        Trigger final render action. Used in main loop
+            - 'rgb' : save figure
+            - 'rgb_list' : return list of fig objects
+            - 'human' : None
+        '''
+        if self.render_mode == "rgb":
+            fig = self._render_frame()
+            assert render_dir !=None, "need to set render_dir in render function!"
+            fig.savefig(os.path.join(render_dir, 'test.png'), bbox_inches='tight')  
+            self.plt.close(fig) # manage memory usage
+            return self._render_frame() # fig object
+        
+        elif self.render_mode == "rgb_list":
+            return self.render_list # list of fig objects
+        
+        elif self.render_mode == "human":
+            return None
+        else:
+            raise NotImplementedError(f"Render mode {self.render_mode} is not supported")
+        
+    def _fig_to_rgb_array(self, fig):
+        '''
+        Draw the figure on the canvas
+        Used to save plt within render_list
+        '''
+        canvas = FigureCanvas(fig)
+        canvas.draw()
+        buf = canvas.buffer_rgba() # Retrieve the image as a string buffer
+        X = np.asarray(buf) # Convert to a NumPy array
+        rgb_array = X[:, :, :3] # Convert RGBA to RGB
+        
+        return rgb_array
 
 
     def initBoundaryConditions(self):
@@ -299,7 +418,8 @@ class CantileverEnv_0(gym.Env, obs_mode='frame_grid'):
         Compute reward based on current state
         Make sure that action is taken before computing reward
         '''
-        pass
+        # TODO 
+        return +1
     
     def _update_curr_obs(self):
         '''
