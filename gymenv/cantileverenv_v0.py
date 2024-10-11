@@ -1,7 +1,8 @@
 '''
 TODO env with supports created at end
-TODO update_curr_fea_graph : handle support Vertex type within fea graph - add type within Vertex object
-
+TODO Env - random placement of supports, target load 
+        - connect all (as collection problem) -> FEA on final structure - likely will not be interesting solutions, make sure to make nodal weight heavy
+        - connect all with limited options to add support? -> FEA on final structure
 '''
 import gymnasium as gym
 from gymnasium import spaces
@@ -154,7 +155,7 @@ class CantileverEnv_0(gym.Env):
 
         # Visualize board as frame_grid, fea_graph (Visualizing representations)
 
-        self.valid_pos = [] # list of board pos (x,y) in which new frame can be placed 
+        self.valid_pos = set() # set of board pos (x,y) in which new frame can be placed 
 
         # Mask actions
         # self.action_maps = self.get_all_actions()
@@ -182,9 +183,9 @@ class CantileverEnv_0(gym.Env):
         #     new_frame = TrussFrameRL(f_coords, support=True)
         #     self.frames.append(new_frame)
         #     self.update_valid_pos(new_frame)
-        #     self.update_curr_board(new_frame)
-        #     self.update_curr_frame_graph(new_frame)
-        #     # self.update_curr_fea_graph(new_frame)
+        #     self.update_board(new_frame)
+        #     self.update_frame_graph(new_frame)
+        #     # self.update_fea_graph(new_frame)
 
             
 
@@ -207,17 +208,16 @@ class CantileverEnv_0(gym.Env):
         self.curr_frame_type = self.default_frame_type
 
         # Get boundary conditions
-        support_frames, targetload_frames = generate_env.set_cantilever_env_framegrid(self.frame_grid_size_x)
+        support_frames, targetload_frames = generate_env.set_cantilever_env_framegrid(self.frame_grid_size_x) # within frame grid
 
         # init supports in curr_frame_grid according to bc
         for s_frame_coords in support_frames:
             s_board_coords = self._framegrid_to_board(s_frame_coords) #convert from frame grid coords to board coords
             new_s_frame = TrussFrameRL(s_board_coords, type=2)
             self.frames.append(new_s_frame)
-            self.update_valid_pos(new_s_frame)
-            self.update_curr_frame_grid(new_s_frame)
-            self.update_curr_frame_graph(new_s_frame)
-            self.update_curr_fea_graph(new_s_frame)
+            self.update_frame_grid(new_s_frame)
+            self.update_frame_graph(new_s_frame)
+            self.update_fea_graph(new_s_frame)
 
 
         for t_frame in targetload_frames:
@@ -225,31 +225,50 @@ class CantileverEnv_0(gym.Env):
             # convert from frame grid coords to board coords 
             t_board_coord = self._framegrid_to_board(t_frame_coord) # center of proxy frame
             # t_board_coord = (self._framegrid_to_board(t_frame_coord)[0] + self.frame_size//2, self._framegrid_to_board(t_frame_coord)[1] - self.frame_size//2) 
-            new_t_frame = TrussFrameRL(t_board_coord, type=2)
+            new_t_frame = TrussFrameRL(t_board_coord, type=-1)
             self.frames.append(new_t_frame)
-            self.update_valid_pos(new_t_frame)
-            self.update_curr_frame_grid(new_t_frame)
-            self.update_curr_frame_graph(new_t_frame)
-            self.update_curr_fea_graph(new_t_frame, t_load_mag)
-            
-
+            self.update_frame_grid(new_t_frame)
+            self.update_frame_graph(new_t_frame)
+            self.update_fea_graph(new_t_frame, t_load_mag)
     
-    def update_valid_pos(self, new_frame):
-        '''
-        Given new TrussFrameRL object, update self.valid_pos (list of (x,y) where new frame can be placed) 
-        '''
-        pass #TODO
 
     def update_frame_grid(self, new_frame):
         '''
         Given new frame object, update current frame grid where 
         Input
             TrussFrameRL object 
-        board 
+        
+        Updates:
+        - self.curr_frame_grid : A grid where each cell is updated based on the frame type.
             - (cell state for array size frame_grid_size_x frame_grid_size_y) 
             - grid where each cell has value unoccupied= 0, free frame = 1, support frame = 2, force = -1
+        - self.valid_pos : A set of valid (x, y) frame positions on the frame grid where a new frame can be placed.
         '''
+        # Update the current frame grid with the new frame's type
         self.curr_frame_grid[new_frame.x_frame, new_frame.y_frame] = new_frame.type_structure
+
+        # Remove the position of the new frame from valid_pos if it exists
+        if (new_frame.x_frame, new_frame.y_frame) in self.valid_pos:
+            self.valid_pos.remove((new_frame.x_frame, new_frame.y_frame))
+        else:
+            raise ValueError(f"Position ({new_frame.x_frame}, {new_frame.y_frame}) is not a valid position for placing a frame.")
+
+        # Check the four adjacent cells within the frame grid 
+        adj_cells = [
+            (new_frame.x_frame - 1, new_frame.y_frame),  # Left
+            (new_frame.x_frame + 1, new_frame.y_frame),  # Right
+            (new_frame.x_frame, new_frame.y_frame - 1),  # Below
+            (new_frame.x_frame, new_frame.y_frame + 1)   # Above
+        ]
+
+        # Add adjacent cells to valid_pos if they are unoccupied (value 0)
+        for (x_adj, y_adj) in adj_cells:
+            # Check if the adjacent cell is within the frame grid bounds
+            if 0 <= x_adj < self.frame_grid_size_x and 0 <= y_adj < self.frame_grid_size_y:
+                # If the adjacent cell is unoccupied, add it to valid_pos
+                if self.curr_frame_grid[x_adj, y_adj] == 0:
+                    if (x_adj, y_adj) not in self.valid_pos:
+                        self.valid_pos.add((x_adj, y_adj)) # 
 
     def update_frame_graph(self, new_frame):
         '''
