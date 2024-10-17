@@ -40,15 +40,15 @@ class TrussFrameRL:
     '''
     _id_counter = 0  # Class-level counter for automatically assigning unique IDs
 
-    def __init__(self, pos, type=1, type_shape=FrameType.DIAGONAL_LT_RB, frame_size=2, type_structure=-1):
+    def __init__(self, pos, type_shape=FrameType.DIAGONAL_LT_RB, frame_size=2, type_structure=1):
         self.type_shape = type_shape  # Type of the frame
         self.x = pos[0] 
         self.y = pos[1] 
         self.x_frame = int(self.x // frame_size)
         self.y_frame = int(self.y // frame_size)
-        self.type_structure = type # free frame = 1, support frame = 2, force = -1
+        self.type_structure = type_structure # free frame = 1, support frame = 2, force = -1
         
-        # Automatically count and assign a unique ID
+        # Automatically count and assign a unique ID - support, target load, following frames
         self.id = TrussFrameRL._id_counter
         TrussFrameRL._id_counter += 1  # Increment the class-level counter
 

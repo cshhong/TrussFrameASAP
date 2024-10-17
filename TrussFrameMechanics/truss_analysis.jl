@@ -87,7 +87,7 @@ export create_and_solve_model_julia
         # println("fanalysis :", fanalysis)
         # # danalysis = ElementDisplacements(element, model)
 
-        println("axial forces :" ,axial_force.(model.elements))
+        # println("axial forces :" ,axial_force.(model.elements))
 
 
         return model
@@ -119,7 +119,7 @@ export create_and_solve_model_julia
     The model can be used to query results such as nodal displacements or reactions.
     """
 
-    function create_and_solve_model_julia(node_coords, element_conns, support_idx, loads)
+    function create_and_solve_model_julia(node_coords, element_conns, fixed_idx, loads)
 
         # Define Nodes using the custom Node structure
         # nodes = [Node(Vector{Float64}(coord), :fixed) for coord in node_coords]
@@ -137,7 +137,8 @@ export create_and_solve_model_julia
         """
 
         # nodes = [Node(Vector{Float64}(coord), i < 3 ? :pinned : :free) for (i, coord) in enumerate(node_coords)]
-        nodes = [Node(Vector{Float64}(coord), i in support_idx ? :pinned : :free) for (i, coord) in enumerate(node_coords)]
+        nodes = [Node(Vector{Float64}(coord), i in fixed_idx ? :pinned : :free) for (i, coord) in enumerate(node_coords)]
+        # println("nodes : ", nodes )
 
         
         # # Define material properties (from 2D truss Asap test)
@@ -154,9 +155,11 @@ export create_and_solve_model_julia
         
         # Create Elements using the connections and custom Element structure
         elements = [Element(nodes[conn[1]], nodes[conn[2]], sec) for conn in element_conns] #default is fixedfixed
+        # println("elements : ", elements )
 
         # Create Load objects based on the custom AbstractLoad structure
         loads = [NodeForce(nodes[load[1]], Vector{Float64}(load[2])) for load in loads]
+        # println("loads : ", loads )
 
         # Assemble the structural model
         model = Model(nodes, elements, loads)

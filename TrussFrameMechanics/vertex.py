@@ -11,19 +11,22 @@ class Vertex:
         coordinates: A tuple representing the position of the vertex (e.g., (x, y) for 2D space).
         id: A unique integer identifier for each vertex, automatically assigned using a class-level counter (_id_counter).
         edges: A list of edges connected to this vertex, which can store Edge objects. (unused) #TODO
+        is_free : Boolean that represent whether the structural node is free or pinned
+        load : load value on vertex [x,y,z]
     '''
     _id_counter = 1  # Class-level counter for vertex IDs
 
-    def __init__(self, coordinates):
+    def __init__(self, coordinates, is_free=True, load=0):
         self.coordinates = coordinates
-        # self.id = f'v{Vertex._id_counter}'
         self.id = Vertex._id_counter
         Vertex._id_counter += 1
         self.edges = []
+        self.is_free = is_free # support nodes are False (pinned)
+        self.load = load 
 
     def __repr__(self):
         # return f"Vertex({self.id}, {self.coordinates})"
-        return f"Vertex({self.id})"
+        return f"Vertex(id:{self.id} / coords:{self.coordinates} / free:{self.is_free} / load:{self.load})"
     
     def __lt__(self, other):
         '''
@@ -48,4 +51,4 @@ class Vertex:
         return False
     
     def __hash__(self):
-        return hash((self.id, self.coordinates))
+        return hash((self.id, self.coordinates, self.is_free))

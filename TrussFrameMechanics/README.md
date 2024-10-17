@@ -5,7 +5,7 @@ This repository provides a user-playable version of TrussFrameASAP, designed to 
 ## Files Overview
 
 - **main.py**: 
-  - The primary interface for the user. It creates a drawing board where users can sequentially add truss frames by clicking on a grid. The interface also visualizes the progressive displacement of the structure as it undergoes FEA.
+  - The primary interface for the user implemented with matplotlib. It creates a drawing board where users can sequentially add truss frames by clicking on a grid. The interface also visualizes the progressive displacement of the structure as it undergoes FEA.
   
 - **maximaledge.py**: 
   - Processes geometric representations of TrussFrames into a graph structure, converting them into nodes and edges that can be utilized for FEA.

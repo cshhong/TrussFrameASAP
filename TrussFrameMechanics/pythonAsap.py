@@ -2,7 +2,8 @@ import juliacall
 import numpy as np
 # from juliacall import Main as jl
 '''
-Wrapper to communicate (python) Graph -> (julia) ASAP FEA -> (python) displacement 
+Used in main.py (human playable version)
+Wrapper to communicate (python) FEAGraph -> (julia) ASAP FEA -> (python) displacement 
 
 _extract_graph_data : extract from graph information needed for finite element analysis on structure using ASAP
 solve_truss_from_graph : calls julia, performs FEA on structure within julia session, returns structure displacement to python
@@ -12,7 +13,7 @@ solve_truss_from_graph : calls julia, performs FEA on structure within julia ses
 def _extract_graph_data(graph):
     '''
     Input
-        Graph object with vertices, edges, maximal_edges, loads
+        FEAGraph object with vertices, edges, maximal_edges, loads
     Output
     ------
     node_coordinates : list of tuple float?(x, y, z)
@@ -41,22 +42,26 @@ def _extract_graph_data(graph):
 
 def solve_truss_from_graph(jl, graph, loads):
     """
-    Extracts node coordinates and element connections from a Graph object,
+    Extracts node coordinates and element connections from a FEAGraph object,
     creates a TrussModel in Julia using the extracted data, solves it,
     and returns the maximum displacement.
     
     Input:
     -----------
-    graph : Graph
-        The Graph object containing vertices and edges.
+        graph : FEAGraph
+            The FEAGraph object containing vertices and edges.
+        loads : (node_id, (load_x, load_y, load_z))
+
     
     Output:
     --------
-    max_displacement : float
-        The maximum nodal displacement of the truss model.
+        max_displacement : float
+            The maximum nodal displacement of the truss model.
     """
-    # Step 1: Extract information from the Graph object
+    # Step 1: Extract information from the FEAGraph object
     node_coords, element_conns, support_idx = _extract_graph_data(graph) # is format PyList{Any} in Julia
+
+    
 
     # Step 2: Create and solve the Truss Model in Julia named 'model' using the extracted data
     # truss_model = jl.create_and_solve_truss_model_julia(node_coords, element_conns, loads)
@@ -71,7 +76,7 @@ def solve_truss_from_graph(jl, graph, loads):
     displacement = np.array(displacement).reshape(len(node_coords), 6) # reshape to 3D coordinates (Frame Model)
     translational_u = displacement[:, :3]  # Extract the first three translational DOFs (u_x, u_y, u_z)
 
-    print(f' displacement  : \n {translational_u}')
+    # print(f' displacement  : \n {translational_u}')
 
 
     return translational_u

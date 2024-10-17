@@ -1,5 +1,5 @@
 """
-Used to process TrussFrame -> Vertices and Edges in a Graph structure
+Used to process TrussFrame -> Vertices and Edges in a FEAGraph structure
     - handles overlapping vertices, overlapping and extended edges by organizing in maximal graph
 
 Also used to make visualization efficient (maximal edge is drawn at once)
