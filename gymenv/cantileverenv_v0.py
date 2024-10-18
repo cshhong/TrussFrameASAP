@@ -11,23 +11,20 @@ TODO Going further is there a way to get diverse high performing solutions acros
 TODO Going further from general group of high performing designs -> perturb points -> how does performance change? 
     Get diverse group of high performing designs through refinement 
 
-Smaller Goals
 TODO env with supports created at end?
 TODO Env - random placement of supports, target load 
         - connect all (as collection problem) -> FEA on final structure - likely will not be interesting solutions, make sure to make nodal weight heavy
         - connect all with limited options to add support? -> FEA on final structure
 
-DONE step and reset
-DONE render function 
-TODO rollout with manual control?
+Smaller Goals
 
 DONE edit so that FEA is only run when end is indicated (otherwise no incentive to build after reaching target)
 TODO reward : step reward to connect + end FEA reward 
 
-DONE implement is valid action
+DONE draw displacement at end
 
-TODO draw displacement at end
-TODO clickable human mode
+DONE test rgb_list mode
+DONE implemented save_video 
 
 
 Resources
@@ -87,7 +84,9 @@ class CantileverEnv_0(gym.Env):
         
         Render modes:
             None : no render is computed (used in training) 
-            'human' : occur during step, render, returns None
+
+            'debug_all' : plots all steps (including those without valid actions)
+            'debug_valid' : plots only steps with valid actions
             'rgb_list' :  Returns a list of plots
                 - wrapper, gymnasium.wrappers.RenderCollection is automatically applied during gymnasium.make(..., render_mode="rgb_list").
                 - The frames collected are popped after render() is called or reset().
@@ -174,7 +173,7 @@ class CantileverEnv_0(gym.Env):
 
     
     '''
-    metadata = {"render_modes": [None, "human", "rgb_list"], 
+    metadata = {"render_modes": [None, "debug_all", "debug_valid", "rgb_list"], 
                 "render_fps": 1,
                 "obs_modes" : ['frame_grid', 'fea_graph', 'frame_graph'],
                 }
@@ -227,6 +226,7 @@ class CantileverEnv_0(gym.Env):
 
         # if actions are taken outside of valid_pos, large negative reward is given.  
         self.valid_pos = set() # set of frame_grid coordinates (frame_x, frame_y) in which new frame can be placed 
+        self.is_valid_action = False
         # if episode ends without being connected, large negative reward is given.
         self.target_loads_met = {} # Whether target load was reached : key is (x,y) coordinate on board value is True/False
         self.is_connected = False # whether the support is connected to (all) the target loads, 
@@ -236,15 +236,18 @@ class CantileverEnv_0(gym.Env):
         if self.obs_mode not in self.metadata["obs_modes"]:
             raise ValueError(f"Invalid observation mode: {self.obs_mode}. Valid modes are: {self.metadata['obs_modes']}")
         self.curr_obs = None
-        self._update_curr_obs() # Set according to obs_mode
+        self.update_curr_obs() # Set according to obs_mode
 
         self.observation_space = None
         self.action_space = None
-        self._set_gym_spaces()
-
-        # self.initBoundaryConditions() # TODO is this necessary? 
+        self.set_gym_spaces()
 
         print("Initialized Cantilever Env!")
+        self.render()
+
+        # Interactive
+        # self.click_frame_x = None
+        # self.click_frame_y = None
 
     def reset(self, seed=None, **kwargs):
         '''
@@ -267,18 +270,24 @@ class CantileverEnv_0(gym.Env):
         self.curr_fea_graph = FEAGraph() #FEAGraph object
         self.curr_frame_graph = None # TODO graph representation of adjacent frames
         self.valid_pos = set()
+        self.is_valid_action = False
 
-        self._update_curr_obs() 
+        self.update_curr_obs() 
+
+        # Reset the Vertex ID counter
+        Vertex._id_counter = 1
 
         # Set boundary conditions
         self.initBoundaryConditions()
-        print(f'target loads met : {self.target_loads_met}')
+        # print(f'target loads met : {self.target_loads_met}')
 
         obs = self.curr_obs
         info = {} # TODO what is this used for?
         
+        self.is_valid_action = True # temporarily turn on to trigger render
         self.render()
-        print(f"valid pos : {self.valid_pos}")
+        self.is_valid_action = False
+        # print(f"valid pos : {self.valid_pos}")
 
         return obs, info
     
@@ -298,6 +307,8 @@ class CantileverEnv_0(gym.Env):
         Returns:
             observation, reward, terminated, truncated, info
         '''
+        self.is_valid_action = False
+
         # Large negative reward is given if action taken is not in valid position
         end, frame_x, frame_y = action
         end_bool = True if end==1 else False
@@ -308,7 +319,7 @@ class CantileverEnv_0(gym.Env):
             terminated = False  # Continue episode
             # Do not apply this action to the environment!
         else:
-            temp_is_connected = self._check_is_connected(frame_x, frame_y)
+            temp_is_connected = self.check_is_connected(frame_x, frame_y)
             # Large negative reward is given if decide to end episode but support and target not connected
             # (action is not applied to environment)
             if end_bool == True and temp_is_connected == False:
@@ -317,40 +328,41 @@ class CantileverEnv_0(gym.Env):
             # Correctly ended after support and loads are all connected
             elif end_bool == True and temp_is_connected == True:
                 # Apply valid action and update environment state
+                self.is_valid_action = True
                 self.apply_action(action)
                 # TODO add displacement reward
                 reward = 10 # TODO get final structural reward (Big pos - negative for element count ) 
-                self.draw_truss_analysis(self) # last plot has displaced structure 
                 terminated = True
             elif end_bool == False:
+                self.is_valid_action = True
                 self.apply_action(action)
                 reward = 1 # small reward for creating block 
                 terminated = False
 
         obs = self.curr_obs  # New observation after applying the action
-        print(f"current FEAGraph : \n {self.curr_fea_graph} ")
-        self.print_framegrid()
+        # print(f"current FEAGraph : \n {self.curr_fea_graph} ")
+        # self.print_framegrid()
         truncated = False  # Assuming truncation is handled elsewhere or is not used
 
         # is render() is triggered automatically at each step?
-        # Display render every step for 'human' mode TODO why not for 'rbg_list' mode??
+        # Display render every step for 'debug_all' mode TODO why not for 'rbg_list' mode??
         self.render()
-
         return obs, reward, terminated, truncated, {}
     
-    def _check_is_connected(self, frame_x, frame_y):
+    # Step related 
+    def check_is_connected(self, frame_x, frame_y):
         '''
+        Used in step to temporarily forward check given action whetner overall structure is connected (support and target load)
+        (this frame is not necessarily created in env)
+        (Assumption that frames can only be built in adjacent cells allows us to check only most recent frame)
         Input
             frame center coordinates (frame_x, frame_y)
-        Check if overall structure is connected (support and target load)
-        Assumption that frames can only be built in adjacent cells allows us to check only most recent frame
-        Does temporary forward checking (this frame is not necessarily created in env)
         '''
         # check if top-right, or top-left node of frame changes current self.target_loads_met values
         # given temporary changed values, if all are true, return True
         temp_target_loads_met = self.target_loads_met.copy()
         
-        center = self._framegrid_to_board(frame_x, frame_y) # get center board coordinates
+        center = self.framegrid_to_board(frame_x, frame_y) # get center board coordinates
         top_right = (center[0] + self.frame_size//2, center[1] + self.frame_size//2)
         top_left = (center[0] - self.frame_size//2, center[1] + self.frame_size//2)
 
@@ -360,14 +372,13 @@ class CantileverEnv_0(gym.Env):
             if top_left == target:
                 temp_target_loads_met[target] = True
 
-        print(f"_check_is_connected : {temp_target_loads_met}")
+        # print(f"check_is_connected : {temp_target_loads_met}")
         
         # Check if all target loads are met
         if all(temp_target_loads_met.values()):
             return True
         else:
             return False
-
     
     def apply_action(self, valid_action):
         '''
@@ -379,7 +390,7 @@ class CantileverEnv_0(gym.Env):
         '''
         # create free TrussFrameRL at valid_action board coordinate
         end, frame_x, frame_y = valid_action
-        frame_center = self._framegrid_to_board(frame_x, frame_y)
+        frame_center = self.framegrid_to_board(frame_x, frame_y)
         new_frame = TrussFrameRL(pos = frame_center)
         
         # update current state 
@@ -389,140 +400,21 @@ class CantileverEnv_0(gym.Env):
             self.update_displacement()
         # TODO self.update_frame_graph(new_frame)
 
-        self._update_curr_obs()
+        self.update_curr_obs()
 
         self.frames.append(new_frame)
 
         self.update_target_meet(new_frame)
 
-    def draw_fea_graph(self):
-        '''
-        Update self.fig and self.ax based on self.curr_fea_graph
-        used in _render_frame
-        '''
-        text_offset = 0.1
-
-        vertices = self.curr_fea_graph.vertices.items() # coord, Vertex object pairs
-        maximal_edges = self.curr_fea_graph.maximal_edges.items()
-        supports = self.curr_fea_graph.supports # list of board coords where the nodes are supports / pinned (as opposed to free)
-        # Draw vertices
-        for coord, vertex in vertices:
-            # if vertex.coordinates in supports:
-            if vertex.is_free == False:
-                self.ax.add_patch(patches.Rectangle((coord[0] - 0.1, coord[1] - 0.1), 0.2, 0.2, color='blue', lw=1.5, fill=True))
-            else:
-                self.ax.add_patch(patches.Circle(coord, radius=0.1, color='blue', lw=1.5, fill=False ))
-            self.ax.text(coord[0]-text_offset, coord[1]+text_offset, 
-                         str(vertex.id), 
-                         fontsize=10, ha='right', color='black')
-
-        # Draw maximal edges (optional, if visually distinct from normal edges)
-        for direction, edges in maximal_edges:
-            for edge in edges:
-                if len(edge.vertices) >= 2:
-                    # Get start and end vertices from the list of vertices
-                    start_me = edge.vertices[0]
-                    end_me = edge.vertices[-1]
-                    
-                    # Draw the line connecting the start and end vertices
-                    self.ax.plot([start_me.coordinates[0], end_me.coordinates[0]], 
-                                [start_me.coordinates[1], end_me.coordinates[1]], 
-                                color='black', linestyle='-', linewidth=1)
-                else:
-                    print(f"Warning: Maximal edge in direction {direction} has less than 2 vertices and cannot be drawn.")
-        
-        # Draw external forces as red arrows
-        for coord, load in self.curr_fea_graph.external_loads.items():
-            force_magnitude = (load[0]**2 + load[1]**2 + load[2]**2)**0.5
-            if force_magnitude > 0:
-                arrow_dx = load[0] * 0.025
-                arrow_dy = load[1] * 0.025
-                arrow_tail_x = coord[0] - arrow_dx
-                arrow_tail_y = coord[1] - arrow_dy
-                # arrow_head_x = arrow_tail_x - arrow_dx
-                # arrow_head_y = arrow_tail_y - arrow_dy
-
-                self.ax.arrow(arrow_tail_x, arrow_tail_y, arrow_dx, arrow_dy+0.1, head_width=0.1, head_length=0.1, fc='red', ec='red', linewidth=2)
-                self.ax.text(arrow_tail_x, arrow_tail_y + 0.1, f"{force_magnitude:.2f} kN", color='red', fontsize=10, fontweight='bold')
-
-    def _render_frame(self):
-        '''
-        initialize and updates self.ax, self.fig object 
-        '''
-        # Create the figure and axes
-        self.fig, self.ax = plt.subplots(figsize=self.figsize)
-        # self.ax.set_xlim([0, self.board_size_x])
-        # self.ax.set_ylim([0, self.board_size_y])
-        margin = 1
-        self.ax.set_xlim([-margin, self.board_size_x + margin])
-        self.ax.set_ylim([-margin, self.board_size_y + margin])
-        self.ax.set_aspect('equal', adjustable='box')
-        self.ax.set_xticks(range(self.board_size_x + 1))
-        self.ax.set_yticks(range(self.board_size_y + 1))
-
-        # Draw grid lines
-        self.ax.grid(True, which='both', color='lightblue', linestyle='-', linewidth=0.5,  zorder=0)
-        for i in range(0, self.board_size_x + 1, 2):
-            self.ax.axvline(x=i, color='lightblue', linestyle='-', linewidth=2, zorder=0)
-        for j in range(0, self.board_size_y + 1, 2):
-            self.ax.axhline(y=j, color='lightblue', linestyle='-', linewidth=2, zorder=0)
-
-        # Highlight valid position cells
-        for frame_x, frame_y in self.valid_pos:
-            x , y = self._framegrid_to_board(frame_x, frame_y)
-            rect = patches.Rectangle((x - self.frame_size//2, y - self.frame_size//2), 
-                                     self.frame_size, self.frame_size, 
-                                     linewidth=0, edgecolor='lightblue', facecolor='lightblue')
-            self.ax.add_patch(rect)
-        
-        # Draw current fea graph
-        self.draw_fea_graph() # update self.fig, self.ax with current fea graph 
-
-        # Overlap deflected truss 
-        self.draw_truss_analysis()
-
-
-    def render(self):
-        '''
-        Given that we are working with from gymnasium.utils.save_video import save_video 
-        Trigger final render action. Used in main loop
-            - 'rgb_list' : return fig in rgb format to be saved in RenderList Wrapper item 
-            - 'human' : display plot
-        '''
-        self._render_frame() # initialize and update self.ax, self.fig object
-        if self.render_mode == "rgb_list":
-            img = self._fig_to_rgb_array(self.fig)
-            plt.close(self.fig)
-            # print(f'returning img for rgb_array!')
-            return img
-        elif self.render_mode == "human":
-            plt.show()
-            plt.close(self.fig)
-        else:
-            raise NotImplementedError(f"Render mode {self.render_mode} is not supported")
-        
-    def _fig_to_rgb_array(self, fig):
-        '''
-        Draw the figure on the canvas
-        Used to save plt within render_list
-        '''
-        canvas = FigureCanvas(fig)
-        canvas.draw()
-        buf = canvas.buffer_rgba() # Retrieve the image as a string buffer
-        X = np.asarray(buf) # Convert to a NumPy array
-        rgb_array = X[:, :, :3] # Convert RGBA to RGB
-        
-        return rgb_array
-
-
+    # Init
     def initBoundaryConditions(self):
         support_frames, targetload_frames = generate_bc.set_cantilever_env_framegrid(self.frame_grid_size_x) # within frame grid
-        print(f"    support_frames : {support_frames}")
-        print(f"    targetload_frames : {targetload_frames}")
+        # print(f"    support_frames : {support_frames}")
+        # print(f"    targetload_frames : {targetload_frames}")
 
         # init supports in curr_frame_grid according to bc
         for s_frame_coords in support_frames:
-            s_board_coords = self._framegrid_to_board(*s_frame_coords) #convert from frame grid coords to board coords
+            s_board_coords = self.framegrid_to_board(*s_frame_coords) #convert from frame grid coords to board coords
             new_s_frame = TrussFrameRL(s_board_coords, type_structure=2)
             self.frames.append(new_s_frame)
             self.update_frame_grid(new_s_frame)
@@ -532,9 +424,9 @@ class CantileverEnv_0(gym.Env):
         for t_frame in targetload_frames.items():
             t_frame_coord, t_load_mag = t_frame # (x,y) on frame grid, magnitude in kN
             # convert from frame grid coords to board coords 
-            t_center_board = self._framegrid_to_board(*t_frame_coord) # center of proxy frame
+            t_center_board = self.framegrid_to_board(*t_frame_coord) # center of proxy frame
             t_load_board = (t_center_board[0]+self.frame_size//2 , t_center_board[1]-self.frame_size//2)# actual load board coordinate (bottom right of frame)
-            # t_board_coord = (self._framegrid_to_board(t_frame_coord)[0] + self.frame_size//2, self._framegrid_to_board(t_frame_coord)[1] - self.frame_size//2) 
+            # t_board_coord = (self.framegrid_to_board(t_frame_coord)[0] + self.frame_size//2, self.framegrid_to_board(t_frame_coord)[1] - self.frame_size//2) 
             new_t_frame = TrussFrameRL(t_center_board, type_structure=-1)
             # self.frames.append(new_t_frame)
             self.update_frame_grid(new_t_frame)
@@ -543,50 +435,7 @@ class CantileverEnv_0(gym.Env):
             
             self.target_loads_met[t_load_board] = False
 
-    def draw_truss_analysis(self):
-        '''
-        Given displacement for a graph, plot graph, nodal displacement, and max displacement
-        '''
-    
-    def update_displacement(self):
-        '''
-        Used in apply_action 
-        Called upon action that indicates end of episode (end_bool == 1)
-        Performs FEA with Julia ASAP 
-        Updates self.curr_fea_graph displacement attribute
-        '''
-
-        # Solve truss model with ASAP
-        jl = juliacall.newmodule("TrussFrameRL") 
-        curr_env = jl.seval('Base.active_project()')
-        print(f"The current active Julia environment is located at: {curr_env}")
-
-        # Step 0: Initialize Julia session and import necessary Julia modules
-        jl.seval('using AsapToolkit')
-        jl.seval('using Asap')
-
-        jl.include("TrussFrameMechanics/truss_analysis.jl")
-        jl.seval('using .TrussAnalysis')
-
-        displacement = pythonAsap_1.solve_fea(jl, self.curr_fea_graph) # return nodal displacement
-        self.curr_fea_graph.displacement = displacement
-        
-    
-    def _update_curr_obs(self):
-        '''
-        Updates self.curr_obs in place the current observation based on the selected mode.
-        Make sure to use after updating states of different modes
-        '''
-        if self.obs_mode == 'frame_grid':
-            self.curr_obs = self.curr_frame_grid
-        elif self.obs_mode == 'fea_graph':
-            self.curr_obs = self.curr_fea_graph.get_state()
-        elif self.obs_mode == 'frame_graph':
-            self.curr_obs = self.curr_frame_graph.get_state() if self.curr_frame_graph else None
-        else:
-            raise ValueError(f"Invalid observation mode: {self.obs_mode}")
-        
-    def _set_gym_spaces(self):
+    def set_gym_spaces(self):
         '''
         set observation_space, action_space according to obs mode
         '''
@@ -610,16 +459,16 @@ class CantileverEnv_0(gym.Env):
             # print(f'Total Number of Actions : < {2*self.max_episode_length*4}') #2*20*4
 
         elif self.obs_mode == 'fea_graph':
-            print('TODO Need to implement _set_gym_spaces for fea_graph!')
+            print('TODO Need to implement set_gym_spaces for fea_graph!')
             pass
             # Gymnasium Composite Spaces - Graph or Dict?
             # Graph - node_features, edge_features, edge_links
             # Dict (not directly used in learning but can store human interpretable info)
         elif self.obs_mode == 'frame_graph':
-            print('TODO Need to implement _set_gym_spaces for frame_graph!')
+            print('TODO Need to implement set_gym_spaces for frame_graph!')
             pass
 
-
+    # Update Current State
     def update_frame_grid(self, new_frame):
         '''
         Given new frame object, update current frame grid where 
@@ -742,7 +591,45 @@ class CantileverEnv_0(gym.Env):
             # Check line overlap with existing edge using maximal edge representation 
             self.curr_fea_graph.combine_and_merge_edges(frame_type_shape=new_frame.type_shape, new_vertices=new_vertices)
 
+    def update_displacement(self):
+        '''
+        Used in apply_action 
+        Called upon action that indicates end of episode (end_bool == 1)
+        Performs FEA with Julia ASAP 
+        Updates self.curr_fea_graph displacement attribute
+        '''
+        print('Updating Displacement...')
 
+        # Solve truss model with ASAP
+        jl = juliacall.newmodule("TrussFrameRL") 
+        curr_env = jl.seval('Base.active_project()')
+        # print(f"The current active Julia environment is located at: {curr_env}")
+
+        # Step 0: Initialize Julia session and import necessary Julia modules
+        jl.seval('using AsapToolkit')
+        jl.seval('using Asap')
+
+        jl.include("TrussFrameMechanics/truss_analysis.jl")
+        jl.seval('using .TrussAnalysis')
+
+        displacement = pythonAsap_1.solve_fea(jl, self.curr_fea_graph) # return nodal displacement
+        self.curr_fea_graph.displacement = displacement
+
+    def update_curr_obs(self):
+        '''
+
+        Updates self.curr_obs in place the current observation based on the selected mode.
+        Make sure to use after updating states of different modes
+        '''
+        if self.obs_mode == 'frame_grid':
+            self.curr_obs = self.curr_frame_grid
+        elif self.obs_mode == 'fea_graph':
+            self.curr_obs = self.curr_fea_graph.get_state()
+        elif self.obs_mode == 'frame_graph':
+            self.curr_obs = self.curr_frame_graph.get_state() if self.curr_frame_graph else None
+        else:
+            raise ValueError(f"Invalid observation mode: {self.obs_mode}")
+    
     def update_target_meet(self, new_frame):
         '''
         Used in apply_action
@@ -761,7 +648,208 @@ class CantileverEnv_0(gym.Env):
         if all(self.target_loads_met.values()):
             self.is_connected = True
 
-    def _framegrid_to_board(self, frame_x, frame_y):
+    # Drawing
+    def draw_truss_analysis(self):
+        '''
+        Used within take step after epsiode as ended with connection
+        Given that displacement has been updated
+        Overlay displaced truss to plot by updating self.fig and self.ax based on self.curr_fea_graph.displacement
+        '''
+        displacement_scale = 50 # scale displacement for visualization 
+        
+        # Get Displaced vertices
+        displaced_vertices = {} # node id : (x, y)
+        max_disp = None # (node_id, displacement magnitude) 
+        for i, (coord, V) in enumerate(self.curr_fea_graph.vertices.items()):
+            dx, dy = self.curr_fea_graph.displacement[i][:2] * displacement_scale # Scale down if necessary for visualization
+            # Calculate the displacement magnitude
+            d_mag = np.sqrt(dx**2 + dy**2)
+            if max_disp == None or d_mag >= max_disp[1]:
+                max_disp = (V.id, d_mag) 
+            # print(f'displacement for node {i} is {dx}, {dy}')
+            new_x = coord[0] + dx
+            new_y = coord[1] + dy
+
+            displaced_vertices[V.id] = (new_x, new_y)
+            self.ax.add_patch(patches.Circle((new_x, new_y), radius=0.05, color='blue', alpha=0.8))
+            # Add text showing displacement magnitude next to each circle
+            self.ax.text(new_x + 0.1, new_y + 0.1, f'{d_mag:.2f}', color='gray', fontsize=8)
+        
+        # Connect deflected nodes with edges
+        for edge in self.curr_fea_graph.edges:
+            start_id, end_id = edge  # node ids
+            start_coord = displaced_vertices[start_id]
+            end_coord = displaced_vertices[end_id]
+
+            # Plot the deflected truss member
+            self.ax.plot([start_coord[0], end_coord[0]], [start_coord[1], end_coord[1]],
+                    color='blue', linestyle='--', linewidth=1)
+        
+        # Highlight max displacement
+        # Find the maximum displacement index and value
+        # max_disp_index = np.argmax([np.linalg.norm(d[:2]) for d in self.curr_fea_graph.displacement])
+        # max_disp_value = np.linalg.norm(self.curr_fea_graph.displacement[max_disp_index][:2])
+        # max_disp_coord = displaced_vertices[max_disp_index]
+        # Add text to highlight the max displacement
+        maxd_x, maxd_y = displaced_vertices[max_disp[0]]
+        maxd_value = max_disp[1]
+        self.ax.text(maxd_x+0.1, maxd_y+0.1, f'{maxd_value:.2f}', color='red', fontsize=8, fontweight='bold')
+
+    def draw_fea_graph(self):
+        '''
+        Update self.fig and self.ax based on self.curr_fea_graph
+        used in render_frame
+        '''
+        text_offset = 0.1
+
+        vertices = self.curr_fea_graph.vertices.items() # coord, Vertex object pairs
+        maximal_edges = self.curr_fea_graph.maximal_edges.items()
+        supports = self.curr_fea_graph.supports # list of board coords where the nodes are supports / pinned (as opposed to free)
+        # Draw vertices
+        for coord, vertex in vertices:
+            # if vertex.coordinates in supports:
+            if vertex.is_free == False:
+                self.ax.add_patch(patches.Rectangle((coord[0] - 0.1, coord[1] - 0.1), 0.2, 0.2, color='blue', lw=1.5, fill=True))
+            else:
+                self.ax.add_patch(patches.Circle(coord, radius=0.1, color='blue', lw=1.5, fill=False ))
+            self.ax.text(coord[0]-text_offset, coord[1]+text_offset, 
+                         str(vertex.id), 
+                         fontsize=10, ha='right', color='black')
+
+        # Draw maximal edges (optional, if visually distinct from normal edges)
+        for direction, edges in maximal_edges:
+            for edge in edges:
+                if len(edge.vertices) >= 2:
+                    # Get start and end vertices from the list of vertices
+                    start_me = edge.vertices[0]
+                    end_me = edge.vertices[-1]
+                    
+                    # Draw the line connecting the start and end vertices
+                    self.ax.plot([start_me.coordinates[0], end_me.coordinates[0]], 
+                                [start_me.coordinates[1], end_me.coordinates[1]], 
+                                color='black', linestyle='-', linewidth=1)
+                else:
+                    print(f"Warning: Maximal edge in direction {direction} has less than 2 vertices and cannot be drawn.")
+        
+        # Draw external forces as red arrows
+        for coord, load in self.curr_fea_graph.external_loads.items():
+            force_magnitude = (load[0]**2 + load[1]**2 + load[2]**2)**0.5
+            if force_magnitude > 0:
+                arrow_dx = load[0] * 0.025
+                arrow_dy = load[1] * 0.025
+                arrow_tail_x = coord[0] - arrow_dx
+                arrow_tail_y = coord[1] - arrow_dy
+                # arrow_head_x = arrow_tail_x - arrow_dx
+                # arrow_head_y = arrow_tail_y - arrow_dy
+
+                self.ax.arrow(arrow_tail_x, arrow_tail_y, arrow_dx, arrow_dy+0.1, head_width=0.1, head_length=0.1, fc='red', ec='red', linewidth=2)
+                self.ax.text(arrow_tail_x, arrow_tail_y + 0.1, f"{force_magnitude:.2f} kN", color='red', fontsize=10, fontweight='bold')
+    
+    # Render 
+    def render_frame(self):
+        '''
+        initialize and updates self.ax, self.fig object 
+        '''
+        # Create the figure and axes
+        self.fig, self.ax = plt.subplots(figsize=self.figsize)
+        # self.ax.set_xlim([0, self.board_size_x])
+        # self.ax.set_ylim([0, self.board_size_y])
+        margin = 1
+        self.ax.set_xlim([-margin, self.board_size_x + margin])
+        self.ax.set_ylim([-margin, self.board_size_y + margin])
+        self.ax.set_aspect('equal', adjustable='box')
+        self.ax.set_xticks(range(self.board_size_x + 1))
+        self.ax.set_yticks(range(self.board_size_y + 1))
+
+        # Draw grid lines
+        self.ax.grid(True, which='both', color='lightblue', linestyle='-', linewidth=0.5,  zorder=0)
+        for i in range(0, self.board_size_x + 1, 2):
+            self.ax.axvline(x=i, color='lightblue', linestyle='-', linewidth=2, zorder=0)
+        for j in range(0, self.board_size_y + 1, 2):
+            self.ax.axhline(y=j, color='lightblue', linestyle='-', linewidth=2, zorder=0)
+
+        # Highlight valid position cells
+        for frame_x, frame_y in self.valid_pos:
+            x , y = self.framegrid_to_board(frame_x, frame_y)
+            rect = patches.Rectangle((x - self.frame_size//2, y - self.frame_size//2), 
+                                     self.frame_size, self.frame_size, 
+                                     linewidth=0, edgecolor='lightblue', facecolor='lightblue')
+            self.ax.add_patch(rect)
+        
+        # Draw current fea graph
+        self.draw_fea_graph() # update self.fig, self.ax with current fea graph 
+
+        # Overlay with displacement graph
+        if len(self.curr_fea_graph.displacement) != 0 :
+            self.draw_truss_analysis() # last plot has displaced structure 
+        else:
+            pass
+            # print(f'Displacement is empty!')
+
+        # # Interactive (debug_all Mode)
+        # if self.render_mode == 'debug_all':
+        #     # Ensure the canvas is available
+        #     self.fig.canvas.draw()
+        #     self.click_event_id = self.fig.canvas.mpl_connect('button_press_event', self.on_click)
+
+    def render(self):
+        ''' 
+        Used in step() to generate plot of valid action (rgb_list) or any action (debug_all)
+        Render Modes
+            'debug_all' : Used in step to plot every step 
+            'rgb_list' : Used in render intermediary between render_frame and render to convert plot to rgb array  
+        '''
+        if self.render_mode == "rgb_list":
+            if self.is_valid_action: # only save valid action frames
+                self.render_frame() # initialize and update self.ax, self.fig object
+                img = self.fig_to_rgb_array(self.fig)
+                self.render_list.append(img)
+                # plt.show() # DEBUG
+                plt.close(self.fig)
+                # print(f'returning img for rgb_array!')
+        elif self.render_mode == "debug_valid":
+            if self.is_valid_action:
+                self.render_frame()
+                plt.show()
+                plt.close(self.fig)
+        elif self.render_mode == "debug_all":
+            self.render_frame() # initialize and update self.ax, self.fig object
+            plt.show()
+            plt.close(self.fig)
+        
+        else:
+            raise NotImplementedError(f"Render mode {self.render_mode} is not supported")
+        
+
+    def get_render_list(self):
+        '''
+        Called within gymnasium.utils.save_video function
+            - 'rgb_list' : return list of fig in rgb format to be saved in RenderList Wrapper item 
+                            Given that we are working with 
+        '''
+        if self.render_mode == "rgb_list":
+            return self.render_list # list of fig objects
+        
+        else:
+            raise NotImplementedError(f"Render mode {self.render_mode} is not supported")
+    
+        
+        
+    def fig_to_rgb_array(self, fig):
+        '''
+        Draw the figure on the canvas
+        Used to save plt within render_list
+        '''
+        canvas = FigureCanvas(fig)
+        canvas.draw()
+        buf = canvas.buffer_rgba() # Retrieve the image as a string buffer
+        X = np.asarray(buf) # Convert to a NumPy array
+        rgb_array = X[:, :, :3] # Convert RGBA to RGB
+        
+        return rgb_array
+
+    # Utils
+    def framegrid_to_board(self, frame_x, frame_y):
         '''
         Input
             (frame_x, frame_y) coordinates within frame grid
@@ -772,6 +860,32 @@ class CantileverEnv_0(gym.Env):
         board_y = frame_y*self.frame_size + self.frame_size//2
         return (board_x, board_y)
     
+
+    # # Interactive (debug_all mode)
+    # def get_cursor_location(self, event):
+    #     """
+    #     Get user cursor location within the canvas, translate that to frame grid coordinates within the environment.
+    #     """
+    #     # Get the cursor location within the canvas
+    #     canvas_x, canvas_y = event.x, event.y
+
+    #     # Translate canvas coordinates to frame grid coordinates
+    #     inv = self.fig.transFigure.inverted()
+    #     fig_x, fig_y = inv.transform((canvas_x, canvas_y))
+
+    #     # Assuming the canvas coordinates are normalized (0 to 1)
+    #     frame_x = int(fig_x * self.frame_grid_size_x)
+    #     frame_y = int(fig_y * self.frame_grid_size_y - 1)
+
+    #     return frame_x, frame_y
+
+    # def on_click(self, event):
+    #     frame_x, frame_y = self.get_cursor_location(event)
+    #     self.click_frame_x = frame_x
+    #     self.click_frame_y = frame_y
+    #     print(f"Frame grid coordinates: ({frame_x}, {frame_y})")
+    
+    # Debugging
     def print_framegrid(self):
         '''
         Prints the current frame grid in a human-readable format with the x-axis across different lines.

@@ -35,6 +35,7 @@ class FEAGraph:
     edges : An adjacency list of tuples representing edges, where each tuple contains vertex indices.
     maximal_edges : A dictionary where keys are directions and values are a list of MaximalEdge objects. (only useful for overlapping frames)
     external_loads : dictionary where key : coordinate in board, value : load magnitude [load.x, load.y, load.z]
+    displacement :  2D list of nodal displacement [x,y,z] for each node in node index order. Only non-empty upon fea (eps end)
     
     """
     
@@ -57,7 +58,7 @@ class FEAGraph:
                                                                                 'LT_RB': []
                                                                             }
         self.maximal_edges_merged = False
-        self.displacement = [] # list of nodal displacement [x,y,z] for each node in node index order. Only non-empty upon fea (eps end)
+        self.displacement = []
 
     def __repr__(self):
         """Nicely formatted representation of the graph."""
@@ -72,8 +73,10 @@ class FEAGraph:
             f"Default Node load : ({self.default_node_load})\n"
             f"Supports ({len(self.supports)}):\n{supports_repr}\n"
             f"External Loads ({len(self.external_loads)}):\n{externalloads_repr}\n"
-            f"Vertices ({len(self.vertices)}):\n{vertices_repr}\n"
-            f"Edges ({len(self.edges)}):\n{edges_repr}\n"
+            # f"Vertices ({len(self.vertices)}):\n{vertices_repr}\n"
+            f"Vertices ({len(self.vertices)})\n"
+            # f"Edges ({len(self.edges)}):\n{edges_repr}\n"
+            f"Edges ({len(self.edges)})\n"
             # f"Maximal Edges ({len(self.maximal_edges)}):\n{maximal_edges_repr}\n"
             f"Displacement ({len(self.displacement)}):\n{displacement_repr}\n)"
         )
