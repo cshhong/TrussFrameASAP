@@ -26,7 +26,7 @@ def solve_fea(jl, feagraph):
     element_connections = feagraph.edges
     fixed_idx = [feagraph.vertices[support].id for support in feagraph.supports]
     loads = [list((v.id, v.load)) for v in list(feagraph.vertices.values())]
-    # print(f'loads : {loads}')
+    print(f'(solve fea) loads : {loads}')
 
     model = jl.create_and_solve_model_julia(node_coordinates, element_connections, fixed_idx, loads)
     displacement = model.u

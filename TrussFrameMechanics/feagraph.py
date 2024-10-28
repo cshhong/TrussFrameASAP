@@ -2,8 +2,8 @@
 Custom graph data structure that stores additional information needed for structural analysis
 """
 from .maximaledge import MaximalEdge  # Relative import
-from .trussframe import FrameType     # Relative import
-
+from .trussframe import FrameShapeType     # Relative import
+import numpy as np
     
 class FEAGraph:
     """
@@ -44,7 +44,7 @@ class FEAGraph:
         Initializes the graph with dictionaries of vertices, edges, and maximal edges.
         """
 
-        self.default_node_load = default_node_load # kN
+        # self.default_node_load = default_node_load # kN
         # Decided with epside env init
         self.supports = supports if supports is not None else []
         self.external_loads = external_loads if external_loads is not None else {}
@@ -70,7 +70,7 @@ class FEAGraph:
         displacement_repr = "\n".join([f"  {node_idx}: {displacement}" for node_idx, displacement in enumerate(self.displacement)])
 
         return (
-            f"Default Node load : ({self.default_node_load})\n"
+            # f"Default Node load : ({self.default_node_load})\n"
             f"Supports ({len(self.supports)}):\n{supports_repr}\n"
             f"External Loads ({len(self.external_loads)}):\n{externalloads_repr}\n"
             # f"Vertices ({len(self.vertices)}):\n{vertices_repr}\n"
@@ -88,7 +88,7 @@ class FEAGraph:
     def combine_and_merge_edges(self, frame_type_shape, new_vertices):
         '''
         Input
-            frame_type : FrameType object to indicate which vertices should be connected
+            frame_type : FrameShapeType object to indicate which vertices should be connected
             new_vertices : List of Vertex objects in order of bottom-left, bottom-right, top-right, top-left
         Check overlapping edge segments and merge with maximal edge representation
         Update self.curr_fea_graph.edges, self.curr_fea_graph.maximal_edges in place
@@ -102,11 +102,11 @@ class FEAGraph:
         v2 = (new_vertices[0], new_vertices[3])
         # check diagonal lines
         d1, d2 = None, None
-        if frame_type_shape == FrameType.DIAGONAL_LB_RT:
+        if frame_type_shape == FrameShapeType.DIAGONAL_LB_RT:
             d1 = (new_vertices[0], new_vertices[2])
-        elif frame_type_shape == FrameType.DIAGONAL_LT_RB:
+        elif frame_type_shape == FrameShapeType.DIAGONAL_LT_RB:
             d2 = (new_vertices[1], new_vertices[3])
-        elif frame_type_shape == FrameType.DOUBLE_DIAGONAL:
+        elif frame_type_shape == FrameShapeType.DOUBLE_DIAGONAL:
             d1 = (new_vertices[0], new_vertices[2])
             d2 = (new_vertices[1], new_vertices[3])
         segments = {
@@ -193,7 +193,26 @@ class FEAGraph:
         Used for when fea graph is directly used as obs
         TODO extract information used as agent observation
         '''
-
+        pass
     
+    def get_max_deflection(self):
+        '''
+         from displacement, get displacement magnitude for each node
+            return max displacement node index and magnitude
+        '''
+        
+        # if not hasattr(self, 'displacement') or not self.displacement:
+        #     raise ValueError("Displacement data is not available")
+
+        # Calculate the magnitude of displacement for each node
+        displacement_scale = 50 # scale displacement for visualization 
+        
+        magnitudes = [np.linalg.norm(node_disp[:2]) * displacement_scale for node_disp in self.displacement]
+
+        # Find the index of the node with the maximum displacement
+        max_index = np.argmax(magnitudes)
+        max_magnitude = magnitudes[max_index]
+
+        return max_index, max_magnitude
 
 

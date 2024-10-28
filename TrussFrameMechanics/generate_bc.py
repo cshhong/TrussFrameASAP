@@ -2,6 +2,7 @@
 Functions to generate boundary conditions (support, external loads) within the environment
 '''
 import random
+from TrussFrameMechanics.trussframe import FrameStructureType
 
 CELL_SIZE = 1
 FRAME_SIZE = 2
@@ -101,14 +102,15 @@ def set_cantilever_env_framegrid(frame_grid_size_x, seed=None):
                      •----•----•----•----•----•----•
                           0         1         2 
 
-    Create one support frame and one external load that is height&length to the right side of the support
+    Create one support frame and one external load that is height & length to the right side of the support
 
     Input:
         - frame_grid_size_x: Number of frames along the x-dimension of the frame grid.
     
     Output:
-        - pinned_support_frames : dictionary (x_frame, y_frame)  cell location within frame grid of support frames
-        - targetload_frames : list of ((x_frame,y_frame), (x_forcemag, y_forcemag, z_forcemag)) tuples (force is applied in the negative y direction).
+        - support_frames : list of tuples (x_frame, y_frame) 
+        - targetload_frames : dictionary ((x_frame,y_frame) : [x_forcemag, y_forcemag, z_forcemag]) tuples (force is applied in the negative y direction).
+        - inventory : dictionary of FrameStructureType Free frame type : count 
     """
 
     # If a seed is provided, set the random seed for reproducibility
@@ -119,13 +121,23 @@ def set_cantilever_env_framegrid(frame_grid_size_x, seed=None):
     # height_options = [1, 2, 3]                 # in terms of frames
     height_options = [1, ]                 # in terms of frames
     # length_options = [3, 4, 5]              # in terms of frames
-    length_options = [2,]              # in terms of frames
-    magnitude_options = [10.0, 20.0, 30.0, 40.0]    # kN
+    length_options = [3,]              # in terms of frames
+    # magnitude_options = [10.0, 20.0, 30.0, 40.0]    # kN
+    magnitude_options = [40.0]    # kN
+
 
     # Choose random height, length, and load magnitude
     height = random.choice(height_options)
     length = random.choice(length_options)
     magnitude = random.choice(magnitude_options)
+    med_inv = random.choice(range(1,length)) # size of medium free frame inventory ; set to length of cantilever
+    med_inv = 2
+
+    inventory = {
+        FrameStructureType.LIGHT_FREE_FRAME : -1, # indicate no limits
+        FrameStructureType.MEDIUM_FREE_FRAME : med_inv,
+        # FrameStructureType.HEAVY_FREE_FRAME : *,
+    }
 
     # Set pinned supports within the frame grid
     # x at center even coordinate of the frame grid
@@ -133,9 +145,9 @@ def set_cantilever_env_framegrid(frame_grid_size_x, seed=None):
     y_support_frame = 0  # Base of the cantilever, first row of the frame grid
 
     # Create 1 support frame
-    support_frames = {
-            (x_support_start_frame, y_support_frame): 2,  # Support frame at (x, y)
-        }
+    support_frames = [
+            (x_support_start_frame, y_support_frame),  # Support frame at (x, y)
+        ]
 
     # Set target load frame within the frame grid
     load_x_frame = x_support_start_frame + length
@@ -146,4 +158,4 @@ def set_cantilever_env_framegrid(frame_grid_size_x, seed=None):
         (load_x_frame, load_y_frame): [0, -magnitude, 0]
     }
 
-    return support_frames, target_frames
+    return support_frames, target_frames, inventory

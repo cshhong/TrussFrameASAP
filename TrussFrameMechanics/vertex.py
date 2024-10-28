@@ -16,7 +16,7 @@ class Vertex:
     '''
     _id_counter = 1  # Class-level counter for vertex IDs
 
-    def __init__(self, coordinates, is_free=True, load=0):
+    def __init__(self, coordinates, is_free=True, load=(0,0,0)):
         self.coordinates = coordinates
         self.id = Vertex._id_counter
         Vertex._id_counter += 1
