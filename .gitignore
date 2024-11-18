@@ -1,3 +1,7 @@
 test_juliacall.py
 .DS_Store
 *.pyc
+.vscode
+*.h5
+*.png
+videos
