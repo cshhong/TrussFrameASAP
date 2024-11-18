@@ -17,13 +17,14 @@ import gymenv  # Register the custom environments with __init__.py
 # # Create the environment
 # env = vec_env(render_mode="human")
 
+
 # Create the environment using gymnasium.make
 env = gym.make("Cantilever-v0", render_mode="human")
 
 # Reset the environment
 obs, info = env.reset()
-print(f"    curr_fea_graph :  \n {env.curr_fea_graph}")
-env.unwrapped.print_framegrid()
+# print(f"    curr_fea_graph :  \n {env.curr_fea_graph}")
+# env.unwrapped.print_framegrid()
 
 done = False
 
@@ -37,7 +38,7 @@ while not done:
         done = True
         print("Ending the episode.")
         break
-
+    
     try:
         action_space = env.action_space  # Get the action space of the environment
 
@@ -51,7 +52,7 @@ while not done:
 
         # Parse the action input from the user
         end_bool, frame_x, frame_y = map(int, user_input.split(','))
-
+        
         # Check the bounds of the input values
         if end_bool not in [0, 1]:
             print("Invalid input for end_bool. Please enter 0 or 1.")
