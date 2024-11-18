@@ -16,10 +16,13 @@ class Vertex:
     '''
     _id_counter = 1  # Class-level counter for vertex IDs
 
-    def __init__(self, coordinates, is_free=True, load=(0,0,0)):
+    def __init__(self, coordinates, is_free=True, load=(0,0,0), id=None):
         self.coordinates = coordinates
-        self.id = Vertex._id_counter
-        Vertex._id_counter += 1
+        if id is not None:
+            self.id = id
+        else:
+            self.id = Vertex._id_counter
+            Vertex._id_counter += 1
         self.edges = []
         self.is_free = is_free # support nodes are False (pinned)
         self.load = load 
