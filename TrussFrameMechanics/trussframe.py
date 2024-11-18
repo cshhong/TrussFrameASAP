@@ -19,17 +19,40 @@ class FrameShapeType(Enum):
     def __str__(self):
         return self.name
     
+    @classmethod
+    def get_frameshapetype_from_value(cls, value):
+        """
+        Retrieve the enum member associated with a given value.
+
+        Args:
+            value (int): The value to query.
+
+        Returns:
+            FrameShapeType: The enum member if found, else raises ValueError.
+        """
+        for member in cls:
+            if member.value == value:
+                return member
+        # Error handling if value not found
+        raise ValueError(f"Invalid FrameShapeType value: {value}")
+    
 class FrameStructureType(Enum):
     """
     Define type_structure for TrussFrameRL with associated node loads.
     (idx, node_load, is_free_frame)
     load_idx of action is idx value of FrameStructureType
     """
-    EXTERNAL_FORCE = (-1, [0.0, -40.0, 0.0], False)  # Node load in kN
+    # EXTERNAL_FORCE = (-1, [0.0, -80.0, 0.0], False)  # Node load in kN
+    # UNOCCUPIED = (0, None, False)  # Not used
+    # SUPPORT_FRAME = (1, [0.0, -0.4, 0.0], False)  # Node load in kN
+    # LIGHT_FREE_FRAME = (2, [0.0, -0.4, 0.0], True)  # Node load in kN
+    # MEDIUM_FREE_FRAME = (3, [0.0, -4.0, 0.0], True)  # Node weight in kN
+    # Node load in kN
+    EXTERNAL_FORCE = (-1, [0.0, -120.0, 0.0], False)  # Set in generate_bc.py
     UNOCCUPIED = (0, None, False)  # Not used
-    SUPPORT_FRAME = (1, [0.0, -0.4, 0.0], False)  # Node load in kN
-    LIGHT_FREE_FRAME = (2, [0.0, -0.4, 0.0], True)  # Node load in kN
-    MEDIUM_FREE_FRAME = (3, [0.0, -0.4, 0.0], True)  # Node weight in kN
+    SUPPORT_FRAME = (1, [0.0, -4.0, 0.0], False)  # x10 self weight of steel member
+    LIGHT_FREE_FRAME = (2, [0.0, -4.0, 0.0], True)  # x10 self weight of steel member
+    MEDIUM_FREE_FRAME = (3, [0.0, -40.0, 0.0], True)  # x100 self weight of steel member
 
     def __init__(self, idx, node_load, is_free_frame):
         self.idx = idx
@@ -120,7 +143,7 @@ class TrussFrame:
 class TrussFrameRL:
     '''
     used in cantileverenv_v0.py
-    TrussFrame object with centroid position and frame type
+    TrussFrame object with frame centroid position and frame type
     coordinate is in absolute coordinates of the board (not relative to support)
     By Default is set to type with FrameShapeType.DIAGONAL_LT_RB(diagonal brace from left top to right bottom)
 
@@ -130,8 +153,10 @@ class TrussFrameRL:
 
     def __init__(self, pos, type_shape=FrameShapeType.DOUBLE_DIAGONAL, frame_size=2, type_structure=FrameStructureType.LIGHT_FREE_FRAME):
         self.type_shape = type_shape  # FrameShapeType
+        # Frame centroid coordinate on board
         self.x = pos[0] 
         self.y = pos[1] 
+        # Frame cell position on frame grid
         self.x_frame = int(self.x // frame_size)
         self.y_frame = int(self.y // frame_size)
         self.type_structure = type_structure # FrameStructureType
