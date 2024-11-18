@@ -7,6 +7,7 @@ module TrussAnalysis
 
 export create_and_solve_truss_model_julia
 export create_and_solve_model_julia
+export get_element_forces
 
     using AsapToolkit
     using Asap
@@ -113,13 +114,13 @@ export create_and_solve_model_julia
         The first element of the tuple is the node index (1-based), and the second element is a vector representing the load in each direction, e.g., `[Fx, Fy, Fz]`.
 
     Outputs
-    - `model::TrussModel`: 
-        The solved `TrussModel` containing the nodes, elements, and displacements after solving.
+    - `model::Model`: 
+        The solved `Model` containing the nodes, elements, and displacements after solving.
         
     The model can be used to query results such as nodal displacements or reactions.
     """
 
-    function create_and_solve_model_julia(node_coords, element_conns, fixed_idx, loads)
+    function create_and_solve_model_julia(node_coords, element_conns, fixed_idx, loads, frame_length_m)
 
         # Define Nodes using the custom Node structure
         # nodes = [Node(Vector{Float64}(coord), :fixed) for coord in node_coords]
@@ -137,29 +138,32 @@ export create_and_solve_model_julia
         """
 
         # nodes = [Node(Vector{Float64}(coord), i < 3 ? :pinned : :free) for (i, coord) in enumerate(node_coords)]
-        nodes = [Node(Vector{Float64}(coord), i in fixed_idx ? :pinned : :free) for (i, coord) in enumerate(node_coords)]
-        # println("nodes : ", nodes )
+        # adjust node coordinates (node_coords) to have actual frame length (by default set to 2)
+        node_coords_scaled = (node_coords ./ 2) .* frame_length_m
+        nodes = [Node(Vector{Float64}(coord), i in fixed_idx ? :pinned : :free) for (i, coord) in enumerate(node_coords_scaled)]
+        
+        # println("nodes: ", join(nodes, "\n"))
 
         
-        # # Define material properties (from 2D truss Asap test)
-        # E = 70.0  # Example Elastic modulus in kN/m^2
-        # A = 4e3 / 1e6  # Example cross-sectional area in m^2
-        # sec = Section(A, E)
-
         # Define material properties  (from 2D frame Asap test)
-        E = 200e6
-        A = 0.001
-        I = 1e-6 #m^4
-        G = 80e6
+        E = 200e6 # Pa (Kn/m^2) young's modulus
+        # A = 0.001 # m^2 Cross-sectional area of the element
+        # I = 1e-6 # m^4 Moment of inertia, used for bending capacity
+        
+        # Tube with radius 0.01 and 5% thickness
+        A = 0.00314 # m^2 Cross-sectional area of the element
+        I = 1.45686e-9 # m^4 Moment of inertia, used for bending capacity
+        G = 80e6 # Shear modulus, also related to stiffness
         sec = Section(A, E, G, I, I, 1.) #area, young's modulus, shear mod, strong axis I, weak axis I, torsional constant, density=1
         
         # Create Elements using the connections and custom Element structure
-        elements = [Element(nodes[conn[1]], nodes[conn[2]], sec) for conn in element_conns] #default is fixedfixed
+        elements = [Element(nodes[conn[1]], nodes[conn[2]], sec, release=:fixedfixed) for conn in element_conns] #default is fixedfixed
+
         # println("elements : ", elements )
 
         # Create Load objects based on the custom AbstractLoad structure
         loads = [NodeForce(nodes[load[1]], Vector{Float64}(load[2])) for load in loads]
-        # println("loads : ", loads )
+        # println("loads: ", join(loads, "\n"))
 
         # Assemble the structural model
         model = Model(nodes, elements, loads)
@@ -168,10 +172,29 @@ export create_and_solve_model_julia
         planarize!(model)  # Assume this sets DOFs for planar structures
         solve!(model)  # Solves the model, computing displacements and reactions
 
+        displacement = model.u
+
         # Output axial forces in elements
         # println("Axial forces: ", axial_force.(model.elements))
+        axial_forces = axial_force.(model.elements)
+        # yield strength for structural steel is around 250 MPa (or 250,000 Pa (kN/m²))
+        fy = 350e3  # Yield strength in Pa(kN/m²) (assuming structural steel)
+        # Calculate allowable axial force based on yield strength (2/3 of axial capacity)
+        P_cap_kN = A * fy * 2 / 3  # kN 
+        # println("P_cap_kN: ", P_cap_kN)
+        # failed_elements = [i for (i, force) in enumerate(axial_forces) if abs(force) > P_cap_kN]
 
-        return model
+        # println("Elements that failed:", failed_elements)
+
+        # return model
+        return displacement, axial_forces, P_cap_kN
     end
+
+    # """
+    # Given solved ASAP model, get element forces for each element in the model
+    # """
+    # function get_element_forces(model, increment=20)
+    #     return forces(model, increment)
+    # end
 
 end
