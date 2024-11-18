@@ -11,7 +11,7 @@ def register_env():
     register(
         id="Cantilever-v0",
         entry_point="gymenv.cantileverenv_v0:CantileverEnv_0",
-        max_episode_steps=15,
+        max_episode_steps=1000,
     )
 
 

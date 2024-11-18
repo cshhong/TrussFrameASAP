@@ -14,22 +14,12 @@ TODO Going further is there a way to get diverse high performing solutions acros
 TODO Going further from general group of high performing designs -> perturb points -> how does performance change? 
     Get diverse group of high performing designs through refinement 
 
-TODO env with supports created at end?
 TODO Env - random placement of supports, target load 
         - connect all (as collection problem) -> FEA on final structure - likely will not be interesting solutions, make sure to make nodal weight heavy
         - connect all with limited options to add support? -> FEA on final structure
 
-**** Smaller Goals
-
-DONE edit so that FEA is only run when end is indicated (otherwise no incentive to build after reaching target)
 TODO reward : step reward to connect + end FEA reward 
-
-DONE draw displacement at end
-
-DONE test rgb_list mode
-DONE implemented save_video 
-
-
+[Anticipated Learning process]
 - STEP 0 learns to take valid actions 
 - STEP 1 learns to connect all supports to target loads
     Even if 0,1 are not efficient, complete episodes with have a connecting structure! -> collect all of these  
@@ -40,18 +30,36 @@ DONE implemented save_video
     Train for total of 1,000,000 episodes 
     => collect 100 solutions batches every 50,000 episodes
     => overlay batches on PCA map 
+        - expect this to be scattered in the beginning (better exploration)
+        - concentrated in high performing regions towards the end (better exploitation)
+
+[Evaluating Boundary Condition]
+We want a scenario (boundary condition, inventory) where it is possible to find high performing designs is not obvious; aka has multiple high performing solutions
+- There is single unobvious solution
+- There is multiple high performing solutions (some might also not be obvious)
+
+How to do this? Within one boundary condition, many number of rolllouts 
+- stores data dictionary of instance in h5 file to query selectively and render_frame_instance (borrows from draw_fea_graph, draw_truss_analysis) 
+    [DONE] implement hdf5_utils.py to store and load data
+        - (self.curr_fea_graph, self.frames)
+            - self.frames is a list of TrussFrameRL objects in sequence of creation
+            - self.curr_fea_graph has information about vertices, supports, edges, maximal_edges, loads, failed_elements, max_displacement
+    [TODO] test hdf5 store -> query one eps -> render (to train without render at train time)
+
+[TODO] Map all terminated episodes (frame grid) with UMAP
+    - designs with no failed elem low deflection cluster? -> visually inspect 
+
+
 
 Comparison for one boundary condition!
 Have to log BC (9) to filter later 
-TODO Test with random One BC (1,2,40) Logging solutions -> MAP PCA with max deflection 
+TODO Test with random One BC (1,2,40) Logging solutions -> MAP TSNE or CNN with max deflection 
     At episode end, log the structure (boundary conditions(tuple), frame grid (np.array), max deflection (float))
     from all episodes, filter out the ones with the same boundary conditions (support_frames, target_load_frames)
     and plot the max deflection on PCA map
 TODO Test training with PPO with render and logging 
 TODO Render sequences
 
-TODO change action to have load_idx (0,1) light, medium
-TODO check if FrameStructureType is working with frame grid
 
 Resources
 - Dynamic action masking : 
@@ -114,6 +122,7 @@ class CantileverEnv_0(gym.Env):
 
             'debug_all' : plots all steps (including those without valid actions)
             'debug_valid' : plots only steps with valid actions
+            'debug_end' : plots only episode end
             'rgb_list' :  Returns a list of plots
                 - wrapper, gymnasium.wrappers.RenderCollection is automatically applied during gymnasium.make(..., render_mode="rgb_list").
                 - The frames collected are popped after render() is called or reset().
@@ -204,7 +213,7 @@ class CantileverEnv_0(gym.Env):
 
     
     '''
-    metadata = {"render_modes": [None, "debug_all", "debug_valid", "rgb_list"], 
+    metadata = {"render_modes": [None, "debug_all", "debug_valid", "rgb_list", "debug_end", "rgb_end"], 
                 "render_fps": 1,
                 "obs_modes" : ['frame_grid', 'fea_graph', 'frame_graph'],
                 }
@@ -212,18 +221,20 @@ class CantileverEnv_0(gym.Env):
 
     def __init__(self,
                  render_mode = None,
-                 board_size_x=20,
-                 board_size_y=10,
-                 frame_size=2,
+                #  board_size_x=20,
+                #  board_size_y=10,
+                #  frame_size=2, 
                  video_save_interval_steps=500,
                  render_dir = 'render',
-                 max_episode_length = 20,
+                 max_episode_length = 200,
                  obs_mode='frame_grid'
                  ):
         
-        self.board_size_x = board_size_x # likely divisable with self.frame_size
-        self.board_size_y = board_size_y # likely divisable with self.frame_size
-        self.frame_size = frame_size
+        # self.board_size_x = board_size_x # likely divisable with self.frame_size
+        # self.board_size_y = board_size_y # likely divisable with self.frame_size
+        self.frame_size = 2 # actual frame length is sized in truss_analysis.jl
+        self.board_size_x = self.frame_size * 10 # likely divisable with self.frame_size
+        self.board_size_y = self.frame_size * 5 # likely divisable with self.frame_size
         self.max_episode_length = max_episode_length
         self.env_num_steps = 0 # activated taking valid action in main (not env.step!)
 
@@ -238,6 +249,11 @@ class CantileverEnv_0(gym.Env):
         self.render_mode = render_mode
         self.render_list = [] # gathers plts to save to results in "rgb_list" mode
         self.render_dir = render_dir
+        # Ensure the directory exists
+        if not os.path.exists(self.render_dir):
+            os.makedirs(self.render_dir)
+        if self.render_mode == "rgb_end":
+            self.render_counter = 0
         self.video_save_interval = video_save_interval_steps # in steps
 
         # Current State (Frames)
@@ -248,11 +264,15 @@ class CantileverEnv_0(gym.Env):
         self.frame_grid_size_x = self.board_size_x // self.frame_size
         self.frame_grid_size_y = self.board_size_y // self.frame_size
 
+        # Boundary Conditions
+        self.frame_length_m = 3.0 # actual length of frame in meters used in truss analysis
+        self.cantilever_length = 0 # in number of frames set by generate_bc
+        self.allowable_deflection = 0 # decided in generate_bc
+
         # Initialize current state
         self.curr_frame_grid = np.zeros((self.frame_grid_size_x, self.frame_grid_size_y), dtype=int)
 
         # create dictionary frame values 
-
         self.curr_fea_graph = FEAGraph() #FEAGraph object
         self.curr_frame_graph = None # TODO graph representation of adjacent frames
 
@@ -262,6 +282,9 @@ class CantileverEnv_0(gym.Env):
         # if episode ends without being connected, large negative reward is given.
         self.target_loads_met = {} # Whether target load was reached : key is (x,y) coordinate on board value is True/False
         self.is_connected = False # whether the support is connected to (all) the target loads, 
+        self.eps_end_valid = False # after applying action, signify is episode end is valid, used in visualization
+
+        self.disp_reward_scale = 1e2 # scale displacement reward to large positive reward
 
         # Used for Logging
         self.support_frames = [] # 2D list of [x_frame, y_frame]
@@ -329,10 +352,13 @@ class CantileverEnv_0(gym.Env):
         print(f"reset inventory : {inventory_array}")
         info = {} # TODO what is this used for?
         
+        self.eps_end_valid = False
+
         self.render_valid_action = True # temporarily turn on to trigger render
         self.render()
         self.render_valid_action = False
         # print(f"valid pos : {self.valid_pos}")
+
 
         return obs, info
     
@@ -358,57 +384,79 @@ class CantileverEnv_0(gym.Env):
             observation, reward, terminated, truncated, info
         '''
         self.render_valid_action = False # used to trigger render
+        reward = 0
 
         # Large negative reward is given if action taken is not in valid position
         end, freeframe_idx, frame_x, frame_y = action
         end_bool = True if end==1 else False
         
-        # Large negative reward is given if position is not valid (action is not applied)
-        if (frame_x, frame_y) not in self.valid_pos:
-            reward = -10  # Negative reward for invalid action
-            terminated = False  # Continue episode
-        elif self.inventory_dict[FrameStructureType.get_framestructuretype_from_idx(freeframe_idx)] == 0:
-            reward = -10  # Negative reward for invalid action
-            terminated = False  # Continue episode
-        else: # for valid position
-            temp_is_connected = self.check_is_connected(frame_x, frame_y)
-            # Large negative reward is given if decide to end episode but support and target not connected
-            # (action is not applied to environment)
-            if end_bool == True and temp_is_connected == False:
+        # Check if inventory is already used up across frames before termination, truncated is True
+        if all(value == 0 for value in self.inventory_dict.values()):
+            print(f"Inventory is empty!")
+            reward = 0
+            terminated = False
+            truncated = True
+            # convert inventory dictionary to array in order of free frame types
+            inventory_array = np.array(list(self.inventory_dict.values())) 
+            obs = {
+                'frame_grid': self.curr_frame_grid,
+                'inventory' : inventory_array
+            }
+            # self.print_framegrid()
+            self.render()
+            return obs, reward, terminated, truncated, {}
+            
+        else:
+            truncated = False  
+            # Large negative reward is given if position is not valid (action is not applied)
+            if (frame_x, frame_y) not in self.valid_pos:
                 reward = -10  # Negative reward for invalid action
                 terminated = False  # Continue episode
+            # Large negative reward if trying to create frame with 0 inventory
+            elif self.inventory_dict[FrameStructureType.get_framestructuretype_from_idx(freeframe_idx)] == 0:
+                reward = -10  
+                terminated = False  # Continue episode
+            elif end_bool == True:
+            # else: # for valid position
+                temp_is_connected = self.check_is_connected(frame_x, frame_y)
+                # Large negative reward is given if decide to end episode but support and target not connected
+                # (action is not applied to environment)
+                if temp_is_connected == False:
+                    reward = -10  # Negative reward for invalid action
+                    terminated = False  # Continue episode
+                # Valid action : Ending Episode 
+                # Positive rewards if correctly ended after support and loads are all connected
+                # (action is applied to environment)
+                elif temp_is_connected == True:
+                    # Apply valid action and update environment state
+                    self.render_valid_action = True
+                    self.apply_action(action)
+                    self.eps_end_valid = True
+                    # TODO Reward scheme to encourage complete structures with minimal deflection, failure is secondary
+                    reward += self.curr_fea_graph.displacement * self.disp_reward_scale # displacement reward
+                    reward += 10 # end reward
+                    reward -= len(self.curr_fea_graph.failed_elements) # discounted by number of failed elements
+                    # TODO add failed element reward
+                    terminated = True
+            # Valid action : Not ending Episode, but valid position within inventory
+            elif ((frame_x, frame_y) in self.valid_pos) \
+                & (end_bool == False) \
+                & (self.inventory_dict[FrameStructureType.get_framestructuretype_from_idx(freeframe_idx)] > 0) :
+                    self.render_valid_action = True
+                    self.apply_action(action)
+                    # reward = 1 # small reward for creating block 
+                    terminated = False
             
-            # Positive rewards if correctly ended after support and loads are all connected
-            # (action is applied to environment)
-            elif end_bool == True and temp_is_connected == True:
-                # Apply valid action and update environment state
-                self.render_valid_action = True
-                self.apply_action(action)
-                # TODO add displacement reward
-                reward = 10 # TODO get final structural reward (Big pos - negative for element count ) 
-                terminated = True
-            elif end_bool == False:
-                self.render_valid_action = True
-                self.apply_action(action)
-                reward = 1 # small reward for creating block 
-                terminated = False
-
-        # obs = self.curr_obs  # New observation after applying the action
-        inventory_array = np.array(list(self.inventory_dict.values())) # convert inventory dictionary to array in order of free frame types
-        obs = {
-            'frame_grid': self.curr_frame_grid,
-            'inventory' : inventory_array
-        }
-        # print(f"current FEAGraph : \n {self.curr_fea_graph} ")
-        # print(f"current inventory : {inventory_array}")
-
-        # self.print_framegrid()
-        truncated = False  # Assuming truncation is handled elsewhere or is not used
-
-        # is render() is triggered automatically at each step?
-        # Display render every step for 'debug_all' mode TODO why not for 'rbg_list' mode??
-        self.render()
-        return obs, reward, terminated, truncated, {}
+        
+            # convert inventory dictionary to array in order of free frame types
+            inventory_array = np.array(list(self.inventory_dict.values())) 
+            obs = {
+                'frame_grid': self.curr_frame_grid,
+                'inventory' : inventory_array
+            }
+            # self.print_framegrid()
+            self.render()
+            return obs, reward, terminated, truncated, {}
     
     # Step related 
     def check_is_connected(self, frame_x, frame_y):
@@ -452,7 +500,7 @@ class CantileverEnv_0(gym.Env):
         # create free TrussFrameRL at valid_action board coordinate
         end, freeframe_idx, frame_x, frame_y = valid_action
         frame_center = self.framegrid_to_board(frame_x, frame_y)
-        print(f"Applying Action with  freeframe_idx : {freeframe_idx} at {frame_center}")
+        # print(f"Applying Action with  freeframe_idx : {freeframe_idx} at {frame_center}")
         frame_structure_type = FrameStructureType.get_framestructuretype_from_idx(freeframe_idx)
         new_frame = TrussFrameRL(pos = frame_center, type_structure=frame_structure_type)
         
@@ -463,7 +511,8 @@ class CantileverEnv_0(gym.Env):
         if end == 1: # update displacement info in fea graph if episode end
             self.update_displacement()
             # update self.max_deflection
-            _, self.max_deflection = self.curr_fea_graph.get_max_deflection()
+            max_node_idx, self.max_deflection = self.curr_fea_graph.get_max_deflection()
+            
         # TODO self.update_frame_graph(new_frame)
 
         # self.update_curr_obs()
@@ -480,7 +529,14 @@ class CantileverEnv_0(gym.Env):
         '''
         # support_frames : dictionary (x_frame, y_frame)  cell location within frame grid of support frames
         # targetload_frames : dictionary of ((x_frame,y_frame) : [x_forcemag, y_forcemag, z_forcemag] (force is applied in the negative y direction).
-        support_frames, targetload_frames, inventory_dict = generate_bc.set_cantilever_env_framegrid(self.frame_grid_size_x)
+        support_frames, targetload_frames, inventory_dict, cantilever_length = generate_bc.set_cantilever_env_framegrid(self.frame_grid_size_x)
+        self.cantilever_length = cantilever_length
+        self.allowable_deflection = self.frame_length_m * self.cantilever_length / 120 # length of cantilever(m) / 120
+
+        # set FrameStructureType.EXTERNAL_FORCE magnitude values 
+        #TODO handle multiple target loads
+        FrameStructureType.EXTERNAL_FORCE.node_load = list(targetload_frames.values())[0]
+
         # used for logging
         self.support_frames = [list(sf) for sf in support_frames] 
         self.target_load_frames = [[coord[0], coord[1], force[0], force[1], force[2]] for coord, force in targetload_frames.items()]
@@ -524,7 +580,7 @@ class CantileverEnv_0(gym.Env):
             # self.observation_space = Box(low = frameval_low, 
             #                              high = frameval_high, 
             #                              shape = (self.frame_grid_size_x, self.frame_grid_size_y), 
-            #                              dtype=np.int32) 
+            #                              dtype=np.int64) 
             
             # human-readable obs space *convert Dict observations to flat arrays by using a gymnasium.wrappers.FlattenObservation wrapper when learning!
             max_inventory_level = 20 # max inventory size per free frame type 
@@ -533,13 +589,13 @@ class CantileverEnv_0(gym.Env):
                                                         low=frameval_low,
                                                         high=frameval_high,
                                                         shape=(self.frame_grid_size_x, self.frame_grid_size_y),
-                                                        dtype=np.int32
+                                                        dtype=np.int64
                                                     ),
                                                     'inventory': spaces.Box(
                                                         low=0,
                                                         high=max_inventory_level,
                                                         shape=(self.num_freeframe_types,),
-                                                        dtype=np.int32
+                                                        dtype=np.int64
                                                     )
                                                 })
 
@@ -551,14 +607,14 @@ class CantileverEnv_0(gym.Env):
             freeframe_min, freeframe_max = FrameStructureType.get_freeframe_idx_bounds()
             self.action_space = Box(low = np.array([0, freeframe_min, 0, 0]), 
                                     high = np.array([1, freeframe_max, self.frame_grid_size_x, self.frame_grid_size_y]),
-                                    dtype = np.int32)
+                                    dtype = np.int64)
             print(f'Action Space : {self.action_space}')
             print(f'Total Number of Actions : {2*self.frame_grid_size_x*self.frame_grid_size_y}') # 2*10*5
 
             # Relative Coordinates (end_bool, frame_idx, left/right/top/bottom) ---> Doesn't save much from absolute coordinates, still have to check valid action!
             # self.action_space = Box(low = [0, 0, 0], 
             #                         high= [1, self.max_episode_length, 3],
-            #                         shape=(1, 1, 1), dtype=np.int32)
+            #                         shape=(1, 1, 1), dtype=np.int64)
             # print(f'Total Number of Actions : < {2*self.max_episode_length*4}') #2*20*4
 
         elif self.obs_mode == 'fea_graph':
@@ -584,7 +640,7 @@ class CantileverEnv_0(gym.Env):
             pass
         else :
             self.inventory_dict[new_frame.type_structure] -= 1
-            print(f'(update_inventory_dict) used {new_frame.type_structure} : {self.inventory_dict[new_frame.type_structure]}')
+            # print(f'(update_inventory_dict) used {new_frame.type_structure} : {self.inventory_dict[new_frame.type_structure]}')
 
     def update_frame_grid(self, new_frame):
         '''
@@ -730,8 +786,9 @@ class CantileverEnv_0(gym.Env):
         jl.include("TrussFrameMechanics/truss_analysis.jl")
         jl.seval('using .TrussAnalysis')
 
-        displacement = pythonAsap_1.solve_fea(jl, self.curr_fea_graph) # return nodal displacement
+        displacement, failed_elements = pythonAsap_1.solve_fea(jl, self.curr_fea_graph, self.frame_length_m) # return nodal displacement
         self.curr_fea_graph.displacement = displacement
+        self.curr_fea_graph.failed_elements = failed_elements
 
     # def update_curr_obs(self):
     #     '''
@@ -773,8 +830,9 @@ class CantileverEnv_0(gym.Env):
         Used within take step after episode as ended with connection
         Given that displacement has been updated
         Overlay displaced truss to plot by updating self.fig and self.ax based on self.curr_fea_graph.displacement
+        Overlay failed elements in red based on self.curr_fea_graph.failed_elements
         '''
-        displacement_scale = 50 # scale displacement for visualization 
+        displacement_scale = 10 # scale displacement for visualization 
         
         # Get Displaced vertices
         displaced_vertices = {} # node id : (x, y)
@@ -782,7 +840,7 @@ class CantileverEnv_0(gym.Env):
         for i, (coord, V) in enumerate(self.curr_fea_graph.vertices.items()):
             dx, dy = self.curr_fea_graph.displacement[i][:2] * displacement_scale # Scale down if necessary for visualization
             # Calculate the displacement magnitude
-            d_mag = np.sqrt(dx**2 + dy**2)
+            d_mag = np.sqrt((dx/displacement_scale)**2 + (dy/displacement_scale)**2)
             if max_disp == None or d_mag >= max_disp[1]:
                 max_disp = (V.id, d_mag) 
             # print(f'displacement for node {i} is {dx}, {dy}')
@@ -792,7 +850,7 @@ class CantileverEnv_0(gym.Env):
             displaced_vertices[V.id] = (new_x, new_y)
             self.ax.add_patch(patches.Circle((new_x, new_y), radius=0.05, color='blue', alpha=0.8))
             # Add text showing displacement magnitude next to each circle
-            self.ax.text(new_x + 0.1, new_y + 0.1, f'{d_mag:.2f}', color='gray', fontsize=8)
+            self.ax.text(new_x + 0.1, new_y + 0.1, f'{d_mag:.3f}', color='gray', fontsize=8)
         
         # Connect deflected nodes with edges
         for edge in self.curr_fea_graph.edges:
@@ -803,7 +861,12 @@ class CantileverEnv_0(gym.Env):
             # Plot the deflected truss member
             self.ax.plot([start_coord[0], end_coord[0]], [start_coord[1], end_coord[1]],
                     color='blue', linestyle='--', linewidth=1)
-        
+        for edge in self.curr_fea_graph.failed_elements:
+            start_id, end_id = edge
+            start_coord = displaced_vertices[start_id]
+            end_coord = displaced_vertices[end_id]
+            self.ax.plot([start_coord[0], end_coord[0]], [start_coord[1], end_coord[1]],
+                    color='red', linestyle='-', linewidth=3)
         # Highlight max displacement
         # Find the maximum displacement index and value
         # max_disp_index = np.argmax([np.linalg.norm(d[:2]) for d in self.curr_fea_graph.displacement])
@@ -813,7 +876,10 @@ class CantileverEnv_0(gym.Env):
         maxd_x, maxd_y = displaced_vertices[max_disp[0]]
         maxd_value = max_disp[1]
         self.max_deflection = max_disp[1]
-        self.ax.text(maxd_x+0.1, maxd_y+0.1, f'{maxd_value:.2f}', color='red', fontsize=8, fontweight='bold')
+        if self.max_deflection >= self.allowable_deflection:
+            self.ax.text(maxd_x+0.1, maxd_y+0.2, f'{maxd_value:.3f}', color='red', fontsize=11)
+        else:
+            self.ax.text(maxd_x+0.1, maxd_y+0.2, f'{maxd_value:.3f}', color='green', fontsize=11)
 
     def draw_fea_graph(self):
         '''
@@ -842,7 +908,7 @@ class CantileverEnv_0(gym.Env):
             if trussframe.type_structure == FrameStructureType.SUPPORT_FRAME or trussframe.type_structure == FrameStructureType.LIGHT_FREE_FRAME:
                 self.ax.add_patch(patches.Rectangle((trussframe.x - self.frame_size//2, trussframe.y - self.frame_size//2), self.frame_size, self.frame_size, color='black', lw=1.5, fill=False))
             elif trussframe.type_structure == FrameStructureType.MEDIUM_FREE_FRAME:
-                self.ax.add_patch(patches.Rectangle((trussframe.x - self.frame_size//2, trussframe.y - self.frame_size//2), self.frame_size, self.frame_size, color='black', lw=3, fill=False))
+                self.ax.add_patch(patches.Rectangle((trussframe.x - self.frame_size//2, trussframe.y - self.frame_size//2), self.frame_size, self.frame_size, color='black', lw=5, fill=False))
             # brace
             if trussframe.type_shape == FrameShapeType.DOUBLE_DIAGONAL:
                 # Add diagonal lines from left bottom to right top, right bottom to left top
@@ -878,15 +944,15 @@ class CantileverEnv_0(gym.Env):
         for coord, load in self.curr_fea_graph.external_loads.items():
             force_magnitude = (load[0]**2 + load[1]**2 + load[2]**2)**0.5
             if force_magnitude > 0:
-                arrow_dx = load[0] * 0.025
-                arrow_dy = load[1] * 0.025
+                arrow_dx = load[0] * 0.01
+                arrow_dy = load[1] * 0.01
                 arrow_tail_x = coord[0] - arrow_dx
                 arrow_tail_y = coord[1] - arrow_dy
                 # arrow_head_x = arrow_tail_x - arrow_dx
                 # arrow_head_y = arrow_tail_y - arrow_dy
 
-                self.ax.arrow(arrow_tail_x, arrow_tail_y, arrow_dx, arrow_dy+0.1, head_width=0.1, head_length=0.1, fc='red', ec='red', linewidth=2)
-                self.ax.text(arrow_tail_x, arrow_tail_y + 0.1, f"{force_magnitude:.2f} kN", color='red', fontsize=10, fontweight='bold')
+                self.ax.arrow(arrow_tail_x, arrow_tail_y, arrow_dx, arrow_dy+0.1, head_width=0.2, head_length=0.2, fc='black', ec='black', linewidth=1.5)
+                self.ax.text(arrow_tail_x, arrow_tail_y + 0.1, f"{force_magnitude:.2f} kN", color='black', fontsize=12)
     
     # Render 
     def render_frame(self):
@@ -901,8 +967,10 @@ class CantileverEnv_0(gym.Env):
         self.ax.set_xlim([-margin, self.board_size_x + margin])
         self.ax.set_ylim([-margin, self.board_size_y + margin])
         self.ax.set_aspect('equal', adjustable='box')
-        self.ax.set_xticks(range(self.board_size_x + 1))
-        self.ax.set_yticks(range(self.board_size_y + 1))
+        # self.ax.set_xticks(range(self.board_size_x + 1))
+        # self.ax.set_yticks(range(self.board_size_y + 1))
+        self.ax.set_xticklabels([])
+        self.ax.set_yticklabels([])
 
         # Draw grid lines
         self.ax.grid(True, which='both', color='lightblue', linestyle='-', linewidth=0.5,  zorder=0)
@@ -923,8 +991,17 @@ class CantileverEnv_0(gym.Env):
         self.draw_fea_graph() # update self.fig, self.ax with current fea graph 
 
         # Overlay with displacement graph
-        if len(self.curr_fea_graph.displacement) != 0 :
+        if self.eps_end_valid == True:
+        # if len(self.curr_fea_graph.displacement) != 0 : # check if displacement has been analyzed 
             self.draw_truss_analysis() # last plot has displaced structure 
+            self.ax.text(
+                            0.5, -0.05,  # x=0.5 centers the text, y=0.01 places it at the bottom
+                            f'Allowable Deflection : {self.allowable_deflection:.4f} m',
+                            color='black',
+                            fontsize=12,
+                            ha='center',  # Center-aligns the text horizontally
+                            transform=self.ax.transAxes  # Use axis coordinates
+                        )
         else:
             pass
             # print(f'Displacement is empty!')
@@ -950,8 +1027,23 @@ class CantileverEnv_0(gym.Env):
                 # plt.show() # DEBUG
                 plt.close(self.fig)
                 # print(f'returning img for rgb_array!')
+        elif self.render_mode == "rgb_end":
+            render_name = f"end_{self.render_counter}.png" 
+            if self.eps_end_valid:
+                self.render_frame()
+                render_path = os.path.join(self.render_dir, render_name)
+                # Save the render
+                self.render_frame()
+                plt.savefig(render_path)
+                # Increment the counter for the next file
+                self.render_counter += 1
         elif self.render_mode == "debug_valid":
             if self.render_valid_action:
+                self.render_frame()
+                plt.show()
+                plt.close(self.fig)
+        elif self.render_mode == "debug_end":
+            if self.eps_end_valid:
                 self.render_frame()
                 plt.show()
                 plt.close(self.fig)
