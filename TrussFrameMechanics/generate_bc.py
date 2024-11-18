@@ -121,20 +121,25 @@ def set_cantilever_env_framegrid(frame_grid_size_x, seed=None):
     # height_options = [1, 2, 3]                 # in terms of frames
     height_options = [1, ]                 # in terms of frames
     # length_options = [3, 4, 5]              # in terms of frames
+    # length_options = [3,]              # in terms of frames
     length_options = [3,]              # in terms of frames
     # magnitude_options = [10.0, 20.0, 30.0, 40.0]    # kN
-    magnitude_options = [40.0]    # kN
+    # magnitude_options = [120.0]    # kN
+    magnitude_options = [240.0]    # kN
 
 
     # Choose random height, length, and load magnitude
     height = random.choice(height_options)
     length = random.choice(length_options)
     magnitude = random.choice(magnitude_options)
-    med_inv = random.choice(range(1,length)) # size of medium free frame inventory ; set to length of cantilever
-    med_inv = 2
+    # light_inv = frame_grid_size_x * 2 # TODO reasonable inventory for light frame?
+    # med_inv = random.choice(range(1,length)) # size of medium free frame inventory ; set to length of cantilever
+    
+    light_inv = 8
+    med_inv = 3
 
     inventory = {
-        FrameStructureType.LIGHT_FREE_FRAME : -1, # indicate no limits
+        FrameStructureType.LIGHT_FREE_FRAME : light_inv, # indicate no limits
         FrameStructureType.MEDIUM_FREE_FRAME : med_inv,
         # FrameStructureType.HEAVY_FREE_FRAME : *,
     }
@@ -158,4 +163,4 @@ def set_cantilever_env_framegrid(frame_grid_size_x, seed=None):
         (load_x_frame, load_y_frame): [0, -magnitude, 0]
     }
 
-    return support_frames, target_frames, inventory
+    return support_frames, target_frames, inventory, length
