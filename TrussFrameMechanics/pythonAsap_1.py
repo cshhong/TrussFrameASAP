@@ -6,7 +6,7 @@ communicate (python) FEAGraph -> (julia) ASAP FEA -> (python) displacement
 ** python list -> Julia Vector , python tuple -> Julia tuple
     ASAP expects Vectors!
 '''
-def solve_fea(jl, feagraph):
+def solve_fea(jl, feagraph, frame_length_m):
     '''
     Input
         jl : Julia session
@@ -20,17 +20,32 @@ def solve_fea(jl, feagraph):
 
     Output
         max_displacement: (float) The maximum nodal displacement of the truss model.
+        failed_elements: list of element index pairs that failed
     '''
     node_coordinates = [list(v.coordinates)+[0.0] for v in list(feagraph.vertices.values())]
     # node_coordinates = [(float(x), float(y)) for x, y in (v.coordinates for v in list(feagraph.vertices.values()))]
     element_connections = feagraph.edges
     fixed_idx = [feagraph.vertices[support].id for support in feagraph.supports]
     loads = [list((v.id, v.load)) for v in list(feagraph.vertices.values())]
-    print(f'(solve fea) loads : {loads}')
+    # print(f'(solve fea) loads : {loads}')
 
-    model = jl.create_and_solve_model_julia(node_coordinates, element_connections, fixed_idx, loads)
-    displacement = model.u
+    # model = jl.create_and_solve_model_julia(node_coordinates, element_connections, fixed_idx, loads, frame_length_m)
+    # displacement = model.u
+
+    displacement, axial_forces, P_cap_kN =  jl.create_and_solve_model_julia(node_coordinates, element_connections, fixed_idx, loads, frame_length_m)
+
     displacement = np.array(displacement).reshape(len(node_coordinates), 6) # reshape to 3D coordinates (Frame Model)
     translational_u = displacement[:, :3]  # Extract the first three translational DOFs (u_x, u_y, u_z)
 
-    return translational_u
+    failed_elements_idx = [i for i, force in enumerate(axial_forces) if abs(force) > P_cap_kN]
+    # get node idx pairs of failed elements
+    failed_elements = [element_connections[i] for i in failed_elements_idx]
+
+    print("Elements that failed:", failed_elements)
+
+
+    # increment = 20
+    # element_forces = jl.get_element_forces(model, increment)
+    # print(f" element forces : {element_forces}")
+
+    return translational_u, failed_elements
