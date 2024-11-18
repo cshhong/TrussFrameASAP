@@ -36,10 +36,11 @@ class FEAGraph:
     maximal_edges : A dictionary where keys are directions and values are a list of MaximalEdge objects. (only useful for overlapping frames)
     external_loads : dictionary where key : coordinate in board, value : load magnitude [load.x, load.y, load.z]
     displacement :  2D list of nodal displacement [x,y,z] for each node in node index order. Only non-empty upon fea (eps end)
+    failed_elements : 2D list of node index pairs of elements that failed in FEA (eps end)
     
     """
     
-    def __init__(self, vertices=None, supports=None, edges=None, maximal_edges=None, external_loads=None, default_node_load=[0.0, -0.4, 0.0]):
+    def __init__(self, vertices=None, supports=None, edges=None, maximal_edges=None, external_loads=None, displacement=None, failed_elements=None):
         """
         Initializes the graph with dictionaries of vertices, edges, and maximal edges.
         """
@@ -58,7 +59,16 @@ class FEAGraph:
                                                                                 'LT_RB': []
                                                                             }
         self.maximal_edges_merged = False
-        self.displacement = []
+
+        if displacement is not None:
+            self.displacement = displacement
+        else:
+            self.displacement = []
+        
+        if failed_elements is not None:
+            self.failed_elements = failed_elements
+        else:
+            self.failed_elements = []
 
     def __repr__(self):
         """Nicely formatted representation of the graph."""
@@ -68,6 +78,7 @@ class FEAGraph:
         edges_repr = "\n".join([f"  {e}" for e in self.edges])
         maximal_edges_repr = "\n".join([f"  {d}: {edges}" for d, edges in self.maximal_edges.items()])
         displacement_repr = "\n".join([f"  {node_idx}: {displacement}" for node_idx, displacement in enumerate(self.displacement)])
+        failed_elements_repr = "\n".join([f"  {e}" for e in self.failed_elements])
 
         return (
             # f"Default Node load : ({self.default_node_load})\n"
@@ -79,6 +90,7 @@ class FEAGraph:
             f"Edges ({len(self.edges)})\n"
             # f"Maximal Edges ({len(self.maximal_edges)}):\n{maximal_edges_repr}\n"
             f"Displacement ({len(self.displacement)}):\n{displacement_repr}\n)"
+            f"Failed Elements ({len(self.failed_elements)}):\n{failed_elements_repr}\n)"
         )
 
     def get_all_node_ids(self):
