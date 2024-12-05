@@ -151,7 +151,9 @@ export get_element_forces
         # I = 1e-6 # m^4 Moment of inertia, used for bending capacity
         
         # Tube with radius 0.01 and 5% thickness
-        A = 0.00314 # m^2 Cross-sectional area of the element
+        # A = 0.00314 # m^2 Cross-sectional area of the element
+        # A = 0.00628 # m^2 Cross-sectional area of the element
+        A = 0.00417 # m^2 Cross-sectional area of the element
         I = 1.45686e-9 # m^4 Moment of inertia, used for bending capacity
         G = 80e6 # Shear modulus, also related to stiffness
         sec = Section(A, E, G, I, I, 1.) #area, young's modulus, shear mod, strong axis I, weak axis I, torsional constant, density=1

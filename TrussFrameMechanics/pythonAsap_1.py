@@ -41,7 +41,7 @@ def solve_fea(jl, feagraph, frame_length_m):
     # get node idx pairs of failed elements
     failed_elements = [element_connections[i] for i in failed_elements_idx]
 
-    print("Elements that failed:", failed_elements)
+    # print("Elements that failed:", failed_elements)
 
 
     # increment = 20
