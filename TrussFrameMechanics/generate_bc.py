@@ -125,7 +125,7 @@ def set_cantilever_env_framegrid(frame_grid_size_x, seed=None):
     length_options = [3,]              # in terms of frames
     # magnitude_options = [10.0, 20.0, 30.0, 40.0]    # kN
     # magnitude_options = [120.0]    # kN
-    magnitude_options = [240.0]    # kN
+    magnitude_options = [300.0]    # kN
 
 
     # Choose random height, length, and load magnitude
