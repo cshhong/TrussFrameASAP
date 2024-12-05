@@ -486,7 +486,14 @@ class TrussFrameApp:
         # Draw vertices
         for coord, vertex in self.vertices.items():
             if vertex.id in list(self.supports.keys()):
-                self.ax.add_patch(patches.Rectangle((coord[0] - 0.1, coord[1] - 0.1), 0.2, 0.2, color='blue', lw=1.5, fill=True))
+                # self.ax.add_patch(patches.Rectangle((coord[0] - 0.1, coord[1] - 0.1), 0.2, 0.2, color='blue', lw=1.5, fill=True))
+                # Create a triangle with the top point at the vertex coordinate
+                triangle_vertices = [
+                    (coord[0], coord[1]),  # Top point
+                    (coord[0] - 0.15, coord[1] - 0.2),  # Bottom-left point
+                    (coord[0] + 0.15, coord[1] - 0.2)   # Bottom-right point
+                ]
+                self.ax.add_patch(patches.Polygon(triangle_vertices, color='blue', lw=1.5, fill=True))
             else:
                 self.ax.add_patch(patches.Circle(coord, radius=0.1, color='blue', lw=1.5, fill=False ))
             self.ax.text(coord[0]-text_offset, coord[1]+text_offset, 

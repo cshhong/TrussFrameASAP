@@ -18,22 +18,11 @@ TODO Env - random placement of supports, target load
         - connect all (as collection problem) -> FEA on final structure - likely will not be interesting solutions, make sure to make nodal weight heavy
         - connect all with limited options to add support? -> FEA on final structure
 
-TODO reward : step reward to connect + end FEA reward 
-[Anticipated Learning process]
-- STEP 0 learns to take valid actions 
-- STEP 1 learns to connect all supports to target loads
-    Even if 0,1 are not efficient, complete episodes with have a connecting structure! -> collect all of these  
-    (baked into environment) 
-- STEP 2 learns to connect all supports to target loads with small deflection
-    Expected towards the end to converge to a single solution
+TODO reward : step reward to connect support and load + end FEA reward 
 
-    Train for total of 1,000,000 episodes 
-    => collect 100 solutions batches every 50,000 episodes
-    => overlay batches on PCA map 
-        - expect this to be scattered in the beginning (better exploration)
-        - concentrated in high performing regions towards the end (better exploitation)
 
-[Evaluating Boundary Condition]
+
+[1. Evaluating Boundary Condition for multiple high performing solutions]
 We want a scenario (boundary condition, inventory) where it is possible to find high performing designs is not obvious; aka has multiple high performing solutions
 - There is single unobvious solution
 - There is multiple high performing solutions (some might also not be obvious)
@@ -49,30 +38,49 @@ How to do this? Within one boundary condition, many number of rolllouts
 [TODO] Map all terminated episodes (frame grid) with UMAP
     - designs with no failed elem low deflection cluster? -> visually inspect 
 
+UMAP
+[DONE] debug umap - why aren't points correlating to index? hdf5 stores info in alphabetical order!!
+[DONE] record env design decisions for paper
+[DONE] visualize MEDIUM_FREE_FRAME as shaded (not thicker lines)
+[DONE] visualize hover images on UMAP
+[TODO] adjust ratio of failed elements to less than 30%? x2 sectional area, x2 self load 
 
+[DONE] mark designs with failed elements with red unfilled circle
+[DONE] create plane on z axis for allowable displacement 
+[DONE] scale z axis - separate close values, compress outliers
+[DONE] get ratio of designs with failed elements
+[DONE] rollout for 1000 episodes, get images retroactively, 
+[DONE] get plot of clusters 
+[DONE] color points by cluster
+[DONE] make points with images (min 5 points) larger
+[DONE] get min 5, mid 5, max 5 designs per cluster 
 
-Comparison for one boundary condition!
-Have to log BC (9) to filter later 
-TODO Test with random One BC (1,2,40) Logging solutions -> MAP TSNE or CNN with max deflection 
-    At episode end, log the structure (boundary conditions(tuple), frame grid (np.array), max deflection (float))
-    from all episodes, filter out the ones with the same boundary conditions (support_frames, target_load_frames)
-    and plot the max deflection on PCA map
-TODO Test training with PPO with render and logging 
-TODO Render sequences
+[DONE] adjust render_frame_loaded so that the margin of the plot is small 
+
+[TODO] document why only 30% are generated? How does it reach the max number of steps with size of board is limited? (invalid actions define)
+
+[2. Anticipated Learning process]
+Goals 
+[TODO] Train with MCTC
+[TODO] Train with Model-free (PPO)
+[TODO] overlay with random UMAP for different timestep intervals to see exploration vs exploitation
+
+- STEP 0 learns to take valid actions 
+- STEP 1 learns to connect all supports to target loads
+    Even if 0,1 are not efficient, complete episodes with have a connecting structure! -> collect all of these  
+    (baked into environment) 
+- STEP 2 learns to connect all supports to target loads with small deflection
+    Expected towards the end to converge to a single solution
+
+    Train for total of 1,000,000 episodes 
+    => collect 100 solutions batches every 50,000 episodes
+    => overlay batches on PCA map 
+        - expect this to be scattered in the beginning (better exploration)
+        - concentrated in high performing regions towards the end (better exploitation)
 
 
 Resources
-- Dynamic action masking : 
-    
-https://www.reddit.com/r/reinforcementlearning/comments/rlixoo/openai_gym_custom_environments_dynamically/
-    -> use largest action space possible, use dummy values 
-    -> give large negative reward to illegal action 
-https://www.reddit.com/r/reinforcementlearning/comments/zj31h6/has_anyone_experience_usingimplementing_masking/
-    -> changing the logits (distribution) but... 
-<Termination vs Invalid actions>
-    Effect on Training: Ignoring invalid actions might slow down learning since the agent isn't directly penalized for choosing them. 
-    The agent might spend more time exploring invalid actions, leading to inefficient training. 
-    However, it does avoid destabilizing the training process.
+
 '''
 import gymnasium as gym
 from gymnasium import spaces
@@ -93,7 +101,7 @@ import TrussFrameMechanics.generate_bc as generate_bc
 import TrussFrameMechanics.pythonAsap_1 as pythonAsap_1
 
 import juliacall
-# from pythonAsap import solve_truss_from_graph
+# from pythonAsap import solve_truss_from_graph # for human playable version
 
 import matplotlib.patches as patches
 from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
@@ -348,8 +356,8 @@ class CantileverEnv_0(gym.Env):
             'frame_grid': self.curr_frame_grid,
             'inventory' : inventory_array
         }
-        print(f"reset FEAGraph : \n {self.curr_fea_graph} ")
-        print(f"reset inventory : {inventory_array}")
+        # print(f"reset FEAGraph : \n {self.curr_fea_graph} ")
+        # print(f"reset inventory : {inventory_array}")
         info = {} # TODO what is this used for?
         
         self.eps_end_valid = False
@@ -392,7 +400,7 @@ class CantileverEnv_0(gym.Env):
         
         # Check if inventory is already used up across frames before termination, truncated is True
         if all(value == 0 for value in self.inventory_dict.values()):
-            print(f"Inventory is empty!")
+            # print(f"Inventory is empty!")
             reward = 0
             terminated = False
             truncated = True
@@ -565,7 +573,6 @@ class CantileverEnv_0(gym.Env):
         
         # init inventory_dict
         self.inventory_dict = inventory_dict
-        print(f'(initBoundaryConditions) Inventory : {self.inventory_dict}')
 
 
     def set_gym_spaces(self):
@@ -832,25 +839,26 @@ class CantileverEnv_0(gym.Env):
         Overlay displaced truss to plot by updating self.fig and self.ax based on self.curr_fea_graph.displacement
         Overlay failed elements in red based on self.curr_fea_graph.failed_elements
         '''
-        displacement_scale = 10 # scale displacement for visualization 
+        disp_vis_scale = 10 # scale displacement for visualization 
         
         # Get Displaced vertices
         displaced_vertices = {} # node id : (x, y)
         max_disp = None # (node_id, displacement magnitude) 
         for i, (coord, V) in enumerate(self.curr_fea_graph.vertices.items()):
-            dx, dy = self.curr_fea_graph.displacement[i][:2] * displacement_scale # Scale down if necessary for visualization
+            dx, dy = self.curr_fea_graph.displacement[i][:2]
             # Calculate the displacement magnitude
-            d_mag = np.sqrt((dx/displacement_scale)**2 + (dy/displacement_scale)**2)
+            # d_mag = np.sqrt((dx/ disp_vis_scale)**2 + (dy/ disp_vis_scale)**2) # Scale down if necessary for visualization
+            d_mag = np.sqrt(dx**2 + dy**2)
             if max_disp == None or d_mag >= max_disp[1]:
                 max_disp = (V.id, d_mag) 
             # print(f'displacement for node {i} is {dx}, {dy}')
-            new_x = coord[0] + dx
-            new_y = coord[1] + dy
+            new_x = coord[0] + dx *  disp_vis_scale
+            new_y = coord[1] + dy *  disp_vis_scale
 
             displaced_vertices[V.id] = (new_x, new_y)
             self.ax.add_patch(patches.Circle((new_x, new_y), radius=0.05, color='blue', alpha=0.8))
             # Add text showing displacement magnitude next to each circle
-            self.ax.text(new_x + 0.1, new_y + 0.1, f'{d_mag:.3f}', color='gray', fontsize=8)
+            self.ax.text(new_x + 0.1, new_y + 0.1, f'{d_mag:.4f}', color='gray', fontsize=8)
         
         # Connect deflected nodes with edges
         for edge in self.curr_fea_graph.edges:
@@ -873,13 +881,13 @@ class CantileverEnv_0(gym.Env):
         # max_disp_value = np.linalg.norm(self.curr_fea_graph.displacement[max_disp_index][:2])
         # max_disp_coord = displaced_vertices[max_disp_index]
         # Add text to highlight the max displacement
-        maxd_x, maxd_y = displaced_vertices[max_disp[0]]
+        maxd_x_coord, maxd_y_coord = displaced_vertices[max_disp[0]]
         maxd_value = max_disp[1]
         self.max_deflection = max_disp[1]
         if self.max_deflection >= self.allowable_deflection:
-            self.ax.text(maxd_x+0.1, maxd_y+0.2, f'{maxd_value:.3f}', color='red', fontsize=11)
+            self.ax.text(maxd_x_coord+0.1, maxd_y_coord+0.2, f'{maxd_value:.5f}', color='red', fontsize=11)
         else:
-            self.ax.text(maxd_x+0.1, maxd_y+0.2, f'{maxd_value:.3f}', color='green', fontsize=11)
+            self.ax.text(maxd_x_coord+0.1, maxd_y_coord+0.2, f'{maxd_value:.5f}', color='green', fontsize=11)
 
     def draw_fea_graph(self):
         '''
@@ -895,7 +903,14 @@ class CantileverEnv_0(gym.Env):
         for coord, vertex in vertices:
             # if vertex.coordinates in supports:
             if vertex.is_free == False:
-                self.ax.add_patch(patches.Rectangle((coord[0] - 0.1, coord[1] - 0.1), 0.2, 0.2, color='blue', lw=1.5, fill=True))
+                # self.ax.add_patch(patches.Rectangle((coord[0] - 0.1, coord[1] - 0.1), 0.2, 0.2, color='blue', lw=1.5, fill=True))
+                # Create a triangle with the top point at the vertex coordinate
+                triangle_vertices = [
+                    (coord[0], coord[1]),  # Top point
+                    (coord[0] - 0.15, coord[1] - 0.2),  # Bottom-left point
+                    (coord[0] + 0.15, coord[1] - 0.2)   # Bottom-right point
+                ]
+                self.ax.add_patch(patches.Polygon(triangle_vertices, color='blue', lw=1.5, fill=True))
             else:
                 self.ax.add_patch(patches.Circle(coord, radius=0.1, color='blue', lw=1.5, fill=False ))
             self.ax.text(coord[0]-text_offset, coord[1]+text_offset, 
@@ -908,7 +923,7 @@ class CantileverEnv_0(gym.Env):
             if trussframe.type_structure == FrameStructureType.SUPPORT_FRAME or trussframe.type_structure == FrameStructureType.LIGHT_FREE_FRAME:
                 self.ax.add_patch(patches.Rectangle((trussframe.x - self.frame_size//2, trussframe.y - self.frame_size//2), self.frame_size, self.frame_size, color='black', lw=1.5, fill=False))
             elif trussframe.type_structure == FrameStructureType.MEDIUM_FREE_FRAME:
-                self.ax.add_patch(patches.Rectangle((trussframe.x - self.frame_size//2, trussframe.y - self.frame_size//2), self.frame_size, self.frame_size, color='black', lw=5, fill=False))
+                self.ax.add_patch(patches.Rectangle((trussframe.x - self.frame_size//2, trussframe.y - self.frame_size//2), self.frame_size, self.frame_size, facecolor=((0.7, 0.7, 0.7, 0.5)), edgecolor = 'black', lw=1.5, fill=True))
             # brace
             if trussframe.type_shape == FrameShapeType.DOUBLE_DIAGONAL:
                 # Add diagonal lines from left bottom to right top, right bottom to left top
@@ -973,7 +988,7 @@ class CantileverEnv_0(gym.Env):
         self.ax.set_yticklabels([])
 
         # Draw grid lines
-        self.ax.grid(True, which='both', color='lightblue', linestyle='-', linewidth=0.5,  zorder=0)
+        # self.ax.grid(True, which='both', color='lightblue', linestyle='-', linewidth=0.5,  zorder=0)
         for i in range(0, self.board_size_x + 1, 2):
             self.ax.axvline(x=i, color='lightblue', linestyle='-', linewidth=2, zorder=0)
         for j in range(0, self.board_size_y + 1, 2):
@@ -1034,7 +1049,7 @@ class CantileverEnv_0(gym.Env):
                 render_path = os.path.join(self.render_dir, render_name)
                 # Save the render
                 self.render_frame()
-                plt.savefig(render_path)
+                plt.savefig(render_path, bbox_inches='tight')
                 # Increment the counter for the next file
                 self.render_counter += 1
         elif self.render_mode == "debug_valid":
