@@ -217,9 +217,10 @@ class FEAGraph:
         #     raise ValueError("Displacement data is not available")
 
         # Calculate the magnitude of displacement for each node
-        displacement_scale = 50 # scale displacement for visualization 
+        # displacement_scale = 50 # scale displacement for visualization 
         
-        magnitudes = [np.linalg.norm(node_disp[:2]) * displacement_scale for node_disp in self.displacement]
+        # magnitudes = [np.linalg.norm(node_disp[:2]) * displacement_scale for node_disp in self.displacement]
+        magnitudes = [np.linalg.norm(node_disp[:2]) for node_disp in self.displacement]
 
         # Find the index of the node with the maximum displacement
         max_index = np.argmax(magnitudes)
