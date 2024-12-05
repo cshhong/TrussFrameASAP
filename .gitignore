@@ -5,3 +5,7 @@ test_juliacall.py
 *.h5
 *.png
 videos
+
+humanplayable
+
+PerformanceMap/render_perf
