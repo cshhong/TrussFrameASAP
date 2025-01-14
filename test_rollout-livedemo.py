@@ -219,7 +219,7 @@ if __name__ == "__main__":
     # API Console : https://www.dropbox.com/developers/apps/info/a44uvsxdkczevsi
 
     # DROPBOX_FOLDER = f"/{name}" # relative path within Dropbox/Apps/TrussFrame/
-    # ACCESS_TOKEN = "sl.CB7HE1r6aPtekKHL-V6imSM8fu2FmRfPRB-b0L5h2E40gI2fIXv_gcpzafTlmg6yjS04Ne5GH85K0nWfCKNf8nCbMFtP7OikwN0GKde5ofNvzXkgh2C5VC9nF9bXOqEAG1jgNbwq-lFKyIk"
+    # ACCESS_TOKEN = ""
     # scrape_image_links(ACCESS_TOKEN, DROPBOX_FOLDER, img_csv_name)
     
     ################ Create Interactive Map ################
