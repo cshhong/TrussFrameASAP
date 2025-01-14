@@ -6,6 +6,11 @@ test_juliacall.py
 *.png
 videos
 
-humanplayable
+# humanplayable
+
+TrussFrameMechanics/_test_juliacall.py
 
 PerformanceMap/render_perf
+notes.md
+
+test_rollout-livedemo.py
