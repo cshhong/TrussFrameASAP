@@ -17,6 +17,27 @@ import base64
 import pandas as pd
 import plotly.express as px
 
+
+def umap_reduce_framegrid_1D(stacked_frame_grids, n_neighbors=15, min_dist=0.1):
+    """
+    Reduce the dimensionality of frame grids using UMAP.
+    Input:
+        - stacked_frame_grids: np.array (num_designs, num_rows, num_cols)
+        - n_neighbors: int, optional
+        UMAP parameter controlling local connectivity. Smaller neighborhoods may result in tighter, more isolated clusters. Larger neighborhoods can create smoother transitions between clusters but may blur local details.
+        - min_dist: float, optional
+    Output:
+        - umap_2d: np.array (num_designs, 2)
+    """
+    # Flatten frame grids for UMAP input
+    num_designs, num_rows, num_cols = stacked_frame_grids.shape
+    flattened_grids = stacked_frame_grids.reshape(num_designs, -1)\
+    
+    # Perform UMAP dimensionality reduction to 1D
+    reducer = umap.UMAP(n_neighbors=n_neighbors, min_dist=min_dist, n_components=1, random_state=42, n_jobs=1)
+    umap_1d = reducer.fit_transform(flattened_grids)
+    return umap_1d
+
 def umap_reduce_framegrid(stacked_frame_grids, n_neighbors=15, min_dist=0.1):
     """
     Reduce the dimensionality of frame grids using UMAP.
@@ -37,7 +58,7 @@ def umap_reduce_framegrid(stacked_frame_grids, n_neighbors=15, min_dist=0.1):
     umap_2d = reducer.fit_transform(flattened_grids)
     return umap_2d
 
-def create_cluster_image_plot(selected_cluster_idx, render_dir, name):
+def create_cluster_image_plot(selected_cluster_idx, render_dir, name, eps_start_idx=None):
     """
     Create a plot of selected images where rows correspond to different clusters,
     and along the row, images are laid out in order of low, median, high max displacement.
@@ -46,11 +67,14 @@ def create_cluster_image_plot(selected_cluster_idx, render_dir, name):
         selected_cluster_idx (list of lists): 2D list of selected episode indices per cluster.
         render_dir (str): Directory where rendered episode images are saved.
         name (str): Name for the resulting plot image file.
-        n_select (int): Number of images selected per category (low, median, high).
+        eps_start_idx (int, optional): Starting index to adjust episode indices. Defaults to None.
 
     Returns:
         None: Saves the plot to a file in `render_dir`.
     """
+    if eps_start_idx is None:
+        eps_start_idx = 0  # Default value if not provided
+
     num_clusters = len(selected_cluster_idx)
     max_columns = max(len(cluster) for cluster in selected_cluster_idx)  # Ensure flexibility in column count
 
@@ -62,11 +86,13 @@ def create_cluster_image_plot(selected_cluster_idx, render_dir, name):
     for cluster_idx, cluster_eps_indices in enumerate(selected_cluster_idx):
         cluster_images = []
         for q_eps_idx in cluster_eps_indices:
-            image_path = os.path.join(render_dir, f"end_{q_eps_idx}.png")  # Assuming images are saved as PNG
+            # Adjust index using eps_start_idx
+            adjusted_idx = q_eps_idx + eps_start_idx
+            image_path = os.path.join(render_dir, f"end_{adjusted_idx}.png")  # Assuming images are saved as PNG
             if os.path.exists(image_path):
                 cluster_images.append(mpimg.imread(image_path))
             else:
-                print(f"Warning: Image not found for episode {q_eps_idx} at {image_path}")
+                print(f"Warning: Image not found for adjusted episode {adjusted_idx} at {image_path}")
 
         # Create a row of images for the current cluster
         if cluster_images:
@@ -81,9 +107,9 @@ def create_cluster_image_plot(selected_cluster_idx, render_dir, name):
 
     # Save the final image plot
     output_path = os.path.join(render_dir, f"{name}_cluster_plot.png")
-    plt.savefig(output_path, dpi=50*num_clusters, pad_inches=0.01)
+    plt.savefig(output_path, dpi=50 * num_clusters, pad_inches=0.01)
     print(f"Cluster image plot saved at {output_path}")
-     # Close the figure to release memory
+    # Close the figure to release memory
     plt.close(fig)
 
 def select_from_clusters(max_displacements, cluster_labels,  n_select=2):
@@ -121,7 +147,7 @@ def select_from_clusters(max_displacements, cluster_labels,  n_select=2):
         low_displacement_indices = sorted_indices[:n_select]
 
         # Select the median value and one index below and one above
-        median_idx = len(sorted_indices) // 2
+        # median_idx = len(sorted_indices) // 2
         # median_displacement_indices = sorted_indices[max(0, median_idx - 1):median_idx + 2]
 
         # Select n_select indices near the max max displacement
@@ -130,10 +156,218 @@ def select_from_clusters(max_displacements, cluster_labels,  n_select=2):
         # Combine all selected indices for the current cluster
         cluster_eps_indices.append(
             # low_displacement_indices + median_displacement_indices + max_displacement_indices
-            low_displacement_indices + [median_idx] + max_displacement_indices
+            # low_displacement_indices + [median_idx] + max_displacement_indices
+            low_displacement_indices + max_displacement_indices
         )
 
     return cluster_eps_indices
+
+def create_interactive_performance_map_2D(
+    max_displacements,
+    all_failed_elements,
+    allowable_displacement,
+    img_url_csv,
+    umap_1d,
+    cluster_labels=None,
+    selected_cluster_idx=None,
+    gamma=20,
+    marker_size=3,
+):
+    """
+    Creates an interactive Dash app to visualize a 2D performance map with 1D UMAP values on the x-axis
+    and deflection along the y-axis.
+    """
+    ## Load image data from CSV if provided ##
+    if img_url_csv:
+        data_df = pd.read_csv(img_url_csv)
+    else:
+        raise ValueError("img_url_csv is required")
+    
+    # Transform max displacements
+    transformed_max_displacements = max_displacements / (1 + gamma * max_displacements)
+    
+    ## Get encoded values for each point (UMAP + transformed max deflection) ##
+    perf_encoded = np.hstack((umap_1d[:, None], transformed_max_displacements[:, None]))  # Shape: (n, 2)
+
+    # Determine failed and non-failed designs
+    idx_with_failed_elements = [i for i, failed in enumerate(all_failed_elements) if len(failed) > 0]
+    failed_points = perf_encoded[idx_with_failed_elements]
+    non_failed_points = np.delete(perf_encoded, idx_with_failed_elements, axis=0)
+
+    org_idx = np.arange(perf_encoded.shape[0])
+    failed_idx = org_idx[idx_with_failed_elements]
+    non_failed_idx = np.delete(org_idx, idx_with_failed_elements, axis=0)
+
+    # Set up coloring
+    if isinstance(cluster_labels, (list, np.ndarray)):
+        color_data = np.array(cluster_labels)
+        colorscale = ['#D3D3D3'] + px.colors.qualitative.Light24
+    else:
+        color_data = transformed_max_displacements
+        colorscale = "bluyl_r"
+
+    ## Create 2D scatter plot ##
+    fig = go.Figure()
+
+    ## Plot clusters as separate traces if cluster labels are provided ##
+    if isinstance(cluster_labels, (list, np.ndarray)):
+        unique_clusters = np.unique(cluster_labels)
+        for cluster in unique_clusters:
+            cluster_mask = np.array(cluster_labels) == cluster
+            cluster_points = perf_encoded[cluster_mask]
+
+            fig.add_trace(
+                go.Scatter(
+                    x=cluster_points[:, 0],
+                    y=cluster_points[:, 1],
+                    mode="markers",
+                    marker=dict(
+                        size=marker_size,
+                        symbol="circle",
+                    ),
+                    name=f"Cluster {int(cluster)}",  # Integer cluster label in the legend
+                    hoverinfo="skip",
+                )
+            )
+    else:
+        # Default behavior: no clusters, plot all non-failed points as one trace
+        fig.add_trace(
+            go.Scatter(
+                x=non_failed_points[:, 0],
+                y=non_failed_points[:, 1],
+                mode="markers",
+                marker=dict(
+                    size=marker_size,
+                    color="blue",
+                    symbol="circle",
+                ),
+                name="Non-Failed",
+            )
+        )
+
+    # Add failed points
+    fig.add_trace(
+        go.Scatter(
+            x=failed_points[:, 0],
+            y=failed_points[:, 1],
+            mode="markers",
+            marker=dict(
+                size=marker_size,
+                color="red",
+                symbol="x",
+                line=dict(width=1),
+            ),
+            customdata=failed_idx,
+            hovertemplate="Index: %{customdata}<br>Deflection: %{y:.3f}<extra></extra>",
+            name="Failed",
+        )
+    )
+
+    # Add a line for allowable deflection parallel to the x-axis
+    allowable_deflection_trans = allowable_displacement / (1 + gamma * allowable_displacement)  # Transform deflection
+
+    x_min, x_max = perf_encoded[:, 0].min(), perf_encoded[:, 0].max()  # Get x-axis range
+
+    fig.add_trace(
+        go.Scatter(
+            x=[x_min, x_max],  # Line extends across the entire x-axis
+            y=[allowable_deflection_trans, allowable_deflection_trans],  # Constant y-value
+            mode="lines",
+            line=dict(color="grey", width=1, dash="dash"),  # Dashed red line for visibility
+            name="Allowable Deflection",  # Label for the legend
+            hoverinfo="skip",  # Disable hover
+        )
+    )
+
+    ## Update layout ##
+    fig.update_layout(
+        title="2D Interactive Performance Map",
+        xaxis=dict(
+            title="UMAP 1D Value",
+            showgrid=True,
+            gridcolor="lightgrey",
+        ),
+        yaxis=dict(
+            title="Transformed Max Deflection",
+            showgrid=True,
+            gridcolor="lightgrey",
+        ),
+        height=800,
+        margin=dict(l=50, r=50, t=50, b=50),
+        showlegend=True,  # Ensure the legend is displayed
+    )
+
+    # Save the figure
+    fig.write_image("performance_map_2D.png", format="png", width=1200, height=800)
+    print("Figure saved as 'performance_map.png'")
+
+    ## Initialize Dash app ##
+    app = Dash(__name__)
+    app.layout = html.Div(
+        style={"display": "flex", "justify-content": "center", "align-items": "center", "height": "100vh"},
+        children=[
+            html.Div(
+                [
+                    dcc.Graph(
+                        id="performance-map",
+                        figure=fig,
+                        style={"width": "1000px", "height": "700px"},
+                    ),
+                ],
+                style={
+                    "width": "55%",
+                    "height": "100vh",
+                    "display": "flex",
+                    "flex-direction": "column",
+                    "justify-content": "center",
+                    "align-items": "center",
+                },
+            ),
+            html.Div(
+                id="image-display",
+                style={
+                    "width": "45%",
+                    "height": "auto",
+                    "padding": "5px",
+                    "border": "1px solid #ccc",
+                    "background-color": "#f9f9f9",
+                    "text-align": "center",
+                    "display": "flex",
+                    "justify-content": "center",
+                    "align-items": "center",
+                    "flex-direction": "column",
+                },
+                children="Hover over a point to see details.",
+            ),
+        ],
+    )
+
+    ## Define hover callback ##
+    @callback(
+        Output("image-display", "children"),
+        Input("performance-map", "hoverData"),
+    )
+    def display_hover(hoverData):
+        if hoverData is None:
+            return "Hover over a point to see details."
+        point_data = hoverData["points"][0]
+        idx = point_data["customdata"]
+        try:
+            row = data_df.loc[idx]
+            img_url = row["img_url"]
+            if pd.isna(img_url):
+                return html.P(f"No image available for index: {int(row['idx'])}")
+            else:
+                return html.Div([
+                    html.Img(src=img_url, style={"width": "100%", "max-width": "1200px", "height": "auto"}),
+                    html.P(f"Index: {int(row['idx'])}"),
+                ])
+        except KeyError:
+            return f"Invalid point selected: {int(idx)}"
+
+    ## Run the app ##
+    app.run(debug=False)
+
 
 def create_interactive_performance_map_cluster(
     max_displacements,
@@ -298,24 +532,25 @@ def create_interactive_performance_map_cluster(
 
     # Add black boundary circle for rendered idx selected from cluster
     if isinstance(selected_cluster_idx, (list, np.ndarray)): 
+        print(f"selected_cluster_idx : {selected_cluster_idx}")
         selected_cluster_idx = np.unique(np.array(selected_cluster_idx).flatten())
-        # print(f"selected_cluster_idx : {selected_cluster_idx}")
-        selected_points = perf_encoded[selected_cluster_idx]
-        fig.add_trace(
-            go.Scatter3d(
-                x=selected_points[:, 0],
-                y=selected_points[:, 1],
-                z=selected_points[:, 2],
-                mode="markers",
-                marker=dict(size=marker_size, color='rgba(0, 0, 0, 1.0)', symbol="circle-open"),
-                customdata=selected_cluster_idx,
-                # customdata=np.column_stack((selected_cluster_idx, ["ignore"] * len(selected_cluster_idx))),  # Add a flag
-                hoverinfo="none",  # Disable default hover behavior
-                hovertemplate=None,
-                name='Selected from Cluster',
-                visible=True  # Keep annotation visible
+        if len(selected_cluster_idx) > 0:
+            selected_points = perf_encoded[selected_cluster_idx]
+            fig.add_trace(
+                go.Scatter3d(
+                    x=selected_points[:, 0],
+                    y=selected_points[:, 1],
+                    z=selected_points[:, 2],
+                    mode="markers",
+                    marker=dict(size=marker_size, color='rgba(0, 0, 0, 1.0)', symbol="circle-open"),
+                    customdata=selected_cluster_idx,
+                    # customdata=np.column_stack((selected_cluster_idx, ["ignore"] * len(selected_cluster_idx))),  # Add a flag
+                    hoverinfo="none",  # Disable default hover behavior
+                    hovertemplate=None,
+                    name='Selected from Cluster',
+                    visible=True  # Keep annotation visible
+                )
             )
-        )
 
     #  Set gridlines and axis labels
     fig.update_layout(

@@ -57,10 +57,10 @@ HDF5 file format:
 '''
 
 import h5py
-from TrussFrameMechanics.trussframe import FrameShapeType, FrameStructureType, TrussFrameRL
-from  TrussFrameMechanics.vertex import Vertex
-from  TrussFrameMechanics.maximaledge import MaximalEdge
-from  TrussFrameMechanics.feagraph import FEAGraph
+from TrussFrameASAP.TrussFrameMechanics.trussframe import FrameShapeType, FrameStructureType, TrussFrameRL
+from  TrussFrameASAP.TrussFrameMechanics.vertex import Vertex
+from  TrussFrameASAP.TrussFrameMechanics.maximaledge import MaximalEdge
+from  TrussFrameASAP.TrussFrameMechanics.feagraph import FEAGraph
 import numpy as np
 import pandas as pd
 
@@ -89,6 +89,12 @@ def save_umap2d_hdf5(hdf5_filename, umap2d):
         # Create or overwrite the group
         umap_group = hdf5_obj.require_group("UMAP")
         # Save UMAP 2D embedding
+        # umap_group.create_dataset("umap2d", data=umap2d)
+        # Check if "umap2d" dataset exists and overwrite if necessary
+        if "umap2d" in umap_group:
+            del umap_group["umap2d"]  # Delete the existing dataset
+        
+        # Create new dataset for "umap2d"
         umap_group.create_dataset("umap2d", data=umap2d)
 
         print("'umap2d' data saved successfully.")
@@ -120,11 +126,25 @@ def save_cluster_data(hdf5_filename, umap_n_neighbors, dbscan_num_core, dbscan_e
         # Create or overwrite the group
         clustering_group = hdf5_obj.require_group("Clustering")
         # Save clustering data
-        clustering_group.create_dataset("umap_n_neighbors", data=umap_n_neighbors)
-        clustering_group.create_dataset("dbscan_num_core", data=dbscan_num_core)
-        clustering_group.create_dataset("dbscan_eps", data=dbscan_eps)
-        clustering_group.create_dataset("num_clusters", data=num_clusters)
-        clustering_group.create_dataset("cluster_labels", data=cluster_labels)
+        # clustering_group.create_dataset("umap_n_neighbors", data=umap_n_neighbors)
+        # clustering_group.create_dataset("dbscan_num_core", data=dbscan_num_core)
+        # clustering_group.create_dataset("dbscan_eps", data=dbscan_eps)
+        # clustering_group.create_dataset("num_clusters", data=num_clusters)
+        # clustering_group.create_dataset("cluster_labels", data=cluster_labels)
+        # List of dataset names to save
+        datasets = {
+            "umap_n_neighbors": umap_n_neighbors,
+            "dbscan_num_core": dbscan_num_core,
+            "dbscan_eps": dbscan_eps,
+            "num_clusters": num_clusters,
+            "cluster_labels": cluster_labels
+        }
+        
+        # Iterate over datasets and overwrite if they exist
+        for name, data in datasets.items():
+            if name in clustering_group:
+                del clustering_group[name]  # Delete the existing dataset
+            clustering_group.create_dataset(name, data=data)  # Create new dataset
 
         print("'Clustering' data saved successfully.")
 
@@ -325,17 +345,58 @@ def load_episode_hdf5(hdf5_filename, eps_idx):
     return fea_graph, frames, frame_grid
 
 
-def load_framegrids_hdf5(hdf5_filename):
+# def load_framegrids_hdf5(hdf5_filename):
+#     """
+#     From an HDF5 file, for all episodes, load the framegrid np.array.
+
+#     Parameters:
+#         - hdf5_filename: str, path to the HDF5 file
+#         - eps_range: tuple (start, end), optional
+#             Specifies the range of episodes to load. 
+#             If None, load all episodes. Episodes are zero-indexed.
+        
+#     Returns:
+#         - stacked frame grids: np.array (num_episodes, num_rows, num_cols)
+#     """
+    
+#     with h5py.File(hdf5_filename, 'r') as f:
+#         # Access the Episodes group
+#         if "Episodes" not in f:
+#             raise KeyError("The 'Episodes' group is not found in the HDF5 file.")
+
+#         episodes_group = f["Episodes"]
+#         episode_keys = list(episodes_group.keys())
+#         num_episodes = len(episode_keys)
+
+#         # Determine the shape of the frame grid from the first episode
+#         first_episode_key = episode_keys[0]
+#         frame_grid_shape = episodes_group[f'{first_episode_key}/frame_grid/frame_grid'].shape
+
+#         # Initialize the stacked frame grids array
+#         stacked_frame_grids = np.zeros((num_episodes, frame_grid_shape[0], frame_grid_shape[1]))
+
+#         # Iterate through each episode and load the frame grid
+#         for i, episode in enumerate(episode_keys):
+#             # print(f'Loading frame grid for episode {episode}')
+#             frame_grid = episodes_group[f'{episode}/frame_grid/frame_grid'][:]
+#             stacked_frame_grids[i] = frame_grid
+        
+#     return stacked_frame_grids
+
+
+def load_framegrids_hdf5(hdf5_filename, eps_range=None):
     """
-    From an HDF5 file, for all episodes, load the framegrid np.array.
+    From an HDF5 file, load the frame grids for a specified range of episodes.
 
     Parameters:
         - hdf5_filename: str, path to the HDF5 file
-        
+        - eps_range: tuple (start, end), optional
+            Specifies the range of episodes to load. 
+            If None, load all episodes. Episodes are zero-indexed.
+
     Returns:
-        - stacked frame grids: np.array (num_episodes, num_rows, num_cols)
+        - stacked frame grids: np.array (num_selected_episodes, num_rows, num_cols)
     """
-    
     with h5py.File(hdf5_filename, 'r') as f:
         # Access the Episodes group
         if "Episodes" not in f:
@@ -343,32 +404,44 @@ def load_framegrids_hdf5(hdf5_filename):
 
         episodes_group = f["Episodes"]
         episode_keys = list(episodes_group.keys())
-        num_episodes = len(episode_keys)
 
-        # Determine the shape of the frame grid from the first episode
-        first_episode_key = episode_keys[0]
+        # Determine the range of episodes to load
+        if eps_range is None:
+            selected_episode_keys = episode_keys
+        else:
+            start, end = eps_range
+            selected_episode_keys = episode_keys[start:end]
+
+        num_selected_episodes = len(selected_episode_keys)
+
+        # Determine the shape of the frame grid from the first selected episode
+        first_episode_key = selected_episode_keys[0]
         frame_grid_shape = episodes_group[f'{first_episode_key}/frame_grid/frame_grid'].shape
 
         # Initialize the stacked frame grids array
-        stacked_frame_grids = np.zeros((num_episodes, frame_grid_shape[0], frame_grid_shape[1]))
+        stacked_frame_grids = np.zeros((num_selected_episodes, frame_grid_shape[0], frame_grid_shape[1]))
 
-        # Iterate through each episode and load the frame grid
-        for i, episode in enumerate(episode_keys):
+        # Iterate through each selected episode and load the frame grid
+        for i, episode in enumerate(selected_episode_keys):
             # print(f'Loading frame grid for episode {episode}')
             frame_grid = episodes_group[f'{episode}/frame_grid/frame_grid'][:]
             stacked_frame_grids[i] = frame_grid
-        
+
     return stacked_frame_grids
 
-def load_max_deflection_hdf5(hdf5_filename):
+def load_max_deflection_hdf5(hdf5_filename, eps_range=None):
     """
-    From an HDF5 file, for each episode, load the displacement values and get the maximum displacement.
+    From an HDF5 file, for each episode in the specified range, load the displacement values 
+    and get the maximum displacement.
 
     Parameters:
-        - filename: str, path to the HDF5 file
+        - hdf5_filename: str, path to the HDF5 file
+        - eps_range: tuple (start, end), optional
+            Specifies the range of episodes to load. If None, load all episodes.
+            Episodes are zero-indexed.
 
     Returns:
-        - max_displacements: np.array (num_episodes,)
+        - max_displacements: np.array (num_selected_episodes,)
     """
     with h5py.File(hdf5_filename, 'r') as f:
         # Access the Episodes group
@@ -377,13 +450,21 @@ def load_max_deflection_hdf5(hdf5_filename):
 
         episodes_group = f["Episodes"]
         episode_keys = list(episodes_group.keys())
-        num_episodes = len(episode_keys)
+
+        # Determine the range of episodes to load
+        if eps_range is None:
+            selected_episode_keys = episode_keys
+        else:
+            start, end = eps_range
+            selected_episode_keys = episode_keys[start:end]
+
+        num_selected_episodes = len(selected_episode_keys)
 
         # Initialize array to store maximum displacements
-        max_displacements = np.zeros(num_episodes)
+        max_displacements = np.zeros(num_selected_episodes)
 
-        # Iterate through each episode and compute max displacement
-        for i, episode in enumerate(episode_keys):
+        # Iterate through each selected episode and compute max displacement
+        for i, episode in enumerate(selected_episode_keys):
             # print(f'Loading displacement data for episode {episode}')
             # Load displacement data (Nx3 array: [disp_x, disp_y, disp_z])
             displacement_xyz = episodes_group[f'{episode}/FEAGraph/displacement'][:]
@@ -395,6 +476,42 @@ def load_max_deflection_hdf5(hdf5_filename):
             max_displacements[i] = np.max(displacement_magnitude)
 
     return max_displacements
+
+# def load_max_deflection_hdf5(hdf5_filename):
+#     """
+#     From an HDF5 file, for each episode, load the displacement values and get the maximum displacement.
+
+#     Parameters:
+#         - filename: str, path to the HDF5 file
+
+#     Returns:
+#         - max_displacements: np.array (num_episodes,)
+#     """
+#     with h5py.File(hdf5_filename, 'r') as f:
+#         # Access the Episodes group
+#         if "Episodes" not in f:
+#             raise KeyError("The 'Episodes' group is not found in the HDF5 file.")
+
+#         episodes_group = f["Episodes"]
+#         episode_keys = list(episodes_group.keys())
+#         num_episodes = len(episode_keys)
+
+#         # Initialize array to store maximum displacements
+#         max_displacements = np.zeros(num_episodes)
+
+#         # Iterate through each episode and compute max displacement
+#         for i, episode in enumerate(episode_keys):
+#             # print(f'Loading displacement data for episode {episode}')
+#             # Load displacement data (Nx3 array: [disp_x, disp_y, disp_z])
+#             displacement_xyz = episodes_group[f'{episode}/FEAGraph/displacement'][:]
+
+#             # Compute displacement magnitudes: sqrt(disp_x^2 + disp_y^2 + disp_z^2)
+#             displacement_magnitude = np.linalg.norm(displacement_xyz, axis=1)
+
+#             # Find the maximum displacement magnitude
+#             max_displacements[i] = np.max(displacement_magnitude)
+
+#     return max_displacements
     
 def load_env_render_properties(hdf5_filename):
     """
@@ -425,16 +542,19 @@ def load_env_render_properties(hdf5_filename):
         }
 
         return render_properties
-    
-def load_failed_elements_hdf5(hdf5_filename):
+
+def load_failed_elements_hdf5(hdf5_filename, eps_range=None):
     """
-    From an HDF5 file, for all episodes, load the failed_elements ((Fx2 array) pairs of node indices for failed elements).
+    From an HDF5 file, for specified episodes, load the failed_elements ((Fx2 array) pairs of node indices for failed elements).
 
     Parameters:
-        - filename: str, path to the HDF5 file
-        
+        - hdf5_filename: str, path to the HDF5 file
+        - eps_range: tuple (start, end), optional
+            Specifies the range of episodes to load. If None, load all episodes.
+            Episodes are zero-indexed.
+
     Returns:
-        - 3D jagged list (num_episodes, (num_failed_elements, 2))
+        - 3D jagged list (num_selected_episodes, (num_failed_elements, 2))
     """
     with h5py.File(hdf5_filename, 'r') as f:
         # Access the Episodes group
@@ -443,17 +563,57 @@ def load_failed_elements_hdf5(hdf5_filename):
 
         episodes_group = f["Episodes"]
         episode_keys = list(episodes_group.keys())
-        num_episodes = len(episode_keys)
+
+        # Determine the range of episodes to load
+        if eps_range is None:
+            selected_episode_keys = episode_keys
+        else:
+            start, end = eps_range
+            selected_episode_keys = episode_keys[start:end]
+
         all_failed_elements = []
-        # Iterate through each episode and load the frame grid
-        for i, episode in enumerate(episode_keys):
-            # print(f'Loading failed elem for episode {episode}')
+
+        # Iterate through each selected episode and load the failed elements
+        for episode in selected_episode_keys:
+            # print(f'Loading failed elements for episode {episode}')
             failed_elems = episodes_group[f'{episode}/FEAGraph/failed_elements'][:]
             all_failed_elements.append(failed_elems.tolist())
+
+    # Filter indices where failed elements exist
     indices_with_failed_elements = [i for i, failed in enumerate(all_failed_elements) if len(failed) > 0]
 
-    assert len(all_failed_elements) == num_episodes, "Failed elements not loaded correctly there should be {num_episodes} lists"
+    assert len(all_failed_elements) == len(selected_episode_keys), \
+        f"Failed elements not loaded correctly; there should be {len(selected_episode_keys)} lists"
     return all_failed_elements
+
+# def load_failed_elements_hdf5(hdf5_filename):
+#     """
+#     From an HDF5 file, for all episodes, load the failed_elements ((Fx2 array) pairs of node indices for failed elements).
+
+#     Parameters:
+#         - filename: str, path to the HDF5 file
+        
+#     Returns:
+#         - 3D jagged list (num_episodes, (num_failed_elements, 2))
+#     """
+#     with h5py.File(hdf5_filename, 'r') as f:
+#         # Access the Episodes group
+#         if "Episodes" not in f:
+#             raise KeyError("The 'Episodes' group is not found in the HDF5 file.")
+
+#         episodes_group = f["Episodes"]
+#         episode_keys = list(episodes_group.keys())
+#         num_episodes = len(episode_keys)
+#         all_failed_elements = []
+#         # Iterate through each episode and load the frame grid
+#         for i, episode in enumerate(episode_keys):
+#             # print(f'Loading failed elem for episode {episode}')
+#             failed_elems = episodes_group[f'{episode}/FEAGraph/failed_elements'][:]
+#             all_failed_elements.append(failed_elems.tolist())
+#     indices_with_failed_elements = [i for i, failed in enumerate(all_failed_elements) if len(failed) > 0]
+
+#     assert len(all_failed_elements) == num_episodes, "Failed elements not loaded correctly there should be {num_episodes} lists"
+#     return all_failed_elements
 
 def load_allowable_deflection_hdf5(hdf5_filename):
     """
