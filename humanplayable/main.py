@@ -34,8 +34,8 @@ from enum import Enum, auto
 import copy
 
 import juliacall
-# from pythonAsap import solve_truss_from_graph
-import pythonAsap 
+# from pythonAsap_human import solve_truss_from_graph
+import pythonAsap_human
 
 import ipywidgets as widgets
 from IPython.display import display
@@ -771,6 +771,8 @@ def main():
     # Solve truss model with ASAP
     jl = juliacall.newmodule("TrussFrameRL") 
     curr_env = jl.seval('Base.active_project()')
+    jl.seval('using Pkg')
+    jl.seval("Pkg.Add('Asap')")
     print(f"The current active Julia environment is located at: {curr_env}")
 
     # Step 0: Initialize Julia session and import necessary Julia modules
@@ -783,7 +785,7 @@ def main():
     displacements = []
 
     for i, G in enumerate(app.graphs):
-        disp = pythonAsap.solve_truss_from_graph(jl, G, G.loads) # return nodal displacement
+        disp = pythonAsap_human.solve_truss_from_graph(jl, G, G.loads) # return nodal displacement
         # print(f"displacement : {disp}")
         displacements.append(disp)
 
