@@ -14,14 +14,6 @@ TODO Going further is there a way to get diverse high performing solutions acros
 TODO Going further from general group of high performing designs -> perturb points -> how does performance change? 
     Get diverse group of high performing designs through refinement 
 
-TODO Env - random placement of supports, target load 
-        - connect all (as collection problem) -> FEA on final structure - likely will not be interesting solutions, make sure to make nodal weight heavy
-        - connect all with limited options to add support? -> FEA on final structure
-
-TODO reward : step reward to connect support and load + end FEA reward 
-
-
-
 [1. Evaluating Boundary Condition for multiple high performing solutions]
 We want a scenario (boundary condition, inventory) where it is possible to find high performing designs is not obvious; aka has multiple high performing solutions
 - There is single unobvious solution
@@ -29,35 +21,7 @@ We want a scenario (boundary condition, inventory) where it is possible to find 
 
 How to do this? Within one boundary condition, many number of rolllouts 
 - stores data dictionary of instance in h5 file to query selectively and render_frame_instance (borrows from draw_fea_graph, draw_truss_analysis) 
-    [DONE] implement hdf5_utils.py to store and load data
-        - (self.curr_fea_graph, self.frames)
-            - self.frames is a list of TrussFrameRL objects in sequence of creation
-            - self.curr_fea_graph has information about vertices, supports, edges, maximal_edges, loads, failed_elements, max_displacement
-    [TODO] test hdf5 store -> query one eps -> render (to train without render at train time)
 
-[TODO] Map all terminated episodes (frame grid) with UMAP
-    - designs with no failed elem low deflection cluster? -> visually inspect 
-
-UMAP
-[DONE] debug umap - why aren't points correlating to index? hdf5 stores info in alphabetical order!!
-[DONE] record env design decisions for paper
-[DONE] visualize MEDIUM_FREE_FRAME as shaded (not thicker lines)
-[DONE] visualize hover images on UMAP
-[TODO] adjust ratio of failed elements to less than 30%? x2 sectional area, x2 self load 
-
-[DONE] mark designs with failed elements with red unfilled circle
-[DONE] create plane on z axis for allowable displacement 
-[DONE] scale z axis - separate close values, compress outliers
-[DONE] get ratio of designs with failed elements
-[DONE] rollout for 1000 episodes, get images retroactively, 
-[DONE] get plot of clusters 
-[DONE] color points by cluster
-[DONE] make points with images (min 5 points) larger
-[DONE] get min 5, mid 5, max 5 designs per cluster 
-
-[DONE] adjust render_frame_loaded so that the margin of the plot is small 
-
-[TODO] document why only 30% are generated? How does it reach the max number of steps with size of board is limited? (invalid actions define)
 
 [2. Anticipated Learning process]
 Goals 
@@ -78,14 +42,17 @@ Goals
         - expect this to be scattered in the beginning (better exploration)
         - concentrated in high performing regions towards the end (better exploitation)
 
+[DONE] set observation space to be continuous and action space to be discrete, add encode and decode obs, actions
+[DONE] clean order of initialization with inputs
+[DONE] test environment obs, action space with random rollout?
 
 Resources
 
 '''
 import gymnasium as gym
-from gymnasium import spaces
-from gymnasium.spaces import Box, Dict, Graph
-from gymnasium.spaces.graph import *
+# from gym.spaces import Box, Discrete
+from gymnasium.spaces import Box, Discrete
+# from gymnasium.spaces.graph import *
 
 import sys
 import os
@@ -93,12 +60,14 @@ import os
 # Add the directory containing TrussFrameMechanics to sys.path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from TrussFrameMechanics.trussframe import FrameShapeType, FrameStructureType, TrussFrameRL
-from  TrussFrameMechanics.vertex import Vertex
-from  TrussFrameMechanics.maximaledge import MaximalEdge
-from  TrussFrameMechanics.feagraph import FEAGraph
-import TrussFrameMechanics.generate_bc as generate_bc
-import TrussFrameMechanics.pythonAsap_1 as pythonAsap_1
+from TrussFrameASAP.TrussFrameMechanics.trussframe import FrameShapeType, FrameStructureType, TrussFrameRL
+from  TrussFrameASAP.TrussFrameMechanics.vertex import Vertex
+from  TrussFrameASAP.TrussFrameMechanics.maximaledge import MaximalEdge
+from  TrussFrameASAP.TrussFrameMechanics.feagraph import FEAGraph
+import TrussFrameASAP.TrussFrameMechanics.generate_bc as generate_bc
+import TrussFrameASAP.TrussFrameMechanics.pythonAsap as pythonAsap
+
+from . import cantileverenv_convert_gymspaces as convert_gymspaces
 
 import juliacall
 # from pythonAsap import solve_truss_from_graph # for human playable version
@@ -234,17 +203,22 @@ class CantileverEnv_0(gym.Env):
                 #  frame_size=2, 
                  video_save_interval_steps=500,
                  render_dir = 'render',
-                 max_episode_length = 200,
-                 obs_mode='frame_grid'
+                 max_episode_length = 400,
+                 obs_mode='frame_grid',
+                 env_idx = 0,
                  ):
-        
+        # super().__init__()
+
         # self.board_size_x = board_size_x # likely divisable with self.frame_size
         # self.board_size_y = board_size_y # likely divisable with self.frame_size
         self.frame_size = 2 # actual frame length is sized in truss_analysis.jl
-        self.board_size_x = self.frame_size * 10 # likely divisable with self.frame_size
-        self.board_size_y = self.frame_size * 5 # likely divisable with self.frame_size
+        self.board_size_x = self.frame_size * 10 # fixed size
+        self.board_size_y = self.frame_size * 5 # fixed size
         self.max_episode_length = max_episode_length
         self.env_num_steps = 0 # activated taking valid action in main (not env.step!)
+        self.episode_return = 0
+        self.episode_length = 0
+        self.env_idx = env_idx # index of environment in multi-env setting - used to init individual julia modules
 
         # Render
         # fig and ax updated with draw_fea_graph
@@ -274,11 +248,10 @@ class CantileverEnv_0(gym.Env):
 
         # Boundary Conditions
         self.frame_length_m = 3.0 # actual length of frame in meters used in truss analysis
-        self.cantilever_length = 0 # in number of frames set by generate_bc
         self.allowable_deflection = 0 # decided in generate_bc
 
         # Initialize current state
-        self.curr_frame_grid = np.zeros((self.frame_grid_size_x, self.frame_grid_size_y), dtype=int)
+        self.curr_frame_grid = np.zeros((self.frame_grid_size_x, self.frame_grid_size_y), dtype=np.int64)
 
         # create dictionary frame values 
         self.curr_fea_graph = FEAGraph() #FEAGraph object
@@ -290,29 +263,38 @@ class CantileverEnv_0(gym.Env):
         # if episode ends without being connected, large negative reward is given.
         self.target_loads_met = {} # Whether target load was reached : key is (x,y) coordinate on board value is True/False
         self.is_connected = False # whether the support is connected to (all) the target loads, 
-        self.eps_end_valid = False # after applying action, signify is episode end is valid, used in visualization
+        self.eps_end_valid = False # after applying action with end_bool=1, signify is episode end is valid, used in visualization
 
         self.disp_reward_scale = 1e2 # scale displacement reward to large positive reward
 
         # Used for Logging
-        self.support_frames = [] # 2D list of [x_frame, y_frame]
-        self.target_load_frames = [] # 2D list of [x_frame,y_frame, x_forcemag, y_forcemag, z_forcemag] 
-        self.max_deflection = None # float max deflection of the structure after FEA
+        # self.support_frames = [] # 2D list of [x_frame, y_frame]
+        # self.target_load_frames = [] # 2D list of [x_frame,y_frame, x_forcemag, y_forcemag, z_forcemag] 
+        self.max_deflection = None # float max deflection of the structure after completion at FEA
         
         # Set current observation based on observation mode
         self.obs_mode = obs_mode  # Set the observation mode
         if self.obs_mode not in self.metadata["obs_modes"]:
             raise ValueError(f"Invalid observation mode: {self.obs_mode}. Valid modes are: {self.metadata['obs_modes']}")
         
-        self.inventory_dict = None # array of inventory in order of free frame types
-        # self.curr_obs = None
-        # self.update_curr_obs() # Set according to obs_mode
-
-        self.num_freeframe_types = len(FrameStructureType.get_free_frame_types())
-
+        # Set in reset() when boundary conditions are set
+        self.inventory_dict = None # dictionary of inventory in order of free frame types
+        #     inventory = {
+        #     FrameStructureType.LIGHT_FREE_FRAME : light_inv, # indicate no limits
+        #     FrameStructureType.MEDIUM_FREE_FRAME : med_inv,
+        #     # FrameStructureType.HEAVY_FREE_FRAME : *,
+        # }
+        self.obs_converter = None # ObservationBijectiveMapping object, used to encode and decode observations
+        self.action_converter = None # ActionBijectiveMapping object, used to encode and decode actions
         self.observation_space = None
+        self.single_observation_space = None
         self.action_space = None
-        self.set_gym_spaces()
+        self.single_action_space = None
+
+        # Set boundary conditions ; support, target load, inventory
+        self.initBoundaryConditions() # set self.allowable_deflection, self.inventory_dict, self.frames, self.curr_frame_grid, self.target_loads_met, FrameStructureType.EXTERNAL_FORCE.node_load
+        self.set_space_converters(self.inventory_dict) # set self.obs_converter, self.action_converter
+        self.set_gym_spaces(self.obs_converter, self.action_converter) # set self.observation_space, self.action_space
 
         print("Initialized Cantilever Env!")
         self.render()
@@ -330,35 +312,23 @@ class CantileverEnv_0(gym.Env):
 
         self.render_list = []
         self.env_num_steps = 0
+        self.episode_return = 0
+        self.episode_length = 0
         
-        self.frames = []
-
         # Reset the current state
-        self.curr_frame_grid = np.zeros((self.frame_grid_size_x, self.frame_grid_size_y), dtype=int)
+        self.frames = []
+        self.curr_frame_grid = np.zeros((self.frame_grid_size_x, self.frame_grid_size_y), dtype=np.int64)
         self.curr_fea_graph = FEAGraph() #FEAGraph object
         self.curr_frame_graph = None # TODO graph representation of adjacent frames
         self.valid_pos = set()
-        self.render_valid_action = False
-
-        # self.update_curr_obs() 
 
         # Reset the Vertex ID counter
         Vertex._id_counter = 1
 
         # Set boundary conditions ; support, target load, inventory
-        self.initBoundaryConditions()
-        self.max_deflection = None
-        # print(f'target loads met : {self.target_loads_met}')
-
-        # obs = self.curr_obs
-        inventory_array = np.array(list(self.inventory_dict.values()))
-        obs = {
-            'frame_grid': self.curr_frame_grid,
-            'inventory' : inventory_array
-        }
-        # print(f"reset FEAGraph : \n {self.curr_fea_graph} ")
-        # print(f"reset inventory : {inventory_array}")
-        info = {} # TODO what is this used for?
+        self.initBoundaryConditions() # set self.allowable_deflection, self.inventory_dict, self.frames, self.curr_frame_grid, self.target_loads_met, FrameStructureType.EXTERNAL_FORCE.node_load
+        # self.set_space_converters(self.inventory_dict) # set self.obs_converter, self.action_converter
+        # self.set_gym_spaces(self.obs_converter, self.action_converter) # set self.observation_space, self.action_space
         
         self.eps_end_valid = False
 
@@ -367,106 +337,251 @@ class CantileverEnv_0(gym.Env):
         self.render_valid_action = False
         # print(f"valid pos : {self.valid_pos}")
 
+        inventory_array = np.array(list(self.inventory_dict.values()), dtype=np.int64)
+        obs = self.obs_converter.encode(self.curr_frame_grid, inventory_array) # encoded int value obs
+        # print(f'Reset obs : {self.curr_frame_grid} \n {inventory_array} \n Encoded obs : {obs}')
+        info = {} # no info to return
 
         return obs, info
     
+    def initBoundaryConditions(self):
+        '''
+        Get boundary conditions (support, target location, inventory) from generate_bc.set_cantilever_env_framegrid
+        Given that 
+            - self.curr_frame_grid is initialized to zeros
+            - self.frames is set to empty list
+        Set
+            - self.allowable_deflection
+            - self.inventory_dict
+            - self.frames (add support frame)
+            - self.curr_frame_grid, self.curr_fea_graph, self.frame_graph (populate with support and target frames)
+            - self.target_loads_met
+            - FrameStructureType.EXTERNAL_FORCE.node_load (set load value)
+
+        Set frame grid, frame graph, fea graph accordingly 
+        Set support_frames, target_load_frames for logging and target_loads_met for checking if target is met
+        '''
+        # Get boundary conditions
+        # support_frames : dictionary (x_frame, y_frame)  cell location within frame grid of support frames
+        # targetload_frames : dictionary of ((x_frame,y_frame) : [x_forcemag, y_forcemag, z_forcemag] (force is applied in the negative y direction).
+        # cantilever_length : length of cantilever in number of frames
+        support_frames, targetload_frames, inventory_dict, cantilever_length = generate_bc.set_cantilever_env_framegrid(self.frame_grid_size_x)
+        self.allowable_deflection = self.frame_length_m * cantilever_length / 120 # length of cantilever(m) / 120
+        self.inventory_dict = inventory_dict
+        # set FrameStructureType.EXTERNAL_FORCE magnitude values 
+        #TODO handle multiple target loads
+        FrameStructureType.EXTERNAL_FORCE.node_load = list(targetload_frames.values())[0]
+
+        # Logging
+        # self.support_frames = [list(sf) for sf in support_frames] 
+        # self.target_load_frames = [[coord[0], coord[1], force[0], force[1], force[2]] for coord, force in targetload_frames.items()]
+
+        # Init supports and targets in curr_frame_grid according to bc
+        for s_frame_coords in support_frames:
+            s_board_coords = self.framegrid_to_board(*s_frame_coords) # convert from frame grid coords to board coords
+            new_s_frame = TrussFrameRL(s_board_coords, type_structure=FrameStructureType.SUPPORT_FRAME)
+            self.frames.append(new_s_frame)
+            self.update_frame_grid(new_s_frame)
+            self.update_frame_graph(new_s_frame)
+            self.update_fea_graph(new_s_frame)
+
+        for t_frame in targetload_frames.items():
+            t_frame_coord, t_load_mag = t_frame # (x,y) on frame grid, magnitude in kN
+            # convert from frame grid coords to board coords 
+            t_center_board = self.framegrid_to_board(*t_frame_coord) # center of proxy frame
+            t_load_board = (t_center_board[0]+self.frame_size//2 , t_center_board[1]-self.frame_size//2)# actual load board coordinate (bottom right of frame)
+            # t_board_coord = (self.framegrid_to_board(t_frame_coord)[0] + self.frame_size//2, self.framegrid_to_board(t_frame_coord)[1] - self.frame_size//2) 
+            new_t_frame = TrussFrameRL(t_center_board, type_structure=FrameStructureType.EXTERNAL_FORCE)
+            self.update_frame_grid(new_t_frame)
+            self.update_frame_graph(new_t_frame)
+            self.update_fea_graph(new_t_frame, t_load_mag) #TODO need implementation
+            self.target_loads_met[t_load_board] = False
+    
+    def set_space_converters(self, inventory_dict):
+        '''
+        set self.obs_converter, self.action_converter 
+        Assume that self.inventory_dict is set
+        '''
+        assert isinstance(inventory_dict, dict), "inventory_dict must be a dictionary"
+        # Set observation converter
+        freeframe_inv_cap = [value for value in inventory_dict.values()] # get sequence of inventory level for freeframe types
+        print(f'Freeframe inventory array: {freeframe_inv_cap}')  # Output: [1, 2, 3]
+        self.obs_converter = convert_gymspaces.ObservationDownSamplingMapping(self.frame_grid_size_x, 
+                                                                            self.frame_grid_size_y, 
+                                                                            freeframe_inv_cap,
+                                                                            kernel_size=3,
+                                                                            stride=2)
+
+        # Set action converter
+        freeframe_idx_min, freeframe_idx_max = FrameStructureType.get_freeframe_idx_bounds()
+        self.action_converter = convert_gymspaces.ActionBijectiveMapping(self.frame_grid_size_x, 
+                                                                            self.frame_grid_size_y,
+                                                                        freeframe_idx_min, 
+                                                                        freeframe_idx_max)
+        
+    def set_gym_spaces(self, obs_converter, action_converter):
+        '''
+        set self.observation_space, self.action_space according to obs mode
+        Assumes that observation and action converters are provided 
+        Input
+            obs_converter : ObservationBijectiveMapping object
+            action_converter : ActionBijectiveMapping object
+        '''
+        assert obs_converter is not None, "obs_converter must be an instance of ObservationBijectiveMapping"
+        assert action_converter is not None, "action_converter must be an instance of ActionBijectiveMapping"
+
+        # Set observation_space and action_space (following Gymnasium)
+        if self.obs_mode == 'frame_grid':
+            # Define Observations : frame grid 
+            n_max = obs_converter.encoded_reduced_framegrid_max
+            # self.observation_space = Discrete(n=n_obs)
+            # self.observation_space = Box(low=0, high=n_obs, dtype=np.float64)
+            # Bounds for the inventory values
+            inventory_low = np.zeros(len(self.inventory_dict), dtype=np.float64)  # All inventory values >= 0
+            inventory_high = np.array(list(self.inventory_dict.values()), dtype=np.float64)  # Upper bounds for inventory
+            # Combine grid and inventory bounds
+            low = np.concatenate([np.array([0], dtype=np.float64), inventory_low])
+            high = np.concatenate([np.array([n_max], dtype=np.float64), inventory_high])
+            # Create the Box observation space
+            self.observation_space=Box(low=low, high=high, dtype=np.float64)
+            # TODO edit obs_conversion according to this
+            print(f'Observation Space : {self.observation_space}')
+            self.single_observation_space = self.observation_space
+            
+            # Define Actions : end boolean, freeframe_type, frame_x, frame_y
+            n_actions = action_converter._calculate_total_space_size()
+            self.action_space = Discrete(n=n_actions)
+            print(f'Action Space : {self.action_space}')
+            self.single_action_space = self.action_space
+
+            # Relative Coordinates? (end_bool, frame_idx, left/right/top/bottom) ---> Doesn't save much from absolute coordinates, still have to check valid action!
+
+        elif self.obs_mode == 'fea_graph':
+            print('TODO Need to implement set_gym_spaces for fea_graph!')
+            pass
+            # Gymnasium Composite Spaces - Graph or Dict?
+            # Graph - node_features, edge_features, edge_links
+            # Dict (not directly used in learning but can store human interpretable info)
+        elif self.obs_mode == 'frame_graph':
+            print('TODO Need to implement set_gym_spaces for frame_graph!')
+            pass
+    
+
     def step(self, action):
         '''
-        Accepts an action, computes the state, reward of the environment after applying that action 
-        and returns the 5-tuple (observation, reward, terminated, truncated, info).
-        Action is (end_bool, frame_x, frame_y) coordinate chosen by agent
-        If action is invalid, produce large negative reaction &/ terminate and action is not applied to env
-            registers transition (s=curr_state, a=action, s_prime=curr_state, r=-10, truncated=False)
-            In theory with termination agent may learn how to connect faster?
-            But also not terminating creates more valid transitions
-
-        Invalid action is defined as
-            - frame_x, frame_y not in valid_pos
-            - end_bool = True but support and target loads are not connected
-            - freeframe_idx inventory is 0
-        
+        Accepts an action (int) chosen by agent, computes the state, reward of the environment after applying the decoded action tuple and returns the 5-tuple (observation, reward, terminated, truncated, info).
+                
         Input 
-            action : (end_bool, freeframe_idx, frame_x, frame_y)
+            action : encoded action int value
+                (end_bool, freeframe_idx, frame_x, frame_y)
                 
         Returns:
             observation, reward, terminated, truncated, info
+
+        If action is invalid, produce large negative reaction and action is not applied to env
+            registers transition (s=curr_state, a=action, s_prime=curr_state, r=-10, truncated=False)
+            In theory with termination agent may learn how to connect faster?
+            Not terminating creates more valid transitions!
+
+        Invalid action is defined as
+            - frame_x, frame_y not in valid position (tangent cells to existing design)
+            - freeframe_idx inventory is 0 (other frame types are not used up)
+            - end_bool = True but support and target loads are not connected
         '''
+        
+        self.episode_length += 1
         self.render_valid_action = False # used to trigger render
         reward = 0
-
-        # Large negative reward is given if action taken is not in valid position
-        end, freeframe_idx, frame_x, frame_y = action
+        terminated = False
+        truncated = False
+        info = {}
+        action_tuple = self.action_converter.decode(action) # int to action tuple
+        end, freeframe_idx, frame_x, frame_y = action_tuple
         end_bool = True if end==1 else False
         
-        # Check if inventory is already used up across frames before termination, truncated is True
+        # Check if inventory is already used up across frame types before termination, truncated is True
         if all(value == 0 for value in self.inventory_dict.values()):
             # print(f"Inventory is empty!")
-            reward = 0
-            terminated = False
-            truncated = True
-            # convert inventory dictionary to array in order of free frame types
-            inventory_array = np.array(list(self.inventory_dict.values())) 
-            obs = {
-                'frame_grid': self.curr_frame_grid,
-                'inventory' : inventory_array
-            }
+            truncated = True # truncated because inventory is empty
+            inventory_array = np.array(list(self.inventory_dict.values())) # convert inventory dictionary to array in order of free frame types
+            obs = self.obs_converter.encode(self.curr_frame_grid, inventory_array)
             # self.print_framegrid()
+            reward = 0
             self.render()
-            return obs, reward, terminated, truncated, {}
+            self.episode_return += reward
+            # print("Inventory is used up!")
+            info = {}
+            # Add `final_info` for logging episodic stats
+            info["final_info"] = {
+                                    "episode": {
+                                        "r": self.episode_return,
+                                        "l": self.episode_length,
+                                    }
+                                }
+            return obs, reward, terminated, truncated, info
             
-        else:
-            truncated = False  
-            # Large negative reward is given if position is not valid (action is not applied)
+        else: # There are still frames in inventory
+            # Invalid case 1 : If position is not valid large negative reward is given (action is not applied, continue episode) 
             if (frame_x, frame_y) not in self.valid_pos:
-                reward = -10  # Negative reward for invalid action
-                terminated = False  # Continue episode
-            # Large negative reward if trying to create frame with 0 inventory
+                # reward = -10  # Negative reward for invalid action
+                reward = 0
+            
+            # Invalid case 2 : If trying to create frame type with 0 inventory, large negative reward is given
             elif self.inventory_dict[FrameStructureType.get_framestructuretype_from_idx(freeframe_idx)] == 0:
                 reward = -10  
-                terminated = False  # Continue episode
+            
+            # Invalid case 3 :If signal to end episode but support and target not connected, large negative reward is given
             elif end_bool == True:
-            # else: # for valid position
                 temp_is_connected = self.check_is_connected(frame_x, frame_y)
                 # Large negative reward is given if decide to end episode but support and target not connected
                 # (action is not applied to environment)
                 if temp_is_connected == False:
-                    reward = -10  # Negative reward for invalid action
-                    terminated = False  # Continue episode
+                    reward = -10  
+                
                 # Valid action : Ending Episode 
                 # Positive rewards if correctly ended after support and loads are all connected
                 # (action is applied to environment)
                 elif temp_is_connected == True:
                     # Apply valid action and update environment state
                     self.render_valid_action = True
-                    self.apply_action(action)
+                    self.apply_action(action_tuple)
                     self.eps_end_valid = True
                     # TODO Reward scheme to encourage complete structures with minimal deflection, failure is secondary
-                    reward += self.curr_fea_graph.displacement * self.disp_reward_scale # displacement reward
+                    # count inventory left and add to reward
+                    # reward += 0.05 * self.inventory_dict[FrameStructureType.LIGHT_FREE_FRAME]
+                    reward += self.inventory_dict[FrameStructureType.MEDIUM_FREE_FRAME]
+                    reward += 2 / np.max(self.curr_fea_graph.displacement) # displacement reward e.g. 0.5 / 0.01 = 50
                     reward += 10 # end reward
                     reward -= len(self.curr_fea_graph.failed_elements) # discounted by number of failed elements
-                    # TODO add failed element reward
                     terminated = True
-            # Valid action : Not ending Episode, but valid position within inventory
+            
+            # Valid action : Not ending Episode, but places frame in valid position within inventory
             elif ((frame_x, frame_y) in self.valid_pos) \
                 & (end_bool == False) \
                 & (self.inventory_dict[FrameStructureType.get_framestructuretype_from_idx(freeframe_idx)] > 0) :
                     self.render_valid_action = True
-                    self.apply_action(action)
+                    self.apply_action(action_tuple)
                     # reward = 1 # small reward for creating block 
                     terminated = False
-            
         
             # convert inventory dictionary to array in order of free frame types
             inventory_array = np.array(list(self.inventory_dict.values())) 
-            obs = {
-                'frame_grid': self.curr_frame_grid,
-                'inventory' : inventory_array
-            }
+            obs = self.obs_converter.encode(self.curr_frame_grid, inventory_array)
             # self.print_framegrid()
             self.render()
-            return obs, reward, terminated, truncated, {}
+            self.episode_return += reward
+            # Add `final_info` for terminated or truncated episodes
+            info = {}
+            if terminated or truncated:
+                # print("terminated or truncated!")
+                info["final_info"] = {
+                    "episode": {
+                        "r": self.episode_return,
+                        "l": self.episode_length,
+                    }
+                }
+            return obs, reward, terminated, truncated, info
     
-    # Step related 
     def check_is_connected(self, frame_x, frame_y):
         '''
         Used in step to temporarily forward check given action whetner overall structure is connected (support and target load)
@@ -497,7 +612,7 @@ class CantileverEnv_0(gym.Env):
         else:
             return False
     
-    def apply_action(self, valid_action):
+    def apply_action(self, valid_action_tuple):
         '''
         Used in step to apply action to current state
         Assumed that valid action has been checked, thus only used with valid actions
@@ -506,7 +621,7 @@ class CantileverEnv_0(gym.Env):
         Updates frame_grid, fea_graph, curr_obs, frames, target_load_met and is_connected
         '''
         # create free TrussFrameRL at valid_action board coordinate
-        end, freeframe_idx, frame_x, frame_y = valid_action
+        end, freeframe_idx, frame_x, frame_y = valid_action_tuple
         frame_center = self.framegrid_to_board(frame_x, frame_y)
         # print(f"Applying Action with  freeframe_idx : {freeframe_idx} at {frame_center}")
         frame_structure_type = FrameStructureType.get_framestructuretype_from_idx(freeframe_idx)
@@ -528,113 +643,8 @@ class CantileverEnv_0(gym.Env):
         self.frames.append(new_frame)
 
         self.update_target_meet(new_frame)
-
-    def initBoundaryConditions(self):
-        '''
-        Get boundary conditions (support, target location, inventory) from generate_bc.set_cantilever_env_framegrid
-        Set frame grid, frame graph, fea graph accordingly 
-        Set support_frames, target_load_frames for logging and target_loads_met for checking if target is met
-        '''
-        # support_frames : dictionary (x_frame, y_frame)  cell location within frame grid of support frames
-        # targetload_frames : dictionary of ((x_frame,y_frame) : [x_forcemag, y_forcemag, z_forcemag] (force is applied in the negative y direction).
-        support_frames, targetload_frames, inventory_dict, cantilever_length = generate_bc.set_cantilever_env_framegrid(self.frame_grid_size_x)
-        self.cantilever_length = cantilever_length
-        self.allowable_deflection = self.frame_length_m * self.cantilever_length / 120 # length of cantilever(m) / 120
-
-        # set FrameStructureType.EXTERNAL_FORCE magnitude values 
-        #TODO handle multiple target loads
-        FrameStructureType.EXTERNAL_FORCE.node_load = list(targetload_frames.values())[0]
-
-        # used for logging
-        self.support_frames = [list(sf) for sf in support_frames] 
-        self.target_load_frames = [[coord[0], coord[1], force[0], force[1], force[2]] for coord, force in targetload_frames.items()]
-
-        # init supports in curr_frame_grid according to bc
-        for s_frame_coords in support_frames:
-            s_board_coords = self.framegrid_to_board(*s_frame_coords) # convert from frame grid coords to board coords
-            new_s_frame = TrussFrameRL(s_board_coords, type_structure=FrameStructureType.SUPPORT_FRAME)
-            self.frames.append(new_s_frame)
-            self.update_frame_grid(new_s_frame)
-            self.update_frame_graph(new_s_frame)
-            self.update_fea_graph(new_s_frame)
-
-        for t_frame in targetload_frames.items():
-            t_frame_coord, t_load_mag = t_frame # (x,y) on frame grid, magnitude in kN
-            # convert from frame grid coords to board coords 
-            t_center_board = self.framegrid_to_board(*t_frame_coord) # center of proxy frame
-            t_load_board = (t_center_board[0]+self.frame_size//2 , t_center_board[1]-self.frame_size//2)# actual load board coordinate (bottom right of frame)
-            # t_board_coord = (self.framegrid_to_board(t_frame_coord)[0] + self.frame_size//2, self.framegrid_to_board(t_frame_coord)[1] - self.frame_size//2) 
-            new_t_frame = TrussFrameRL(t_center_board, type_structure=FrameStructureType.EXTERNAL_FORCE)
-            self.update_frame_grid(new_t_frame)
-            self.update_frame_graph(new_t_frame)
-            self.update_fea_graph(new_t_frame, t_load_mag) #TODO need implementation
-            
-            self.target_loads_met[t_load_board] = False
-        
-        # init inventory_dict
-        self.inventory_dict = inventory_dict
-
-
-    def set_gym_spaces(self):
-        '''
-        set observation_space, action_space according to obs mode
-        '''
-        # Set observation_space and action_space (following Gymnasium)
-        if self.obs_mode == 'frame_grid':
-            # Define Observations : frame grid 
-            #   - array shape (frame_grid_size_x, frame_grid_size) with int values [-1,2]
-            frameval_low, frameval_high = FrameStructureType.get_idx_bounds()
-            # self.observation_space = Box(low = frameval_low, 
-            #                              high = frameval_high, 
-            #                              shape = (self.frame_grid_size_x, self.frame_grid_size_y), 
-            #                              dtype=np.int64) 
-            
-            # human-readable obs space *convert Dict observations to flat arrays by using a gymnasium.wrappers.FlattenObservation wrapper when learning!
-            max_inventory_level = 20 # max inventory size per free frame type 
-            self.observation_space = spaces.Dict({
-                                                    'frame_grid': spaces.Box(
-                                                        low=frameval_low,
-                                                        high=frameval_high,
-                                                        shape=(self.frame_grid_size_x, self.frame_grid_size_y),
-                                                        dtype=np.int64
-                                                    ),
-                                                    'inventory': spaces.Box(
-                                                        low=0,
-                                                        high=max_inventory_level,
-                                                        shape=(self.num_freeframe_types,),
-                                                        dtype=np.int64
-                                                    )
-                                                })
-
-            print(f'Observation Space : {self.observation_space}')
-            print(f'Total Number of Possible States: > {2**(self.frame_grid_size_x * self.frame_grid_size_y)}')
-            
-            # Define Actions : end boolean, absolute coordinates 
-            #   - tuple (end_bool, frame_x, frame_y) with int values [0,1] , [0, self.frame_grid_size_x], [0, self.frame_grid_size_y]
-            freeframe_min, freeframe_max = FrameStructureType.get_freeframe_idx_bounds()
-            self.action_space = Box(low = np.array([0, freeframe_min, 0, 0]), 
-                                    high = np.array([1, freeframe_max, self.frame_grid_size_x, self.frame_grid_size_y]),
-                                    dtype = np.int64)
-            print(f'Action Space : {self.action_space}')
-            print(f'Total Number of Actions : {2*self.frame_grid_size_x*self.frame_grid_size_y}') # 2*10*5
-
-            # Relative Coordinates (end_bool, frame_idx, left/right/top/bottom) ---> Doesn't save much from absolute coordinates, still have to check valid action!
-            # self.action_space = Box(low = [0, 0, 0], 
-            #                         high= [1, self.max_episode_length, 3],
-            #                         shape=(1, 1, 1), dtype=np.int64)
-            # print(f'Total Number of Actions : < {2*self.max_episode_length*4}') #2*20*4
-
-        elif self.obs_mode == 'fea_graph':
-            print('TODO Need to implement set_gym_spaces for fea_graph!')
-            pass
-            # Gymnasium Composite Spaces - Graph or Dict?
-            # Graph - node_features, edge_features, edge_links
-            # Dict (not directly used in learning but can store human interpretable info)
-        elif self.obs_mode == 'frame_graph':
-            print('TODO Need to implement set_gym_spaces for frame_graph!')
-            pass
-
-    # Update Current State
+    
+    ## Update Current State
     def update_inventory_dict(self, new_frame):
         '''
         Given frame object that is newly placed, update inventory dictionary 
@@ -782,37 +792,23 @@ class CantileverEnv_0(gym.Env):
         # print('Updating Displacement...')
 
         # Solve truss model with ASAP
-        jl = juliacall.newmodule("TrussFrameRL") 
+        module_name = f"TrussFrameRL_{self.env_idx}"
+        jl = juliacall.newmodule(module_name) 
+        # jl = juliacall.newmodule("TrussFrameRL") 
         curr_env = jl.seval('Base.active_project()')
         # print(f"The current active Julia environment is located at: {curr_env}")
 
         # Step 0: Initialize Julia session and import necessary Julia modules
-        jl.seval('using AsapToolkit')
+        # jl.seval('using AsapToolkit')
         jl.seval('using Asap')
 
-        jl.include("TrussFrameMechanics/truss_analysis.jl")
+        jl.include("TrussFrameASAP/TrussFrameMechanics/truss_analysis.jl")
         jl.seval('using .TrussAnalysis')
 
-        displacement, failed_elements = pythonAsap_1.solve_fea(jl, self.curr_fea_graph, self.frame_length_m) # return nodal displacement
+        displacement, failed_elements = pythonAsap.solve_fea(jl, self.curr_fea_graph, self.frame_length_m) # return nodal displacement
         self.curr_fea_graph.displacement = displacement
         self.curr_fea_graph.failed_elements = failed_elements
 
-    # def update_curr_obs(self):
-    #     '''
-    #     Updates self.curr_obs in place the current observation based on the selected mode.
-    #     Used in reset and step
-    #     Vectorize dictionary observation to be used in training.
-    #     Make sure to use after updating states of different modes
-    #     '''
-    #     if self.obs_mode == 'frame_grid':
-    #         self.curr_obs = self.curr_frame_grid 
-    #     elif self.obs_mode == 'fea_graph':
-    #         self.curr_obs = self.curr_fea_graph.get_state()
-    #     elif self.obs_mode == 'frame_graph':
-    #         self.curr_obs = self.curr_frame_graph.get_state() if self.curr_frame_graph else None
-    #     else:
-    #         raise ValueError(f"Invalid observation mode: {self.obs_mode}")
-    
     def update_target_meet(self, new_frame):
         '''
         Used in apply_action
@@ -831,7 +827,7 @@ class CantileverEnv_0(gym.Env):
         if all(self.target_loads_met.values()):
             self.is_connected = True
 
-    # Drawing
+    ## Drawing
     def draw_truss_analysis(self):
         '''
         Used within take step after episode as ended with connection
@@ -1073,7 +1069,6 @@ class CantileverEnv_0(gym.Env):
         else:
             raise NotImplementedError(f"Render mode {self.render_mode} is not supported")
         
-
     def get_render_list(self):
         '''
         Called within gymnasium.utils.save_video function
@@ -1086,8 +1081,6 @@ class CantileverEnv_0(gym.Env):
         else:
             raise NotImplementedError(f"Render mode {self.render_mode} is not supported")
     
-        
-        
     def fig_to_rgb_array(self, fig):
         '''
         Draw the figure on the canvas
