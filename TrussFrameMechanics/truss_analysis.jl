@@ -9,7 +9,7 @@ export create_and_solve_truss_model_julia
 export create_and_solve_model_julia
 export get_element_forces
 
-    using AsapToolkit
+    # using AsapToolkit
     using Asap
     
     """
