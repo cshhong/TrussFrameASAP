@@ -1155,7 +1155,7 @@ class CantileverEnv_0(gym.Env):
         action : (end_bool, freeframe_idx, frame_x, frame_y)
             Absolute Coordinates (end_bool, freeframe_idx, frame_x, frame_y)
                 End bool : 0,1 (False, True)
-                Free Frame index : 2, 3  (light, medium) (follows FrameStructureType index)
+                Free Frame index : 0, 1  (light, medium) (FrameStructureType index - 2)
                 Frame x, y : 0 to self.frame_grid_size_x, self.frame_grid_size_y
         invalid action is defined as union of following cases 
             - frame_x, frame_y not in valid position (tangent cells to existing design)
@@ -1168,22 +1168,23 @@ class CantileverEnv_0(gym.Env):
         action mask is used in rollout as env.sample(mask=curr_mask)
         """
         # initialize action mask using self.action_space 
-        action_mask = np.ones(self.action_space.n, dtype=np.int8)
-        
+        action_mask = np.zeros(self.action_space.n, dtype=np.int8)
         # Get all raw valid action vectors based on current state (end_bool, freeframe_idx, frame_x, frame_y) using self.valid_pos and self.inventory_dict, self.is_connected
         valid_actions = []
         for end_bool in [False, True]:
-            for freeframe_idx in [2, 3]:
+            for freeframe_idx in [0, 1]:
+                freeframe_type = FrameStructureType.get_framestructuretype_from_idx(freeframe_idx+2)# dictionary key is FrameStructureType
                 for frame_x, frame_y in self.valid_pos:
-                    if self.inventory_dict[freeframe_idx] > 0:
-                        if end_bool == False or (end_bool == True and self.is_connected()):
+                    if self.inventory_dict[freeframe_type] > 0:
+                        if end_bool == False or (end_bool == True and self.is_connected):
                             valid_actions.append((end_bool, freeframe_idx, frame_x, frame_y))
         
         # encode action vectors to action integers using self.action_converter.encode(action)
         valid_action_ints = [self.action_converter.encode(action) for action in valid_actions]
+        # print(f'valid action idx : {valid_action_ints}')
         
         # apply 1 to valid actions and 0 to invalid actions
         action_mask[valid_action_ints] = 1
-        action_mask[np.logical_not(action_mask)] = 0
+        # action_mask[np.logical_not(action_mask)] = 0
         
         return action_mask
