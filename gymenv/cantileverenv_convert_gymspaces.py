@@ -31,7 +31,7 @@ class ObservationDownSamplingMapping:
         - `framegrid_size_y`: Number of cells in the y-dimension of the frame grid.
         - `inventory_array`: A list where each element defines the maximum inventory capacity for a specific frame type.
     
-    Down Sampling: 
+    Down Sampling: (difference from ObservationBijectiveMapping)
         - The frame grid is downsampled to a smaller grid size with convolution and average pooling.
 
     Encoded Observation:
@@ -63,7 +63,7 @@ class ObservationDownSamplingMapping:
 
         # Total space size for validation
         self.total_space_size = self._calculate_total_space_size()
-        print(f"observation space size: {self.total_space_size} smaller than C long? 64 bit{self.total_space_size < 2*9223372036854775808} 32 bit {self.total_space_size < 2*2147483647}")
+        print(f"observation space size: {self.total_space_size} smaller than C long? 64 bit {self.total_space_size < 2*9223372036854775808} 32 bit {self.total_space_size < 2*2147483647}")
         self.encoded_reduced_framegrid_min, self.encoded_reduced_framegrid_max = self._calculate_encoded_grid_bounds()
         # print(f'encoded reduced framegrid bounds : {self.encoded_reduced_framegrid_min, self.encoded_reduced_framegrid_max}')
 
@@ -351,7 +351,7 @@ class ActionBijectiveMapping:
         :param freeframe_idx_min: Minimum value for freeframe_type.
         :param freeframe_idx_max: Maximum value for freeframe_type.
         """
-        self.bounds = [
+        self.action_bounds = [
             2,  # Bound for end_bool (0 or 1)
             freeframe_idx_max - freeframe_idx_min + 1,  # Bound for freeframe_type
             frame_grid_size_x,  # Bound for frame_x
@@ -365,7 +365,7 @@ class ActionBijectiveMapping:
         Calculate the total size of the encoded action space.
         """
         total_size = 1
-        for bound in self.bounds:
+        for bound in self.action_bounds:
             total_size *= bound
         return total_size
 
@@ -375,11 +375,14 @@ class ActionBijectiveMapping:
         :param action: [end_bool, freeframe_type, frame_x, frame_y]
         :return: Encoded integer
         """
+        action_cat = ['end_bool', 'freeframe_type', 'frame_x', 'frame_y']
         encoded_value = 0
         multiplier = 1
-        for value, bound in zip(action, self.bounds):
+        # for value, bound in zip(action, self.action_bounds):
+        for idx, (value, bound) in enumerate(zip(action, self.action_bounds)):
             if not (0 <= value < bound):
-                raise ValueError(f"Value {value} is out of bounds for its bound {bound - 1}.")
+                # TODO get action category based on index from [end_bool, freeframe_type, frame_x, frame_y]
+                raise ValueError(f"Value {value} is out of bounds for its bound {bound - 1} for action {action_cat[idx]}.")
             encoded_value += value * multiplier
             multiplier *= bound
         return encoded_value
@@ -394,7 +397,7 @@ class ActionBijectiveMapping:
         if not (0 <= encoded_value < self.total_space_size):
             raise ValueError(f"Encoded value {encoded_value} is out of bounds for the total space size {self.total_space_size}.")
         action = []
-        for bound in self.bounds:
+        for bound in self.action_bounds:
             action.append(encoded_value % bound)
             encoded_value //= bound
 
