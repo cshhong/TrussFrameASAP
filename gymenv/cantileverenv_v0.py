@@ -1,6 +1,6 @@
 '''
 Feb 4 2025
-TODO apply action mask to rollout sample
+DONE apply action mask to rollout sample
 TODO clean take action function with valid actions from get_action_mask 
 TODO implement random spawning
 TODO implement simple reward of exponentially scaled deformation 
@@ -528,6 +528,8 @@ class CantileverEnv_0(gym.Env):
             return obs, reward, terminated, truncated, info
             
         else: # There are still frames in inventory
+
+            # Can omit invalid case penalty since we are masking actions
             # Invalid case 1 : If position is not valid large negative reward is given (action is not applied, continue episode) 
             if (frame_x, frame_y) not in self.valid_pos:
                 # reward = -10  # Negative reward for invalid action
@@ -649,7 +651,7 @@ class CantileverEnv_0(gym.Env):
 
         self.frames.append(new_frame)
 
-        self.update_target_meet(new_frame)
+        self.update_target_meet(new_frame) # updates self.target_loads_met and self.is_connected
     
     ## Update Current State
     def update_inventory_dict(self, new_frame):
@@ -1171,13 +1173,18 @@ class CantileverEnv_0(gym.Env):
         action_mask = np.zeros(self.action_space.n, dtype=np.int8)
         # Get all raw valid action vectors based on current state (end_bool, freeframe_idx, frame_x, frame_y) using self.valid_pos and self.inventory_dict, self.is_connected
         valid_actions = []
-        for end_bool in [False, True]:
-            for freeframe_idx in [0, 1]:
-                freeframe_type = FrameStructureType.get_framestructuretype_from_idx(freeframe_idx+2)# dictionary key is FrameStructureType
-                for frame_x, frame_y in self.valid_pos:
-                    if self.inventory_dict[freeframe_type] > 0:
-                        if end_bool == False or (end_bool == True and self.is_connected):
+        for freeframe_idx in [0, 1]:
+            freeframe_type = FrameStructureType.get_framestructuretype_from_idx(freeframe_idx+2)# dictionary key is FrameStructureType
+            for frame_x, frame_y in self.valid_pos:
+                if self.inventory_dict[freeframe_type] > 0:
+                    # forward look ahead to check if support and target loads are connected
+                    temp_is_connected = self.check_is_connected(frame_x, frame_y)
+                    if temp_is_connected == True:
+                        for end_bool in [False, True]:
                             valid_actions.append((end_bool, freeframe_idx, frame_x, frame_y))
+                    else:
+                        end_bool = False
+                        valid_actions.append((end_bool, freeframe_idx, frame_x, frame_y))
         
         # encode action vectors to action integers using self.action_converter.encode(action)
         valid_action_ints = [self.action_converter.encode(action) for action in valid_actions]
