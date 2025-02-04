@@ -2,7 +2,8 @@
 Functions to generate boundary conditions (support, external loads) within the environment
 '''
 import random
-from TrussFrameASAP.TrussFrameMechanics.trussframe import FrameStructureType
+# from TrussFrameASAP.TrussFrameMechanics.trussframe import FrameStructureType
+from TrussFrameMechanics.trussframe import FrameStructureType
 
 CELL_SIZE = 1
 FRAME_SIZE = 2

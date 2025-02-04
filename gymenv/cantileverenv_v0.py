@@ -1,4 +1,10 @@
 '''
+Feb 4 2025
+TODO apply action mask to rollout sample
+TODO clean take action function with valid actions from get_action_mask 
+TODO implement random spawning
+TODO implement simple reward of exponentially scaled deformation 
+
 ****  Big Goals
 DONE Random Rollout of environment
 TODO Train with DQN? PPO? (Naive representation)
@@ -13,14 +19,6 @@ TODO Going further is there a way to get diverse high performing solutions acros
     (thresholding)
 TODO Going further from general group of high performing designs -> perturb points -> how does performance change? 
     Get diverse group of high performing designs through refinement 
-
-[1. Evaluating Boundary Condition for multiple high performing solutions]
-We want a scenario (boundary condition, inventory) where it is possible to find high performing designs is not obvious; aka has multiple high performing solutions
-- There is single unobvious solution
-- There is multiple high performing solutions (some might also not be obvious)
-
-How to do this? Within one boundary condition, many number of rolllouts 
-- stores data dictionary of instance in h5 file to query selectively and render_frame_instance (borrows from draw_fea_graph, draw_truss_analysis) 
 
 
 [2. Anticipated Learning process]
@@ -60,12 +58,19 @@ import os
 # Add the directory containing TrussFrameMechanics to sys.path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from TrussFrameASAP.TrussFrameMechanics.trussframe import FrameShapeType, FrameStructureType, TrussFrameRL
-from  TrussFrameASAP.TrussFrameMechanics.vertex import Vertex
-from  TrussFrameASAP.TrussFrameMechanics.maximaledge import MaximalEdge
-from  TrussFrameASAP.TrussFrameMechanics.feagraph import FEAGraph
-import TrussFrameASAP.TrussFrameMechanics.generate_bc as generate_bc
-import TrussFrameASAP.TrussFrameMechanics.pythonAsap as pythonAsap
+# from TrussFrameASAP.TrussFrameMechanics.trussframe import FrameShapeType, FrameStructureType, TrussFrameRL
+# from  TrussFrameASAP.TrussFrameMechanics.vertex import Vertex
+# from  TrussFrameASAP.TrussFrameMechanics.maximaledge import MaximalEdge
+# from  TrussFrameASAP.TrussFrameMechanics.feagraph import FEAGraph
+# import TrussFrameASAP.TrussFrameMechanics.generate_bc as generate_bc
+# import TrussFrameASAP.TrussFrameMechanics.pythonAsap as pythonAsap
+
+from TrussFrameMechanics.trussframe import FrameShapeType, FrameStructureType, TrussFrameRL
+from  TrussFrameMechanics.vertex import Vertex
+from  TrussFrameMechanics.maximaledge import MaximalEdge
+from  TrussFrameMechanics.feagraph import FEAGraph
+import TrussFrameMechanics.generate_bc as generate_bc
+import TrussFrameMechanics.pythonAsap as pythonAsap
 
 from . import cantileverenv_convert_gymspaces as convert_gymspaces
 
@@ -177,7 +182,7 @@ class CantileverEnv_0(gym.Env):
                 - Edges connect nodes as modeled as structural elements in ASAP
 
         Action : 
-            upon taking step action is masked (invalid action has large neg reward) to cell adjacent of existing frame 
+            upon taking step action is masked by negative rewards(invalid action has large neg reward) to cell adjacent of existing frame 
             end episode boolean indicates that the structure is complete (there is no deterministic end condition)
             
             1) Absolute Coordinates (end_bool, freeframe_idx, frame_x, frame_y)
@@ -422,7 +427,9 @@ class CantileverEnv_0(gym.Env):
     def set_gym_spaces(self, obs_converter, action_converter):
         '''
         set self.observation_space, self.action_space according to obs mode
-        Assumes that observation and action converters are provided 
+        Assumes that observation and action converters are provided as input
+        observation space is continuous (Box) and action space is discrete (Discrete)
+
         Input
             obs_converter : ObservationBijectiveMapping object
             action_converter : ActionBijectiveMapping object
@@ -1140,3 +1147,43 @@ class CantileverEnv_0(gym.Env):
         transposed_grid = self.curr_frame_grid.T  # Transpose the grid
         for row in reversed(transposed_grid):
             print(" ".join(map(str, row)))
+
+
+    def get_action_mask(self):
+        """
+        Used to generate action mask based on current state
+        action : (end_bool, freeframe_idx, frame_x, frame_y)
+            Absolute Coordinates (end_bool, freeframe_idx, frame_x, frame_y)
+                End bool : 0,1 (False, True)
+                Free Frame index : 2, 3  (light, medium) (follows FrameStructureType index)
+                Frame x, y : 0 to self.frame_grid_size_x, self.frame_grid_size_y
+        invalid action is defined as union of following cases 
+            - frame_x, frame_y not in valid position (tangent cells to existing design)
+            - freeframe_idx inventory is 0 (other frame types are not used up)
+            - end_bool = True but support and target loads are not connected
+        in other words valid actions are defined as intersection of following cases
+            - frame_x, frame_y in valid position (tangent cells to existing design)
+            - freeframe_idx inventory is not 0 (other frame types are not used up)
+            - end_bool = False if support and target loads are connected and True/False if not connectedif not connected
+        action mask is used in rollout as env.sample(mask=curr_mask)
+        """
+        # initialize action mask using self.action_space 
+        action_mask = np.ones(self.action_space.n, dtype=np.int8)
+        
+        # Get all raw valid action vectors based on current state (end_bool, freeframe_idx, frame_x, frame_y) using self.valid_pos and self.inventory_dict, self.is_connected
+        valid_actions = []
+        for end_bool in [False, True]:
+            for freeframe_idx in [2, 3]:
+                for frame_x, frame_y in self.valid_pos:
+                    if self.inventory_dict[freeframe_idx] > 0:
+                        if end_bool == False or (end_bool == True and self.is_connected()):
+                            valid_actions.append((end_bool, freeframe_idx, frame_x, frame_y))
+        
+        # encode action vectors to action integers using self.action_converter.encode(action)
+        valid_action_ints = [self.action_converter.encode(action) for action in valid_actions]
+        
+        # apply 1 to valid actions and 0 to invalid actions
+        action_mask[valid_action_ints] = 1
+        action_mask[np.logical_not(action_mask)] = 0
+        
+        return action_mask

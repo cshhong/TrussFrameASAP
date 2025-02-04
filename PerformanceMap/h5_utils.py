@@ -57,10 +57,15 @@ HDF5 file format:
 '''
 
 import h5py
-from TrussFrameASAP.TrussFrameMechanics.trussframe import FrameShapeType, FrameStructureType, TrussFrameRL
-from  TrussFrameASAP.TrussFrameMechanics.vertex import Vertex
-from  TrussFrameASAP.TrussFrameMechanics.maximaledge import MaximalEdge
-from  TrussFrameASAP.TrussFrameMechanics.feagraph import FEAGraph
+# from TrussFrameASAP.TrussFrameMechanics.trussframe import FrameShapeType, FrameStructureType, TrussFrameRL
+# from  TrussFrameASAP.TrussFrameMechanics.vertex import Vertex
+# from  TrussFrameASAP.TrussFrameMechanics.maximaledge import MaximalEdge
+# from  TrussFrameASAP.TrussFrameMechanics.feagraph import FEAGraph
+
+from TrussFrameMechanics.trussframe import FrameShapeType, FrameStructureType, TrussFrameRL
+from  TrussFrameMechanics.vertex import Vertex
+from  TrussFrameMechanics.maximaledge import MaximalEdge
+from  TrussFrameMechanics.feagraph import FEAGraph
 import numpy as np
 import pandas as pd
 
