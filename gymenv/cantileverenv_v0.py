@@ -1,7 +1,7 @@
 '''
 Feb 4 2025
 DONE apply action mask to rollout sample
-TODO clean take action function with valid actions from get_action_mask 
+DONE clean take action function with valid actions from get_action_mask 
 TODO implement random spawning
 TODO implement simple reward of exponentially scaled deformation 
 
@@ -370,8 +370,8 @@ class CantileverEnv_0(gym.Env):
         # support_frames : dictionary (x_frame, y_frame)  cell location within frame grid of support frames
         # targetload_frames : dictionary of ((x_frame,y_frame) : [x_forcemag, y_forcemag, z_forcemag] (force is applied in the negative y direction).
         # cantilever_length : length of cantilever in number of frames
-        support_frames, targetload_frames, inventory_dict, cantilever_length = generate_bc.set_cantilever_env_framegrid(self.frame_grid_size_x)
-        self.allowable_deflection = self.frame_length_m * cantilever_length / 120 # length of cantilever(m) / 120
+        support_frames, targetload_frames, inventory_dict, cantilever_length_f = generate_bc.set_cantilever_env_framegrid(self.frame_grid_size_x)
+        self.allowable_deflection = self.frame_length_m * cantilever_length_f / 120 # length of cantilever(m) / 120
         self.inventory_dict = inventory_dict
         # set FrameStructureType.EXTERNAL_FORCE magnitude values 
         #TODO handle multiple target loads
@@ -521,8 +521,10 @@ class CantileverEnv_0(gym.Env):
             # TODO adjust reward scheme 
             # reward += 10
             # reward += 2 / np.max(self.curr_fea_graph.displacement) # large reward for low deflection e.g. 0.5 / 0.01 = 50 #TODO displacement is length 0?
-            reward += 1 / self.max_deflection # large reward for low deflection e.g. 0.5 / 0.01 = 50
+            if self.max_deflection < self.allowable_deflection:
+                reward += 1 / self.max_deflection # large reward for low deflection e.g. 0.5 / 0.01 = 50
             reward -= 10*len(self.curr_fea_graph.failed_elements) # large penalty by number of failed elements 
+            # store reward value for render 
         
         # if truncated and not terminated:
             # reward -= 10 # large penalty for not finishing within inventory 
@@ -534,8 +536,8 @@ class CantileverEnv_0(gym.Env):
         inventory_array = np.array(list(self.inventory_dict.values())) # convert inventory dictionary to array in order of free frame types
         obs = self.obs_converter.encode(self.curr_frame_grid, inventory_array)
         # self.print_framegrid()
-        self.render()
         self.episode_return += reward
+        self.render()
         # Add `final_info` for terminated or truncated episodes
         info = {}
         if terminated or truncated:
@@ -804,6 +806,7 @@ class CantileverEnv_0(gym.Env):
         Overlay displaced truss to plot by updating self.fig and self.ax based on self.curr_fea_graph.displacement
         Overlay failed elements in red based on self.curr_fea_graph.failed_elements
         '''
+        displaced_truss_color = 'gray'
         disp_vis_scale = 10 # scale displacement for visualization 
         
         # Get Displaced vertices
@@ -821,9 +824,9 @@ class CantileverEnv_0(gym.Env):
             new_y = coord[1] + dy *  disp_vis_scale
 
             displaced_vertices[V.id] = (new_x, new_y)
-            self.ax.add_patch(patches.Circle((new_x, new_y), radius=0.05, color='blue', alpha=0.8))
+            self.ax.add_patch(patches.Circle((new_x, new_y), radius=0.05, color=displaced_truss_color, alpha=0.8))
             # Add text showing displacement magnitude next to each circle
-            self.ax.text(new_x + 0.1, new_y + 0.1, f'{d_mag:.4f}', color='gray', fontsize=8)
+            self.ax.text(new_x + 0.1, new_y + 0.1, f'{d_mag:.2f}', color='gray', fontsize=8)
         
         # Connect deflected nodes with edges
         for edge in self.curr_fea_graph.edges:
@@ -833,7 +836,7 @@ class CantileverEnv_0(gym.Env):
 
             # Plot the deflected truss member
             self.ax.plot([start_coord[0], end_coord[0]], [start_coord[1], end_coord[1]],
-                    color='blue', linestyle='--', linewidth=1)
+                    color=displaced_truss_color, linestyle='--', linewidth=1)
         for edge in self.curr_fea_graph.failed_elements:
             start_id, end_id = edge
             start_coord = displaced_vertices[start_id]
@@ -849,10 +852,14 @@ class CantileverEnv_0(gym.Env):
         maxd_x_coord, maxd_y_coord = displaced_vertices[max_disp[0]]
         maxd_value = max_disp[1]
         self.max_deflection = max_disp[1]
-        if self.max_deflection >= self.allowable_deflection:
-            self.ax.text(maxd_x_coord+0.1, maxd_y_coord+0.2, f'{maxd_value:.5f}', color='red', fontsize=11)
-        else:
-            self.ax.text(maxd_x_coord+0.1, maxd_y_coord+0.2, f'{maxd_value:.5f}', color='green', fontsize=11)
+        
+        # Overlay max deflection value on the max deflection node
+        # if self.max_deflection >= self.allowable_deflection:
+        #     self.ax.text(maxd_x_coord+0.1, maxd_y_coord+0.2, f'{maxd_value:.5f}', color='red', fontsize=11)
+        # else:
+        #     self.ax.text(maxd_x_coord+0.1, maxd_y_coord+0.2, f'{maxd_value:.5f}', color='green', fontsize=11)
+        # Draw circle around max delfected node 
+        self.ax.add_patch(patches.Circle((new_x, new_y), radius=0.2, color='red', alpha=0.5))
 
     def draw_fea_graph(self):
         '''
@@ -888,7 +895,7 @@ class CantileverEnv_0(gym.Env):
             if trussframe.type_structure == FrameStructureType.SUPPORT_FRAME or trussframe.type_structure == FrameStructureType.LIGHT_FREE_FRAME:
                 self.ax.add_patch(patches.Rectangle((trussframe.x - self.frame_size//2, trussframe.y - self.frame_size//2), self.frame_size, self.frame_size, color='black', lw=1.5, fill=False))
             elif trussframe.type_structure == FrameStructureType.MEDIUM_FREE_FRAME:
-                self.ax.add_patch(patches.Rectangle((trussframe.x - self.frame_size//2, trussframe.y - self.frame_size//2), self.frame_size, self.frame_size, facecolor=((0.7, 0.7, 0.7, 0.5)), edgecolor = 'black', lw=1.5, fill=True))
+                self.ax.add_patch(patches.Rectangle((trussframe.x - self.frame_size//2, trussframe.y - self.frame_size//2), self.frame_size, self.frame_size, facecolor=((0.7, 0.7, 0.7, 0.8)), edgecolor = 'black', lw=1.5, fill=True))
             # brace
             if trussframe.type_shape == FrameShapeType.DOUBLE_DIAGONAL:
                 # Add diagonal lines from left bottom to right top, right bottom to left top
@@ -931,8 +938,8 @@ class CantileverEnv_0(gym.Env):
                 # arrow_head_x = arrow_tail_x - arrow_dx
                 # arrow_head_y = arrow_tail_y - arrow_dy
 
-                self.ax.arrow(arrow_tail_x, arrow_tail_y, arrow_dx, arrow_dy+0.1, head_width=0.2, head_length=0.2, fc='black', ec='black', linewidth=1.5)
-                self.ax.text(arrow_tail_x, arrow_tail_y + 0.1, f"{force_magnitude:.2f} kN", color='black', fontsize=12)
+                self.ax.arrow(arrow_tail_x, arrow_tail_y, arrow_dx, arrow_dy+0.1, head_width=0.2, head_length=0.2, fc='red', ec='red', linewidth=1.5)
+                self.ax.text(arrow_tail_x, arrow_tail_y + 0.1, f"{force_magnitude:.2f} kN", color='red', fontsize=12)
     
     # Render 
     def render_frame(self):
@@ -959,14 +966,15 @@ class CantileverEnv_0(gym.Env):
         for j in range(0, self.board_size_y + 1, 2):
             self.ax.axhline(y=j, color='lightblue', linestyle='-', linewidth=2, zorder=0)
 
-        # Highlight valid position cells
-        for frame_x, frame_y in self.valid_pos:
-            x , y = self.framegrid_to_board(frame_x, frame_y)
-            rect = patches.Rectangle((x - self.frame_size//2, y - self.frame_size//2), 
-                                     self.frame_size, self.frame_size, 
-                                     linewidth=0, edgecolor='lightblue', facecolor='lightblue')
-            self.ax.add_patch(rect)
-        
+        # Highlight valid position cells (except for final frame if terminated)
+        if self.eps_end_valid == False:
+            for frame_x, frame_y in self.valid_pos:
+                x , y = self.framegrid_to_board(frame_x, frame_y)
+                rect = patches.Rectangle((x - self.frame_size//2, y - self.frame_size//2), 
+                                        self.frame_size, self.frame_size, 
+                                        linewidth=0, edgecolor='lightblue', facecolor='lightblue')
+                self.ax.add_patch(rect)
+            
         # Draw current fea graph
         self.draw_fea_graph() # update self.fig, self.ax with current fea graph 
 
@@ -974,14 +982,100 @@ class CantileverEnv_0(gym.Env):
         if self.eps_end_valid == True:
         # if len(self.curr_fea_graph.displacement) != 0 : # check if displacement has been analyzed 
             self.draw_truss_analysis() # last plot has displaced structure 
+            # self.ax.text(
+            #                 0.5, -0.05,  # x=0.5 centers the text, y=0.01 places it at the bottom
+            #                 # f'Allowable Deflection : {self.allowable_deflection:.4f} m',
+            #                 f'Allowable Deflection : {self.allowable_deflection:.3f} m, Max Deflection: {self.max_deflection:.3f} m, Reward: {self.episode_return:.1f}, Episode Length: {self.episode_length}',
+            #                 color='black',
+            #                 fontsize=14,
+            #                 ha='center',  # Center-aligns the text horizontally
+            #                 transform=self.ax.transAxes  # Use axis coordinates
+            #             )
+
+            # Caption at termination
+            caption_fontsize_large = 16
+            caption_fontsize_small = 12
             self.ax.text(
-                            0.5, -0.05,  # x=0.5 centers the text, y=0.01 places it at the bottom
-                            f'Allowable Deflection : {self.allowable_deflection:.4f} m',
-                            color='black',
-                            fontsize=12,
-                            ha='center',  # Center-aligns the text horizontally
-                            transform=self.ax.transAxes  # Use axis coordinates
-                        )
+                0.1, -0.05,  # Adjust x to position the text correctly
+                'Allowable Deflection :',
+                color='black',
+                fontsize=caption_fontsize_small,
+                ha='center',  # Center-aligns the text horizontally
+                transform=self.ax.transAxes  # Use axis coordinates
+            )
+
+            self.ax.text(
+                0.25, -0.05,  # Adjust x to position the value correctly
+                f'{self.allowable_deflection:.3f} m',
+                color='black',
+                fontsize=caption_fontsize_small,
+                ha='center',  # Center-aligns the text horizontally
+                transform=self.ax.transAxes  # Use axis coordinates
+            )
+
+            self.ax.text(
+                0.4, -0.05,  # Adjust x to position the text correctly
+                'Max Deflection:',
+                color='black',
+                fontsize=caption_fontsize_small,
+                ha='center',  # Center-aligns the text horizontally
+                transform=self.ax.transAxes  # Use axis coordinates
+            )
+
+            if self.max_deflection >= self.allowable_deflection:
+                self.ax.text(
+                    0.5, -0.05,  # Adjust x to position the value correctly
+                    f'{self.max_deflection:.3f} m',
+                    color='red',
+                    fontsize=caption_fontsize_large,
+                    ha='center',  # Center-aligns the text horizontally
+                    transform=self.ax.transAxes  # Use axis coordinates
+                )
+            else:
+                self.ax.text(
+                    0.525, -0.05,  # Adjust x to position the value correctly
+                    f'{self.max_deflection:.3f} m',
+                    color='green',
+                    fontsize=caption_fontsize_large,
+                    ha='center',  # Center-aligns the text horizontally
+                    transform=self.ax.transAxes  # Use axis coordinates
+                )
+
+            self.ax.text(
+                0.625, -0.05,  # Adjust x to position the text correctly
+                'Reward:',
+                color='black',
+                fontsize=caption_fontsize_small,
+                ha='center',  # Center-aligns the text horizontally
+                transform=self.ax.transAxes  # Use axis coordinates
+            )
+
+            self.ax.text(
+                0.7, -0.05,  # Adjust x to position the value correctly
+                f'{self.episode_return:.1f}',
+                color='green',
+                fontsize=caption_fontsize_large,
+                ha='center',  # Center-aligns the text horizontally
+                transform=self.ax.transAxes  # Use axis coordinates
+            )
+
+            self.ax.text(
+                0.825, -0.05,  # Adjust x to position the text correctly
+                'Episode Length:',
+                color='black',
+                fontsize=caption_fontsize_small,
+                ha='center',  # Center-aligns the text horizontally
+                transform=self.ax.transAxes  # Use axis coordinates
+            )
+
+            self.ax.text(
+                0.95, -0.05,  # Adjust x to position the value correctly
+                f'{self.episode_length}',
+                color='black',
+                fontsize=caption_fontsize_small,
+                ha='center',  # Center-aligns the text horizontally
+                transform=self.ax.transAxes  # Use axis coordinates
+            )
         else:
             pass
             # print(f'Displacement is empty!')
