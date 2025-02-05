@@ -373,6 +373,7 @@ class ActionBijectiveMapping:
         """
         Encodes an action into a single integer.
         :param action: [end_bool, freeframe_type, frame_x, frame_y]
+            * make sure that freeframe_type bounds start at 0 instead of freeframe_idx_min 
         :return: Encoded integer
         """
         action_cat = ['end_bool', 'freeframe_type', 'frame_x', 'frame_y']
@@ -401,6 +402,4 @@ class ActionBijectiveMapping:
             action.append(encoded_value % bound)
             encoded_value //= bound
 
-        # Adjust freeframe_type back to its original range
-        action[1] += self.freeframe_idx_min
         return action
