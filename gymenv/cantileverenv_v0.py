@@ -506,90 +506,49 @@ class CantileverEnv_0(gym.Env):
         end, freeframe_idx, frame_x, frame_y = action_tuple
         end_bool = True if end==1 else False
         
-        # Check if inventory is already used up across frame types before termination, truncated is True
-        if all(value == 0 for value in self.inventory_dict.values()):
-            # print(f"Inventory is empty!")
-            truncated = True # truncated because inventory is empty
-            inventory_array = np.array(list(self.inventory_dict.values())) # convert inventory dictionary to array in order of free frame types
-            obs = self.obs_converter.encode(self.curr_frame_grid, inventory_array)
-            # self.print_framegrid()
-            reward = 0
-            self.render()
-            self.episode_return += reward
-            # print("Inventory is used up!")
-            info = {}
-            # Add `final_info` for logging episodic stats
-            info["final_info"] = {
-                                    "episode": {
-                                        "r": self.episode_return,
-                                        "l": self.episode_length,
-                                    }
-                                }
-            return obs, reward, terminated, truncated, info
-            
-        else: # There are still frames in inventory
+        # Apply action
+        self.apply_action(action_tuple) # if end updates displacement and failed elements in curr_fea_graph
 
-            # Can omit invalid case penalty since we are masking actions
-            # Invalid case 1 : If position is not valid large negative reward is given (action is not applied, continue episode) 
-            if (frame_x, frame_y) not in self.valid_pos:
-                # reward = -10  # Negative reward for invalid action
-                reward = 0
-            
-            # Invalid case 2 : If trying to create frame type with 0 inventory, large negative reward is given
-            elif self.inventory_dict[FrameStructureType.get_framestructuretype_from_idx(freeframe_idx)] == 0:
-                reward = -10  
-            
-            # Invalid case 3 :If signal to end episode but support and target not connected, large negative reward is given
-            elif end_bool == True:
-                temp_is_connected = self.check_is_connected(frame_x, frame_y)
-                # Large negative reward is given if decide to end episode but support and target not connected
-                # (action is not applied to environment)
-                if temp_is_connected == False:
-                    reward = -10  
-                
-                # Valid action : Ending Episode 
-                # Positive rewards if correctly ended after support and loads are all connected
-                # (action is applied to environment)
-                elif temp_is_connected == True:
-                    # Apply valid action and update environment state
-                    self.render_valid_action = True
-                    self.apply_action(action_tuple)
-                    self.eps_end_valid = True
-                    # TODO Reward scheme to encourage complete structures with minimal deflection, failure is secondary
-                    # count inventory left and add to reward
-                    # reward += 0.05 * self.inventory_dict[FrameStructureType.LIGHT_FREE_FRAME]
-                    reward += self.inventory_dict[FrameStructureType.MEDIUM_FREE_FRAME]
-                    reward += 2 / np.max(self.curr_fea_graph.displacement) # displacement reward e.g. 0.5 / 0.01 = 50
-                    reward += 10 # end reward
-                    reward -= len(self.curr_fea_graph.failed_elements) # discounted by number of failed elements
-                    terminated = True
-            
-            # Valid action : Not ending Episode, but places frame in valid position within inventory
-            elif ((frame_x, frame_y) in self.valid_pos) \
-                & (end_bool == False) \
-                & (self.inventory_dict[FrameStructureType.get_framestructuretype_from_idx(freeframe_idx)] > 0) :
-                    self.render_valid_action = True
-                    self.apply_action(action_tuple)
-                    # reward = 1 # small reward for creating block 
-                    terminated = False
+        # Using masked actions : all actions taken are valid actions 
+        # if inventory is used up, episode is truncated
+        if all(value == 0 for value in self.inventory_dict.values()):
+            truncated = True # truncated because inventory is empty
         
-            # convert inventory dictionary to array in order of free frame types
-            inventory_array = np.array(list(self.inventory_dict.values())) 
-            obs = self.obs_converter.encode(self.curr_frame_grid, inventory_array)
-            # self.print_framegrid()
-            self.render()
-            self.episode_return += reward
-            # Add `final_info` for terminated or truncated episodes
-            info = {}
-            if terminated or truncated:
-                # print("terminated or truncated!")
-                info["final_info"] = {
-                    "episode": {
-                        "r": self.episode_return,
-                        "l": self.episode_length,
-                    }
+        # terminate if action ends episode
+        if end_bool==True:
+            terminated = True
+            self.eps_end_valid = True # used in render_frame to trigger displacement vis, in render to save final img
+            # TODO adjust reward scheme 
+            # reward += 10
+            # reward += 2 / np.max(self.curr_fea_graph.displacement) # large reward for low deflection e.g. 0.5 / 0.01 = 50 #TODO displacement is length 0?
+            reward += 1 / self.max_deflection # large reward for low deflection e.g. 0.5 / 0.01 = 50
+            reward -= 10*len(self.curr_fea_graph.failed_elements) # large penalty by number of failed elements 
+        
+        # if truncated and not terminated:
+            # reward -= 10 # large penalty for not finishing within inventory 
+
+        # Render frame
+        self.render_valid_action = True
+
+        # Store trajectory
+        inventory_array = np.array(list(self.inventory_dict.values())) # convert inventory dictionary to array in order of free frame types
+        obs = self.obs_converter.encode(self.curr_frame_grid, inventory_array)
+        # self.print_framegrid()
+        self.render()
+        self.episode_return += reward
+        # Add `final_info` for terminated or truncated episodes
+        info = {}
+        if terminated or truncated:
+            # print("terminated or truncated!")
+            info["final_info"] = {
+                "episode": {
+                    "reward": self.episode_return,
+                    "length": self.episode_length,
                 }
-            return obs, reward, terminated, truncated, info
+            }
+        print(f'Action : {action_tuple} \n Reward : {reward} \n Terminated : {terminated} \n Truncated : {truncated} \n Info : {info}')
+        return obs, reward, terminated, truncated, info
+        
     
     def check_is_connected(self, frame_x, frame_y):
         '''
@@ -631,6 +590,7 @@ class CantileverEnv_0(gym.Env):
         '''
         # create free TrussFrameRL at valid_action board coordinate
         end, freeframe_idx, frame_x, frame_y = valid_action_tuple
+        freeframe_idx += self.action_converter.freeframe_idx_min # adjust freeframe_idx to indices in FrameStructureType
         frame_center = self.framegrid_to_board(frame_x, frame_y)
         # print(f"Applying Action with  freeframe_idx : {freeframe_idx} at {frame_center}")
         frame_structure_type = FrameStructureType.get_framestructuretype_from_idx(freeframe_idx)
@@ -811,7 +771,7 @@ class CantileverEnv_0(gym.Env):
         # jl.seval('using AsapToolkit')
         jl.seval('using Asap')
 
-        jl.include("TrussFrameASAP/TrussFrameMechanics/truss_analysis.jl")
+        jl.include("TrussFrameMechanics/truss_analysis.jl") 
         jl.seval('using .TrussAnalysis')
 
         displacement, failed_elements = pythonAsap.solve_fea(jl, self.curr_fea_graph, self.frame_length_m) # return nodal displacement
@@ -850,7 +810,7 @@ class CantileverEnv_0(gym.Env):
         displaced_vertices = {} # node id : (x, y)
         max_disp = None # (node_id, displacement magnitude) 
         for i, (coord, V) in enumerate(self.curr_fea_graph.vertices.items()):
-            dx, dy = self.curr_fea_graph.displacement[i][:2]
+            dx, dy = self.curr_fea_graph.displacement[i][:2] # output 2D list of nodal displacement [x,y,z] for each node in node index order. Only non-empty upon fea (eps end)
             # Calculate the displacement magnitude
             # d_mag = np.sqrt((dx/ disp_vis_scale)**2 + (dy/ disp_vis_scale)**2) # Scale down if necessary for visualization
             d_mag = np.sqrt(dx**2 + dy**2)
