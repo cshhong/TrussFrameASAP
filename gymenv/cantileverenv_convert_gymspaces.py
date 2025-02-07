@@ -398,13 +398,12 @@ class ActionBijectiveMapping:
         # print(f'encoded value: {encoded_value}')
         if not (0 <= encoded_value < self.total_space_size):
             raise ValueError(f"Encoded value {encoded_value} is out of bounds for the total space size {self.total_space_size}.")
-        e_action = encoded_value 
         action = []
         for bound in self.action_bounds:
-            action.append(e_action % bound)
-            e_action //= bound
+            action.append(encoded_value % bound)
+            encoded_value //= bound
 
         # Ensure all elements are integers and not arrays or tensors
-        # action = [int(a) if not isinstance(a, (np.ndarray, torch.Tensor)) else int(a.item()) for a in action]
+        action = [int(a) if not isinstance(a, (np.ndarray, torch.Tensor)) else int(a.item()) for a in action]
 
         return action
