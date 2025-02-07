@@ -62,14 +62,6 @@ import os
 PARENT_DIR = os.path.dirname(os.path.abspath(__file__))
 print(f'Parent Directory of cantilever env v0 : {PARENT_DIR}')
 
-
-# from TrussFrameASAP.TrussFrameMechanics.trussframe import FrameShapeType, FrameStructureType, TrussFrameRL
-# from  TrussFrameASAP.TrussFrameMechanics.vertex import Vertex
-# from  TrussFrameASAP.TrussFrameMechanics.maximaledge import MaximalEdge
-# from  TrussFrameASAP.TrussFrameMechanics.feagraph import FEAGraph
-# import TrussFrameASAP.TrussFrameMechanics.generate_bc as generate_bc
-# import TrussFrameASAP.TrussFrameMechanics.pythonAsap as pythonAsap
-
 from TrussFrameMechanics.trussframe import FrameShapeType, FrameStructureType, TrussFrameRL
 from  TrussFrameMechanics.vertex import Vertex
 from  TrussFrameMechanics.maximaledge import MaximalEdge
