@@ -328,9 +328,10 @@ class CantileverEnv_0(gym.Env):
         Vertex._id_counter = 1
 
         # Set boundary conditions ; support, target load, inventory
-        self.initBoundaryConditions() # set self.allowable_deflection, self.inventory_dict, self.frames, self.curr_frame_grid, self.target_loads_met, FrameStructureType.EXTERNAL_FORCE.node_load
+        self.initBoundaryConditions() # set self.cantiliver_length_f , self.allowable_deflection, self.inventory_dict, self.frames, self.curr_frame_grid, self.target_loads_met, FrameStructureType.EXTERNAL_FORCE.node_load
         # self.set_space_converters(self.inventory_dict) # set self.obs_converter, self.action_converter
         # self.set_gym_spaces(self.obs_converter, self.action_converter) # set self.observation_space, self.action_space
+        self.cantiliver_length_f = 0 # used to limit random init in training function 
         
         self.eps_end_valid = False
 
@@ -368,6 +369,7 @@ class CantileverEnv_0(gym.Env):
         # targetload_frames : dictionary of ((x_frame,y_frame) : [x_forcemag, y_forcemag, z_forcemag] (force is applied in the negative y direction).
         # cantilever_length : length of cantilever in number of frames
         support_frames, targetload_frames, inventory_dict, cantilever_length_f = generate_bc.set_cantilever_env_framegrid(self.frame_grid_size_x)
+        self.cantiliver_length_f = cantilever_length_f
         self.allowable_deflection = self.frame_length_m * cantilever_length_f / 120 # length of cantilever(m) / 120
         self.inventory_dict = inventory_dict
         # set FrameStructureType.EXTERNAL_FORCE magnitude values 
