@@ -327,11 +327,11 @@ class CantileverEnv_0(gym.Env):
         # Reset the Vertex ID counter
         Vertex._id_counter = 1
 
+        self.cantilever_length_f = 0 # used to limit random init in training function 
         # Set boundary conditions ; support, target load, inventory
         self.initBoundaryConditions() # set self.cantiliver_length_f , self.allowable_deflection, self.inventory_dict, self.frames, self.curr_frame_grid, self.target_loads_met, FrameStructureType.EXTERNAL_FORCE.node_load
         # self.set_space_converters(self.inventory_dict) # set self.obs_converter, self.action_converter
         # self.set_gym_spaces(self.obs_converter, self.action_converter) # set self.observation_space, self.action_space
-        self.cantilever_length_f = 0 # used to limit random init in training function 
         
         self.eps_end_valid = False
 
