@@ -2,8 +2,6 @@
 Feb 4 2025
 DONE apply action mask to rollout sample
 DONE clean take action function with valid actions from get_action_mask 
-TODO implement random spawning
-TODO implement simple reward of exponentially scaled deformation 
 
 ****  Big Goals
 DONE Random Rollout of environment
@@ -55,8 +53,15 @@ from gymnasium.spaces import Box, Discrete
 import sys
 import os
 
-# Add the directory containing TrussFrameMechanics to sys.path
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+# Add the current directory to sys.path (to call TrussFrameMechanics )
+# sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+# sys.path.append("/Users/chong/Dropbox/2024Fall/TrussframeASAP")  # ensure Python can locate the TrussFrameASAP module 
+
+# Get the absolute path of the current file (cantileverenv_v0.py)
+PARENT_DIR = os.path.dirname(os.path.abspath(__file__))
+print(f'Parent Directory of cantilever env v0 : {PARENT_DIR}')
+
 
 # from TrussFrameASAP.TrussFrameMechanics.trussframe import FrameShapeType, FrameStructureType, TrussFrameRL
 # from  TrussFrameASAP.TrussFrameMechanics.vertex import Vertex
@@ -773,7 +778,10 @@ class CantileverEnv_0(gym.Env):
         # jl.seval('using AsapToolkit')
         jl.seval('using Asap')
 
-        jl.include("TrussFrameMechanics/truss_analysis.jl") 
+        truss_analysis_path = os.path.join(PARENT_DIR, "..", "TrussFrameMechanics", "truss_analysis.jl")
+        # Include the Julia file using the absolute path
+        jl.include(truss_analysis_path)
+        # jl.include("TrussFrameMechanics/truss_analysis.jl") # system path error
         jl.seval('using .TrussAnalysis')
 
         displacement, failed_elements = pythonAsap.solve_fea(jl, self.curr_fea_graph, self.frame_length_m) # return nodal displacement
