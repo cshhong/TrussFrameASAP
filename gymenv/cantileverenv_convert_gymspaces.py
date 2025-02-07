@@ -393,7 +393,7 @@ class ActionBijectiveMapping:
         """
         Decodes a single integer into an action.
         :param encoded_value: Encoded integer
-        :return: [end_bool, freeframe_type, frame_x, frame_y]
+        :return list of integer [end_bool, freeframe_type, frame_x, frame_y]
         """
         # print(f'encoded value: {encoded_value}')
         if not (0 <= encoded_value < self.total_space_size):
@@ -402,5 +402,9 @@ class ActionBijectiveMapping:
         for bound in self.action_bounds:
             action.append(encoded_value % bound)
             encoded_value //= bound
+
+        # make sure that action is a list of integers as opposed to array or tensors, for compatibility with gym spaces and change if so 
+        # Ensure all elements are integers and not arrays or tensors
+        action = [int(a) if not isinstance(a, (np.ndarray, torch.Tensor)) else int(a.item()) for a in action]
 
         return action
