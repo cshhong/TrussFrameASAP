@@ -720,7 +720,6 @@ class CantileverEnv_0(gym.Env):
             new_vertices = [] # Vertex object in order of bottom-left, bottom-right, top-right, top-left
             for i, pos in enumerate(vert_pos):
                 # If new node overlaps with existing node, merge (preserve existing node attributes - id, is_free)
-                print(f' update_fea_graph pos : {pos}, self.curr_fea_graph.vertices : {self.curr_fea_graph.vertices}')
                 if pos in self.curr_fea_graph.vertices:
                     new_v = self.curr_fea_graph.vertices[pos] # get overlapping existing node
                     # allow change free->fixed but not fixed->free
