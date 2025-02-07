@@ -547,7 +547,7 @@ class CantileverEnv_0(gym.Env):
                     "length": self.episode_length,
                 }
             }
-        print(f'Action : {action_tuple} \n Reward : {reward} \n Terminated : {terminated} \n Truncated : {truncated} \n Info : {info}')
+        # print(f'Action : {action_tuple} \n Reward : {reward} \n Terminated : {terminated} \n Truncated : {truncated} \n Info : {info}')
         return obs, reward, terminated, truncated, info
         
     
