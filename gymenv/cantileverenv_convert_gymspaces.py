@@ -33,6 +33,7 @@ class ObservationDownSamplingMapping:
     
     Down Sampling: (difference from ObservationBijectiveMapping)
         - The frame grid is downsampled to a smaller grid size with convolution and average pooling.
+        - not bijective, no decoder
 
     Encoded Observation:
         np.array [encoded_framegrid_value, inventory*]
