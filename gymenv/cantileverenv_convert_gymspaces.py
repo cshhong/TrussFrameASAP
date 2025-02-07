@@ -403,6 +403,8 @@ class ActionBijectiveMapping:
             action.append(encoded_value % bound)
             encoded_value //= bound
 
+        # NOTFIX without inplace modification of encoded values, vector values become redundant... why?
+
         # Ensure all elements are integers and not arrays or tensors
         action = [int(a) if not isinstance(a, (np.ndarray, torch.Tensor)) else int(a.item()) for a in action]
 
