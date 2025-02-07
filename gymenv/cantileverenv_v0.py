@@ -506,6 +506,7 @@ class CantileverEnv_0(gym.Env):
         end_bool = True if end==1 else False
         
         # Apply action
+        print(f'step action : {action}')
         print(f'applying action : {action_tuple}')
         self.apply_action(action_tuple) # if end updates displacement and failed elements in curr_fea_graph
 
