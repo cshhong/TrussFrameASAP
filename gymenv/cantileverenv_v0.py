@@ -282,7 +282,7 @@ class CantileverEnv_0(gym.Env):
         # Set in reset() when boundary conditions are set
         self.inventory_dict = None # dictionary of inventory in order of free frame types
         #     inventory = {
-        #     FrameStructureType.LIGHT_FREE_FRAME : light_inv, # indicate no limits
+        #     FrameStructureType.LIGHT_FREE_FRAME : light_inv, # -1 indicate no limits
         #     FrameStructureType.MEDIUM_FREE_FRAME : med_inv,
         #     # FrameStructureType.HEAVY_FREE_FRAME : *,
         # }
@@ -511,7 +511,7 @@ class CantileverEnv_0(gym.Env):
 
         # Using masked actions : all actions taken are valid actions 
         # if inventory is used up, episode is truncated
-        if all(value == 0 for value in self.inventory_dict.values()):
+        if all(value <= 0 for value in self.inventory_dict.values()):
             truncated = True # truncated because inventory is empty
         
         # terminate if action ends episode
@@ -1226,7 +1226,7 @@ class CantileverEnv_0(gym.Env):
             - end_bool = False if support and target loads are connected and True/False if not connectedif not connected
         action mask is used in rollout as env.sample(mask=curr_mask)
 
-        TODO: when would it return all zeros?
+        TODO: when would it return all zeros? when inventory is exhausted! it should terminate before getting to get_action_mask
         """
         # initialize action mask using self.action_space 
         action_mask = np.zeros(self.action_space.n, dtype=np.int8)
@@ -1234,8 +1234,8 @@ class CantileverEnv_0(gym.Env):
         valid_actions = []
         for freeframe_idx in [0, 1]:
             freeframe_type = FrameStructureType.get_framestructuretype_from_idx(freeframe_idx+2)# dictionary key is FrameStructureType
-            for frame_x, frame_y in self.valid_pos:
-                if self.inventory_dict[freeframe_type] > 0:
+            if self.inventory_dict[freeframe_type] > 0:
+                for frame_x, frame_y in self.valid_pos:
                     # forward look ahead to check if support and target loads are connected
                     temp_is_connected = self.check_is_connected(frame_x, frame_y)
                     if temp_is_connected == True:
@@ -1248,8 +1248,8 @@ class CantileverEnv_0(gym.Env):
         if len(valid_actions) == 0:
             print(f'valid actions are empty!')
             print(f'inventory_dict : {self.inventory_dict}')
-            self.print_framegrid()
             print(f'valid_pos : {self.valid_pos}')
+            self.print_framegrid()
             print(f'temp_is_connected : {temp_is_connected}')
 
         # encode action vectors to action integers using self.action_converter.encode(action)

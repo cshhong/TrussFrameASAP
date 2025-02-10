@@ -140,7 +140,7 @@ def set_cantilever_env_framegrid(frame_grid_size_x, seed=None):
     med_inv = 3
 
     inventory = {
-        FrameStructureType.LIGHT_FREE_FRAME : light_inv, # indicate no limits
+        FrameStructureType.LIGHT_FREE_FRAME : light_inv, # -1 indicate no limits
         FrameStructureType.MEDIUM_FREE_FRAME : med_inv,
         # FrameStructureType.HEAVY_FREE_FRAME : *,
     }
