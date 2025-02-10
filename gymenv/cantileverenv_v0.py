@@ -293,6 +293,9 @@ class CantileverEnv_0(gym.Env):
         self.action_space = None
         self.single_action_space = None
 
+        self.n_rand_init_steps = 0 # initialized in training function
+        self.rand_init_actions = [] # random action int appended in training function
+
         # Set boundary conditions ; support, target load, inventory
         self.initBoundaryConditions() # set self.allowable_deflection, self.inventory_dict, self.frames, self.curr_frame_grid, self.target_loads_met, FrameStructureType.EXTERNAL_FORCE.node_load
         self.set_space_converters(self.inventory_dict) # set self.obs_converter, self.action_converter
@@ -892,13 +895,14 @@ class CantileverEnv_0(gym.Env):
                          str(vertex.id), 
                          fontsize=10, ha='right', color='black')
             
-        # Draw frame edges
+        # Draw frames
         for trussframe in self.frames:
             # outer frame
             if trussframe.type_structure == FrameStructureType.SUPPORT_FRAME or trussframe.type_structure == FrameStructureType.LIGHT_FREE_FRAME:
                 self.ax.add_patch(patches.Rectangle((trussframe.x - self.frame_size//2, trussframe.y - self.frame_size//2), self.frame_size, self.frame_size, color='black', lw=1.5, fill=False))
             elif trussframe.type_structure == FrameStructureType.MEDIUM_FREE_FRAME:
                 self.ax.add_patch(patches.Rectangle((trussframe.x - self.frame_size//2, trussframe.y - self.frame_size//2), self.frame_size, self.frame_size, facecolor=((0.7, 0.7, 0.7, 0.8)), edgecolor = 'black', lw=1.5, fill=True))
+
             # brace
             if trussframe.type_shape == FrameShapeType.DOUBLE_DIAGONAL:
                 # Add diagonal lines from left bottom to right top, right bottom to left top
@@ -914,6 +918,15 @@ class CantileverEnv_0(gym.Env):
                 line2 = mlines.Line2D([x0, x1], [y1, y0], color='black', lw=1)
                 self.ax.add_line(line2)
 
+        # random frame (red highlight)
+        for act in self.rand_init_actions:
+            end_bool, frame_type, frame_x, frame_y = self.action_converter.decode(act)
+            x , y = self.framegrid_to_board(frame_x, frame_y)
+            rect = patches.Rectangle((x - self.frame_size//2, y - self.frame_size//2), 
+                                    self.frame_size, self.frame_size, 
+                                    linewidth=0, facecolor=(255, 0, 0, 0.2))
+            self.ax.add_patch(rect)
+            
 
         # # Draw maximal edges (optional, if visually distinct from normal edges)
         # for direction, edges in maximal_edges:
