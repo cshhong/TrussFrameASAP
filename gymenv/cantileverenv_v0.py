@@ -343,6 +343,8 @@ class CantileverEnv_0(gym.Env):
         self.render_valid_action = False
         # print(f"valid pos : {self.valid_pos}")
 
+        self.rand_init_actions = [] # reset random init actions
+
         inventory_array = np.array(list(self.inventory_dict.values()), dtype=np.int64)
         obs = self.obs_converter.encode(self.curr_frame_grid, inventory_array) # encoded int value obs
         # print(f'Reset obs : {self.curr_frame_grid} \n {inventory_array} \n Encoded obs : {obs}')
@@ -924,7 +926,7 @@ class CantileverEnv_0(gym.Env):
             x , y = self.framegrid_to_board(frame_x, frame_y)
             rect = patches.Rectangle((x - self.frame_size//2, y - self.frame_size//2), 
                                     self.frame_size, self.frame_size, 
-                                    linewidth=0, facecolor=(255, 0, 0, 0.2))
+                                    linewidth=0, facecolor=(1, 0, 0, 0.2))
             self.ax.add_patch(rect)
             
 
