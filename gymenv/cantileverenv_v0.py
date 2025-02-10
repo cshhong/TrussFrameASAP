@@ -866,8 +866,10 @@ class CantileverEnv_0(gym.Env):
         #     self.ax.text(maxd_x_coord+0.1, maxd_y_coord+0.2, f'{maxd_value:.5f}', color='red', fontsize=11)
         # else:
         #     self.ax.text(maxd_x_coord+0.1, maxd_y_coord+0.2, f'{maxd_value:.5f}', color='green', fontsize=11)
-        # Draw circle around max delfected node 
-        self.ax.add_patch(patches.Circle((new_x, new_y), radius=0.2, color='red', alpha=0.5))
+        # Draw circle around max delfected node max_dixp = (V.id, d_mag) 
+        max_v_id, max_d_mag = max_disp
+        max_x_new, max_y_new = displaced_vertices[max_v_id]
+        self.ax.add_patch(patches.Circle((max_x_new, max_y_new), radius=0.2, color='red', alpha=0.5))
 
     def draw_fea_graph(self):
         '''
@@ -921,7 +923,6 @@ class CantileverEnv_0(gym.Env):
                 self.ax.add_line(line2)
 
         # random frame (red highlight)
-        print(f'    (within env) Random Init Actions : {self.rand_init_actions}')
         for act in self.rand_init_actions:
             end_bool, frame_type, frame_x, frame_y = self.action_converter.decode(act)
             x , y = self.framegrid_to_board(frame_x, frame_y)
