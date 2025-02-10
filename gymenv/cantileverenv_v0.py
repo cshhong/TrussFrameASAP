@@ -1242,7 +1242,6 @@ class CantileverEnv_0(gym.Env):
             - end_bool = False if support and target loads are connected and True/False if not connectedif not connected
         action mask is used in rollout as env.sample(mask=curr_mask)
 
-        TODO: when would it return all zeros? when inventory is exhausted! it should terminate before getting to get_action_mask
         """
         # initialize action mask using self.action_space 
         action_mask = np.zeros(self.action_space.n, dtype=np.int8)
@@ -1277,3 +1276,10 @@ class CantileverEnv_0(gym.Env):
         # action_mask[np.logical_not(action_mask)] = 0
         
         return action_mask
+    
+def add_rand_action(self, action_ind):
+    '''
+    Used in training to store random actions taken at initialization in self.rand_init_actions
+    later used for random frame visualization in draw_fea_graph()
+    '''
+    self.rand_init_actions.append(action_ind)
