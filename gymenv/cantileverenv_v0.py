@@ -1225,6 +1225,8 @@ class CantileverEnv_0(gym.Env):
             - freeframe_idx inventory is not 0 (other frame types are not used up)
             - end_bool = False if support and target loads are connected and True/False if not connectedif not connected
         action mask is used in rollout as env.sample(mask=curr_mask)
+
+        TODO: when would it return all zeros?
         """
         # initialize action mask using self.action_space 
         action_mask = np.zeros(self.action_space.n, dtype=np.int8)
@@ -1243,6 +1245,13 @@ class CantileverEnv_0(gym.Env):
                         end_bool = False
                         valid_actions.append((end_bool, freeframe_idx, frame_x, frame_y))
         
+        if len(valid_actions) == 0:
+            print(f'valid actions are empty!')
+            print(f'inventory_dict : {self.inventory_dict}')
+            self.print_framegrid()
+            print(f'valid_pos : {self.valid_pos}')
+            print(f'temp_is_connected : {temp_is_connected}')
+
         # encode action vectors to action integers using self.action_converter.encode(action)
         valid_action_ints = [self.action_converter.encode(action) for action in valid_actions]
         # print(f'valid action idx : {valid_action_ints}')
