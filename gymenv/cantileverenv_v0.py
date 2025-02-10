@@ -1277,9 +1277,9 @@ class CantileverEnv_0(gym.Env):
         
         return action_mask
     
-def add_rand_action(self, action_ind):
-    '''
-    Used in training to store random actions taken at initialization in self.rand_init_actions
-    later used for random frame visualization in draw_fea_graph()
-    '''
-    self.rand_init_actions.append(action_ind)
+    def add_rand_action(self, action_ind):
+        '''
+        Used in training to store random actions taken at initialization in self.rand_init_actions
+        later used for random frame visualization in draw_fea_graph()
+        '''
+        self.rand_init_actions.append(action_ind)
