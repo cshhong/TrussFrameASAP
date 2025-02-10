@@ -921,6 +921,7 @@ class CantileverEnv_0(gym.Env):
                 self.ax.add_line(line2)
 
         # random frame (red highlight)
+        print(f'    (within env) Random Init Actions : {self.rand_init_actions}')
         for act in self.rand_init_actions:
             end_bool, frame_type, frame_x, frame_y = self.action_converter.decode(act)
             x , y = self.framegrid_to_board(frame_x, frame_y)
