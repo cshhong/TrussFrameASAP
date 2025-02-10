@@ -192,7 +192,7 @@ class CantileverEnv_0(gym.Env):
 
     
     '''
-    metadata = {"render_modes": [None, "debug_all", "debug_valid", "rgb_list", "debug_end", "rgb_end"], 
+    metadata = {"render_modes": [None, "debug_all", "debug_valid", "rgb_list", "debug_end", "rgb_end", "rgb_end_interval"], 
                 "render_fps": 1,
                 "obs_modes" : ['frame_grid', 'fea_graph', 'frame_graph'],
                 }
@@ -203,7 +203,7 @@ class CantileverEnv_0(gym.Env):
                 #  board_size_x=20,
                 #  board_size_y=10,
                 #  frame_size=2, 
-                 video_save_interval_steps=500,
+                 render_save_interval=500,
                  render_dir = 'render',
                  max_episode_length = 400,
                  obs_mode='frame_grid',
@@ -238,7 +238,7 @@ class CantileverEnv_0(gym.Env):
             os.makedirs(self.render_dir)
         if self.render_mode == "rgb_end":
             self.render_counter = 0
-        self.video_save_interval = video_save_interval_steps # in steps
+        self.render_save_interval = render_save_interval # in steps
 
         # Current State (Frames)
         self.frames=[] # stores TrussFrameRL objects in sequence of creation
