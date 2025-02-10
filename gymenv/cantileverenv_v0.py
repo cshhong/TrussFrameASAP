@@ -501,14 +501,12 @@ class CantileverEnv_0(gym.Env):
         terminated = False
         truncated = False
         info = {}
-        print(f'step action before decode : {action}')
         action_tuple = self.action_converter.decode(action) # int to action tuple
-        print(f'step action after decode : {action}')
         end, freeframe_idx, frame_x, frame_y = action_tuple
         end_bool = True if end==1 else False
         
         # Apply action
-        print(f'applying action : {action_tuple}')
+        print(f'    applying action : {action_tuple}')
         self.apply_action(action_tuple) # if end updates displacement and failed elements in curr_fea_graph
 
         # Using masked actions : all actions taken are valid actions 
