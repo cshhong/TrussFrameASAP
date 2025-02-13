@@ -294,8 +294,10 @@ class CantileverEnv_0(gym.Env):
         self.action_space = None
         self.single_action_space = None
 
+        # Random Initialization
         self.n_rand_init_steps = 0 # initialized in training function
         self.rand_init_actions = [] # random action int appended in training function
+        self.rand_init_seed = rand_init_seed # seed for random action initialization
 
         # Set boundary conditions ; support, target load, inventory
         self.initBoundaryConditions() # set self.allowable_deflection, self.inventory_dict, self.frames, self.curr_frame_grid, self.target_loads_met, FrameStructureType.EXTERNAL_FORCE.node_load
