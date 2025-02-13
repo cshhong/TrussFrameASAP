@@ -208,6 +208,7 @@ class CantileverEnv_0(gym.Env):
                  max_episode_length = 400,
                  obs_mode='frame_grid',
                  env_idx = 0,
+                 rand_init_seed = None
                  ):
         # super().__init__()
 
@@ -461,8 +462,8 @@ class CantileverEnv_0(gym.Env):
             
             # Define Actions : end boolean, freeframe_type, frame_x, frame_y
             n_actions = action_converter._calculate_total_space_size()
-            self.action_space = Discrete(n=n_actions)
-            print(f'Action Space : {self.action_space}')
+            self.action_space = Discrete(n=n_actions, seed=self.rand_init_seed)
+            print(f'Action Space : {self.action_space} sampling seed : {self.rand_init_seed}')
             self.single_action_space = self.action_space
 
             # Relative Coordinates? (end_bool, frame_idx, left/right/top/bottom) ---> Doesn't save much from absolute coordinates, still have to check valid action!
