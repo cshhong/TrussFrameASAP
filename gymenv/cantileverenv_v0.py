@@ -208,7 +208,7 @@ class CantileverEnv_0(gym.Env):
                  max_episode_length = 400,
                  obs_mode='frame_grid',
                  env_idx = 0,
-                 rand_init_seed = None
+                 rand_init_seed = None,
                  ):
         # super().__init__()
 
