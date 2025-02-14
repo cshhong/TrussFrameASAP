@@ -518,7 +518,7 @@ class CantileverEnv_0(gym.Env):
             - freeframe_idx inventory is 0 (other frame types are not used up)
             - end_bool = True but support and target loads are not connected
         '''
-        self.global_num_steps += 1
+        self.global_steps += 1
         
         self.episode_length += 1
         self.render_valid_action = False # used to trigger render
