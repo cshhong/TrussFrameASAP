@@ -192,7 +192,7 @@ class CantileverEnv_0(gym.Env):
 
     
     '''
-    metadata = {"render_modes": [None, "debug_all", "debug_valid", "rgb_list", "debug_end", "rgb_end", "rgb_end_interval"], 
+    metadata = {"render_modes": [None, "debug_all", "debug_valid", "rgb_list", "debug_end", "rgb_end", "rgb_end_interval", "human_playable"], 
                 "render_fps": 1,
                 "obs_modes" : ['frame_grid', 'fea_graph', 'frame_graph'],
                 }
@@ -304,8 +304,22 @@ class CantileverEnv_0(gym.Env):
         self.set_space_converters(self.inventory_dict) # set self.obs_converter, self.action_converter
         self.set_gym_spaces(self.obs_converter, self.action_converter) # set self.observation_space, self.action_space
 
+        # Human Playable mode 
+        if self.render_mode == "human_playable":
+            self.click_event_id = None # created in render_frame
+            self.key_event_id = None # created in render_frame
+            
+            # # Connect the button press event (add frame)
+            # self.click_event_id = self.fig.canvas.mpl_connect('button_press_event', self.on_click)
+            # # Connect the keypress event (select frame type)
+            # self.key_event_id = self.fig.canvas.mpl_connect('key_press_event', self.on_keypress)
+            
+            self.human_action_frame_type = None # type of frame type selected by human through key press : 1 for FreeFrameType.LIGHT_FREE_FRAME, 2 for FreeFrameType.MEDIUM_FREE_FRAME
+            self.human_action_end = False # boolean to end episode selected by human through key press of 'e' : end episode, 'c' : continue episode
+            self.human_action_frame_coords = None # coordinates of frame selected by human through click (frame_x, frame_y)
+
         print("Initialized Cantilever Env!")
-        self.render()
+        # self.render()
 
 
     def reset(self, seed=None, **kwargs):
@@ -973,6 +987,14 @@ class CantileverEnv_0(gym.Env):
         self.fig, self.ax = plt.subplots(figsize=self.figsize)
         # self.ax.set_xlim([0, self.board_size_x])
         # self.ax.set_ylim([0, self.board_size_y])
+        # self.ax.clear() # TODO debug existing rect patches showing
+
+        if self.render_mode == "human_playable":
+            # Connect the button press event (add frame)
+            self.click_event_id = self.fig.canvas.mpl_connect('button_press_event', self.on_click)
+            # Connect the keypress event (select frame type)
+            self.key_event_id = self.fig.canvas.mpl_connect('key_press_event', self.on_keypress)
+
         margin = 1
         self.ax.set_xlim([-margin, self.board_size_x + margin])
         self.ax.set_ylim([-margin, self.board_size_y + margin])
@@ -1149,6 +1171,17 @@ class CantileverEnv_0(gym.Env):
             plt.show()
             plt.close(self.fig)
 
+        elif self.render_mode == "human_playable":
+            self.render_frame() # initialize and update self.ax, self.fig object
+            # human_action values are changed 
+
+            # save fig to render_list for video saving
+            img = self.fig_to_rgb_array(self.fig)
+            self.render_list.append(img)
+            # show frame 
+            plt.show()
+            plt.close(self.fig)
+
         elif self.render_mode == None:
             pass
         
@@ -1161,7 +1194,7 @@ class CantileverEnv_0(gym.Env):
             - 'rgb_list' : return list of fig in rgb format to be saved in RenderList Wrapper item 
                             Given that we are working with 
         '''
-        if self.render_mode == "rgb_list":
+        if self.render_mode == "rgb_list" or self.render_mode == "human_playable":
             return self.render_list # list of fig objects
         
         else:
@@ -1216,6 +1249,52 @@ class CantileverEnv_0(gym.Env):
     #     self.click_frame_x = frame_x
     #     self.click_frame_y = frame_y
     #     print(f"Frame grid coordinates: ({frame_x}, {frame_y})")
+
+    # Human Playable Mode
+    def on_click(self, event):
+        '''
+        Function triggered at click in human playable mode
+        Change current human action frame location based on snapped click location.
+        cursor location is the centroid of the truss frame.
+        Take next action to add frame to the grid.
+        '''
+        # Check if click is within the grid bounds 
+        if event.xdata is not None and event.ydata is not None:
+            # Get the frame grid coordinates of the cursor location
+            frame_x = int(event.xdata // self.frame_size)
+            frame_y = int(event.ydata // self.frame_size)
+            # check if valid position 
+            if (frame_x, frame_y) in self.valid_pos:
+                self.human_action_frame_coords = (frame_x, frame_y) 
+                print(f"human selected Frame grid coordinates: ({frame_x}, {frame_y})")
+        # if event.inaxes != self.done_button_ax and event.xdata is not None and event.ydata is not None:
+        
+
+    
+    def on_keypress(self, event):
+        '''
+        Function triggered at key press in human playable mode
+        Change current human action frame type based on key press.
+        '''
+        if event.key == '1':
+            self.human_action_frame_type = FrameStructureType.LIGHT_FREE_FRAME
+        if event.key == '2':
+            self.human_action_frame_type = FrameStructureType.MEDIUM_FREE_FRAME
+        if event.key == 'e':
+            self.human_action_end = True
+        if event.key == 'c':
+            self.human_action_end = False
+        # TODO update frame type text in fig 
+        self.fig.canvas.draw()
+
+    def get_clicked_action(self):
+        '''
+        called in human_play mode to get action based on human click and key press
+        return action integer based on human action frame coords and type
+        '''
+        action = self.action_converter.encode((self.human_action_end, self.human_action_frame_type.idx-1, self.human_action_frame_coords[0], self.human_action_frame_coords[1]))
+
+        return action
     
     # Debugging
     def print_framegrid(self):
