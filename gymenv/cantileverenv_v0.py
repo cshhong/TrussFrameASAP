@@ -218,7 +218,7 @@ class CantileverEnv_0(gym.Env):
         self.board_size_x = self.frame_size * 10 # fixed size
         self.board_size_y = self.frame_size * 5 # fixed size
         self.max_episode_length = max_episode_length
-        self.env_num_steps = 0 # activated taking valid action in main (not env.step!)
+        self.global_num_steps = 0 # activated taking valid action in main (not env.step!)
         self.episode_return = 0
         self.episode_length = 0
         self.env_idx = env_idx # index of environment in multi-env setting - used to init individual julia modules
@@ -333,7 +333,6 @@ class CantileverEnv_0(gym.Env):
         # print('Resetting Env!')
 
         self.render_list = []
-        self.env_num_steps = 0
         self.episode_return = 0
         self.episode_length = 0
         
@@ -516,6 +515,7 @@ class CantileverEnv_0(gym.Env):
             - freeframe_idx inventory is 0 (other frame types are not used up)
             - end_bool = True but support and target loads are not connected
         '''
+        self.global_num_steps += 1
         
         self.episode_length += 1
         self.render_valid_action = False # used to trigger render
@@ -1156,6 +1156,17 @@ class CantileverEnv_0(gym.Env):
                 plt.savefig(render_path, bbox_inches='tight')
                 # Increment the counter for the next file
                 self.render_counter += 1
+        elif self.render_mode == "rgb_end_interval":
+            render_name = f"end_{self.render_counter}.png" 
+            if self.eps_end_valid:
+                self.render_frame()
+                render_path = os.path.join(self.render_dir, render_name)
+                # Save the render
+                self.render_frame()
+                plt.savefig(render_path, bbox_inches='tight')
+                # Increment the counter for the next file
+                self.render_counter += 1
+
         elif self.render_mode == "debug_valid":
             if self.render_valid_action:
                 self.render_frame()
