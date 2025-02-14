@@ -1162,8 +1162,8 @@ class CantileverEnv_0(gym.Env):
                 # Increment the counter for the next file
                 self.render_counter += 1
         elif self.render_mode == "rgb_end_interval":
-            render_name = f"endinterval_{self.render_counter}_eps{self.global_terminated_episode}_step{self.global_steps}.png" 
-            if self.eps_terminate_valid and self.global_terminated_epsisode % self.render_interval_eps < self.render_interval_consecutive:
+            render_name = f"endinterval_{self.render_counter}_eps{self.global_terminated_episodes}_step{self.global_steps}.png" 
+            if self.eps_terminate_valid and self.global_terminated_epsisodes % self.render_interval_eps < self.render_interval_consecutive:
                 self.render_frame()
                 render_path = os.path.join(self.render_dir, render_name)
                 # Save the render
