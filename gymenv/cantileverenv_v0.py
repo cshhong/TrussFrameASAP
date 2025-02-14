@@ -203,7 +203,8 @@ class CantileverEnv_0(gym.Env):
                 #  board_size_x=20,
                 #  board_size_y=10,
                 #  frame_size=2, 
-                 render_save_interval=500,
+                 render_interval_eps=500,
+                 render_interval_consecutive=5,
                  render_dir = 'render',
                  max_episode_length = 400,
                  obs_mode='frame_grid',
@@ -218,7 +219,8 @@ class CantileverEnv_0(gym.Env):
         self.board_size_x = self.frame_size * 10 # fixed size
         self.board_size_y = self.frame_size * 5 # fixed size
         self.max_episode_length = max_episode_length
-        self.global_num_steps = 0 # activated taking valid action in main (not env.step!)
+        self.global_steps = 0 # activated taking valid action in main (not env.step!)
+        self.global_terminated_episodes = 0
         self.episode_return = 0
         self.episode_length = 0
         self.env_idx = env_idx # index of environment in multi-env setting - used to init individual julia modules
@@ -239,7 +241,8 @@ class CantileverEnv_0(gym.Env):
             os.makedirs(self.render_dir)
         if self.render_mode == "rgb_end":
             self.render_counter = 0
-        self.render_save_interval = render_save_interval # in steps
+        self.render_interval_eps = render_interval_eps
+        self.render_interval_consecutive = render_interval_consecutive # number of episodes to render consecutively at interval
 
         # Current State (Frames)
         self.frames=[] # stores TrussFrameRL objects in sequence of creation
@@ -266,7 +269,7 @@ class CantileverEnv_0(gym.Env):
         # if episode ends without being connected, large negative reward is given.
         self.target_loads_met = {} # Whether target load was reached : key is (x,y) coordinate on board value is True/False
         self.is_connected = False # whether the support is connected to (all) the target loads, 
-        self.eps_end_valid = False # after applying action with end_bool=1, signify is episode end is valid, used in visualization
+        self.eps_terminate_valid = False # after applying action with end_bool=1, signify is episode end is valid, used in visualization
 
         self.disp_reward_scale = 1e2 # scale displacement reward to large positive reward
 
@@ -352,7 +355,7 @@ class CantileverEnv_0(gym.Env):
         # self.set_space_converters(self.inventory_dict) # set self.obs_converter, self.action_converter
         # self.set_gym_spaces(self.obs_converter, self.action_converter) # set self.observation_space, self.action_space
         
-        self.eps_end_valid = False
+        self.eps_terminate_valid = False
 
         self.render_valid_action = True # temporarily turn on to trigger render
         self.render()
@@ -539,7 +542,9 @@ class CantileverEnv_0(gym.Env):
         # terminate if action ends episode
         if end_bool==True:
             terminated = True
-            self.eps_end_valid = True # used in render_frame to trigger displacement vis, in render to save final img
+            self.eps_terminate_valid = True # used in render_frame to trigger displacement vis, in render to save final img
+            self.global_terminated_episodes += 1
+            
             # TODO adjust reward scheme 
             # reward += 10
             # reward += 2 / np.max(self.curr_fea_graph.displacement) # large reward for low deflection e.g. 0.5 / 0.01 = 50 #TODO displacement is length 0?
@@ -1012,7 +1017,7 @@ class CantileverEnv_0(gym.Env):
             self.ax.axhline(y=j, color='lightblue', linestyle='-', linewidth=2, zorder=0)
 
         # Highlight valid position cells (except for final frame if terminated)
-        if self.eps_end_valid == False:
+        if self.eps_terminate_valid == False:
             for frame_x, frame_y in self.valid_pos:
                 x , y = self.framegrid_to_board(frame_x, frame_y)
                 rect = patches.Rectangle((x - self.frame_size//2, y - self.frame_size//2), 
@@ -1024,7 +1029,7 @@ class CantileverEnv_0(gym.Env):
         self.draw_fea_graph() # update self.fig, self.ax with current fea graph 
 
         # Overlay with displacement graph
-        if self.eps_end_valid == True:
+        if self.eps_terminate_valid == True:
         # if len(self.curr_fea_graph.displacement) != 0 : # check if displacement has been analyzed 
             self.draw_truss_analysis() # last plot has displaced structure 
             # self.ax.text(
@@ -1148,7 +1153,7 @@ class CantileverEnv_0(gym.Env):
                 # print(f'returning img for rgb_array!')
         elif self.render_mode == "rgb_end":
             render_name = f"end_{self.render_counter}.png" 
-            if self.eps_end_valid:
+            if self.eps_terminate_valid:
                 self.render_frame()
                 render_path = os.path.join(self.render_dir, render_name)
                 # Save the render
@@ -1157,8 +1162,8 @@ class CantileverEnv_0(gym.Env):
                 # Increment the counter for the next file
                 self.render_counter += 1
         elif self.render_mode == "rgb_end_interval":
-            render_name = f"end_{self.render_counter}.png" 
-            if self.eps_end_valid:
+            render_name = f"endinterval_{self.render_counter}_eps{self.global_terminated_episode}_step{self.global_steps}.png" 
+            if self.eps_terminate_valid and self.global_terminated_epsisode % self.render_interval_eps < self.render_interval_consecutive:
                 self.render_frame()
                 render_path = os.path.join(self.render_dir, render_name)
                 # Save the render
@@ -1173,7 +1178,7 @@ class CantileverEnv_0(gym.Env):
                 plt.show()
                 plt.close(self.fig)
         elif self.render_mode == "debug_end":
-            if self.eps_end_valid:
+            if self.eps_terminate_valid:
                 self.render_frame()
                 plt.show()
                 plt.close(self.fig)
