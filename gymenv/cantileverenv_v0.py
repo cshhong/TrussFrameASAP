@@ -239,7 +239,7 @@ class CantileverEnv_0(gym.Env):
         # Ensure the directory exists
         if not os.path.exists(self.render_dir):
             os.makedirs(self.render_dir)
-        if self.render_mode == "rgb_end":
+        if self.render_mode == "rgb_end" or self.render_mode == "rgb_end_interval":
             self.render_counter = 0
         self.render_interval_eps = render_interval_eps
         self.render_interval_consecutive = render_interval_consecutive # number of episodes to render consecutively at interval
@@ -544,7 +544,7 @@ class CantileverEnv_0(gym.Env):
             terminated = True
             self.eps_terminate_valid = True # used in render_frame to trigger displacement vis, in render to save final img
             self.global_terminated_episodes += 1
-            
+
             # TODO adjust reward scheme 
             # reward += 10
             # reward += 2 / np.max(self.curr_fea_graph.displacement) # large reward for low deflection e.g. 0.5 / 0.01 = 50 #TODO displacement is length 0?
