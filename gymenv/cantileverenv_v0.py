@@ -1169,6 +1169,7 @@ class CantileverEnv_0(gym.Env):
                 # Save the render
                 self.render_frame()
                 plt.savefig(render_path, bbox_inches='tight')
+                plt.close(self.fig)
                 # Increment the counter for the next file
                 self.render_counter += 1
 
