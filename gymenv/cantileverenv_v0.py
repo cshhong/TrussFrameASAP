@@ -907,7 +907,6 @@ class CantileverEnv_0(gym.Env):
         for coord, vertex in vertices:
             # if vertex.coordinates in supports:
             if vertex.is_free == False:
-                # self.ax.add_patch(patches.Rectangle((coord[0] - 0.1, coord[1] - 0.1), 0.2, 0.2, color='blue', lw=1.5, fill=True))
                 # Create a triangle with the top point at the vertex coordinate
                 triangle_vertices = [
                     (coord[0], coord[1]),  # Top point
@@ -992,7 +991,7 @@ class CantileverEnv_0(gym.Env):
         self.fig, self.ax = plt.subplots(figsize=self.figsize)
         # self.ax.set_xlim([0, self.board_size_x])
         # self.ax.set_ylim([0, self.board_size_y])
-        # self.ax.clear() # TODO debug existing rect patches showing
+        self.ax.clear() # TODO debug existing rect patches showing
 
         if self.render_mode == "human_playable":
             # Connect the button press event (add frame)
