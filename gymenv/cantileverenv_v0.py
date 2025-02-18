@@ -60,7 +60,7 @@ import os
 
 # Get the absolute path of the current file (cantileverenv_v0.py)
 PARENT_DIR = os.path.dirname(os.path.abspath(__file__))
-print(f'Parent Directory of cantilever env v0 : {PARENT_DIR}')
+print(f'Parent Directory of cantilever env v0 added to sys.path : {PARENT_DIR}')
 
 # Add the TrussFrameMechanics directory to sys.path
 TRUSS_FRAME_ASAP_PATH = os.path.abspath(os.path.join(PARENT_DIR, '..'))
@@ -1174,7 +1174,6 @@ class CantileverEnv_0(gym.Env):
         elif self.render_mode == "rgb_end_interval":
             render_name = f"endinterval_{self.render_counter}_eps{self.global_terminated_episodes}_step{self.global_steps}.png" 
             if self.eps_terminate_valid and self.global_terminated_episodes % self.render_interval_eps < self.render_interval_consecutive:
-                self.render_frame()
                 render_path = os.path.join(self.render_dir, render_name)
                 # Save the render
                 self.render_frame()
