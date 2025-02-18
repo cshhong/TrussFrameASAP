@@ -301,6 +301,7 @@ class CantileverEnv_0(gym.Env):
         self.n_rand_init_steps = 0 # initialized in training function
         self.rand_init_actions = [] # random action int appended in training function
         self.rand_init_seed = rand_init_seed # seed for random action initialization
+        self.init_eps = False # boolean to indicate if env is reset (before taking first action) to initialize random actions
 
         # Set boundary conditions ; support, target load, inventory
         self.initBoundaryConditions() # set self.allowable_deflection, self.inventory_dict, self.frames, self.curr_frame_grid, self.target_loads_met, FrameStructureType.EXTERNAL_FORCE.node_load
@@ -363,6 +364,7 @@ class CantileverEnv_0(gym.Env):
         # print(f"valid pos : {self.valid_pos}")
 
         self.rand_init_actions = [] # reset random init actions
+        self.init_eps = True # set to True to initialize random actions in training function
 
         inventory_array = np.array(list(self.inventory_dict.values()), dtype=np.int64)
         obs = self.obs_converter.encode(self.curr_frame_grid, inventory_array) # encoded int value obs
@@ -518,6 +520,9 @@ class CantileverEnv_0(gym.Env):
             - freeframe_idx inventory is 0 (other frame types are not used up)
             - end_bool = True but support and target loads are not connected
         '''
+        if self.init_eps==True:
+                self.init_eps = False # set to True to initialize random actions in training function
+
         self.global_steps += 1
         
         self.episode_length += 1
