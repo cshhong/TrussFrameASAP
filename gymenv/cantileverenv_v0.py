@@ -63,7 +63,7 @@ PARENT_DIR = os.path.dirname(os.path.abspath(__file__))
 print(f'Parent Directory of cantilever env v0 : {PARENT_DIR}')
 
 # Add the TrussFrameMechanics directory to sys.path
-TRUSS_FRAME_MECHANICS_PATH = os.path.abspath(os.path.join(PARENT_DIR, '..', '..', 'TrussFrameMechanics'))
+TRUSS_FRAME_MECHANICS_PATH = os.path.abspath(os.path.join(PARENT_DIR, '..', 'TrussFrameMechanics'))
 sys.path.append(TRUSS_FRAME_MECHANICS_PATH)
 print(f'TrussFrameMechanics path added to sys.path: {TRUSS_FRAME_MECHANICS_PATH}')
 
