@@ -563,8 +563,8 @@ class CantileverEnv_0(gym.Env):
             reward -= 10*len(self.curr_fea_graph.failed_elements) # large penalty by number of failed elements 
             # store reward value for render 
         
-        # if truncated and not terminated:
-            # reward -= 10 # large penalty for not finishing within inventory 
+        if truncated and not terminated:
+            reward -= 100 # large penalty for not finishing within inventory 
 
         # Render frame
         self.render_valid_action = True
