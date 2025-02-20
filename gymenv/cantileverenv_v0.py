@@ -577,15 +577,14 @@ class CantileverEnv_0(gym.Env):
             self.global_terminated_episodes += 1
 
             # TODO adjust reward scheme 
-            # reward += 10
-            # reward += 2 / np.max(self.curr_fea_graph.displacement) # large reward for low deflection e.g. 0.5 / 0.01 = 50 #TODO displacement is length 0?
             if self.max_deflection < self.allowable_deflection:
-                reward += 1 / self.max_deflection # large reward for low deflection e.g. 0.5 / 0.01 = 50
-            reward -= 10*len(self.curr_fea_graph.failed_elements) # large penalty by number of failed elements 
+                reward += 5 * self.allowable_deflection / self.max_deflection  # large reward for low deflection e.g. 0.5 / 0.01 = 50, scale for allowable displacement considering varying bc 
+                # print(f"    Max Deflection : {self.max_deflection} Deflection Reward : {reward}")
+            reward -= 2*len(self.curr_fea_graph.failed_elements) # large penalty by number of failed elements 
             # store reward value for render 
         
         if truncated and not terminated:
-            reward -= 100 # large penalty for not finishing within inventory 
+            reward -= 20 # large penalty for not finishing within inventory 
 
         # Render frame
         self.render_valid_action = True
@@ -1409,6 +1408,7 @@ class CantileverEnv_0(gym.Env):
         
         return action_mask
     
+    # Random action Helper
     def add_rand_action(self, action_ind):
         '''
         Used in training to store random actions taken at initialization in self.rand_init_actions
