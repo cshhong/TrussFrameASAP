@@ -1,48 +1,4 @@
 '''
-Feb 4 2025
-DONE apply action mask to rollout sample
-DONE clean take action function with valid actions from get_action_mask 
-
-****  Big Goals
-DONE Random Rollout of environment
-TODO Train with DQN? PPO? (Naive representation)
-TODO [Evaluation of representation] - all solutions across training 
-What should the representation be invarient to? elongated structures? What solutions are similar? Where is the jump?**
-
-TODO How many high performing solutions does the algo explore? 
-TODO How many low performing solutions does the algo explore? 
-    (aka how efficient is it solving the problem)
-    - find efficient way to log solutions so far 
-TODO Going further is there a way to get diverse high performing solutions across topologies instead of highest performing?
-    (thresholding)
-TODO Going further from general group of high performing designs -> perturb points -> how does performance change? 
-    Get diverse group of high performing designs through refinement 
-
-
-[2. Anticipated Learning process]
-Goals 
-[TODO] Train with MCTC
-[TODO] Train with Model-free (PPO)
-[TODO] overlay with random UMAP for different timestep intervals to see exploration vs exploitation
-
-- STEP 0 learns to take valid actions 
-- STEP 1 learns to connect all supports to target loads
-    Even if 0,1 are not efficient, complete episodes with have a connecting structure! -> collect all of these  
-    (baked into environment) 
-- STEP 2 learns to connect all supports to target loads with small deflection
-    Expected towards the end to converge to a single solution
-
-    Train for total of 1,000,000 episodes 
-    => collect 100 solutions batches every 50,000 episodes
-    => overlay batches on PCA map 
-        - expect this to be scattered in the beginning (better exploration)
-        - concentrated in high performing regions towards the end (better exploitation)
-
-[DONE] set observation space to be continuous and action space to be discrete, add encode and decode obs, actions
-[DONE] clean order of initialization with inputs
-[DONE] test environment obs, action space with random rollout?
-
-Resources
 
 '''
 import gymnasium as gym
