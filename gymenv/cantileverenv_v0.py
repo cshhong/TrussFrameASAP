@@ -393,10 +393,11 @@ class CantileverEnv_0(gym.Env):
             t_load_board = (t_center_board[0]+self.frame_size//2 , t_center_board[1]-self.frame_size//2)# actual load board coordinate (bottom right of frame)
             # t_board_coord = (self.framegrid_to_board(t_frame_coord)[0] + self.frame_size//2, self.framegrid_to_board(t_frame_coord)[1] - self.frame_size//2) 
             new_t_frame = TrussFrameRL(t_center_board, type_structure=FrameStructureType.EXTERNAL_FORCE)
-            self.update_frame_grid(new_t_frame)
+            self.update_frame_grid(new_t_frame, t_load_mag=t_load_mag)
             self.update_frame_graph(new_t_frame)
             self.update_fea_graph(new_t_frame, t_load_mag) #TODO need implementation
             self.target_loads_met[t_load_board] = False
+
     
     def set_space_converters(self, inventory_dict):
         '''
@@ -648,7 +649,7 @@ class CantileverEnv_0(gym.Env):
             self.inventory_dict[new_frame.type_structure] -= 1
             # print(f'(update_inventory_dict) used {new_frame.type_structure} : {self.inventory_dict[new_frame.type_structure]}')
 
-    def update_frame_grid(self, new_frame):
+    def update_frame_grid(self, new_frame, t_load_mag=None):
         '''
         Given new frame object, update current frame grid where 
         Input
@@ -667,8 +668,16 @@ class CantileverEnv_0(gym.Env):
             self.valid_pos.remove((new_frame.x_frame, new_frame.y_frame))
         # else:
         #     raise ValueError(f"Position ({new_frame.x_frame}, {new_frame.y_frame}) is not a valid position for placing a frame.")
+        
+        if new_frame.type_structure == FrameStructureType.EXTERNAL_FORCE: # target frame
+            assert t_load_mag is not None, "Target load magnitude must be provided for target frame"
+            # stack additional cells in pos y direction according to load magnitude ex) 100kN load -> 0 additional cells, 200KN -> 1 additional cell ...
+            num_additional_cells = int(abs(t_load_mag[1]) / 100) - 1 # 100kN per cell
+            assert new_frame.y_frame + num_additional_cells < 5, "Stacked external load exceeds frame. Decrease the load or place the load lower." # make sure that the additional cells are within the frame grid bounds
+            for i in range(num_additional_cells+1):
+                self.curr_frame_grid[new_frame.x_frame, new_frame.y_frame + i] = FrameStructureType.EXTERNAL_FORCE.idx
 
-        # Update valid position if frame not load frame
+        # Add adjacent cells to valid position (if frame not load frame)
         if new_frame.type_structure != FrameStructureType.EXTERNAL_FORCE: 
             # Check the four adjacent cells within the frame grid 
             adj_cells = [
