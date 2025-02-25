@@ -908,9 +908,9 @@ class CantileverEnv_0(gym.Env):
                     (coord[0] - 0.15, coord[1] - 0.2),  # Bottom-left point
                     (coord[0] + 0.15, coord[1] - 0.2)   # Bottom-right point
                 ]
-                self.ax.add_patch(patches.Polygon(triangle_vertices, color='blue', lw=1.5, fill=True))
+                self.ax.add_patch(patches.Polygon(triangle_vertices, color='black', lw=1.5, fill=True))
             else:
-                self.ax.add_patch(patches.Circle(coord, radius=0.1, color='blue', lw=1.5, fill=False ))
+                self.ax.add_patch(patches.Circle(coord, radius=0.1, color='black', lw=0.5, fill=True ))
             self.ax.text(coord[0]-text_offset, coord[1]+text_offset, 
                          str(vertex.id), 
                          fontsize=10, ha='right', color='black')
@@ -939,13 +939,13 @@ class CantileverEnv_0(gym.Env):
                 self.ax.add_line(line2)
 
         # random frame (red highlight)
-        for act in self.rand_init_actions:
-            end_bool, frame_type, frame_x, frame_y = self.action_converter.decode(act)
-            x , y = self.framegrid_to_board(frame_x, frame_y)
-            rect = patches.Rectangle((x - self.frame_size//2, y - self.frame_size//2), 
-                                    self.frame_size, self.frame_size, 
-                                    linewidth=0, facecolor=(1, 0, 0, 0.2))
-            self.ax.add_patch(rect)
+        # for act in self.rand_init_actions:
+        #     end_bool, frame_type, frame_x, frame_y = self.action_converter.decode(act)
+        #     x , y = self.framegrid_to_board(frame_x, frame_y)
+        #     rect = patches.Rectangle((x - self.frame_size//2, y - self.frame_size//2), 
+        #                             self.frame_size, self.frame_size, 
+        #                             linewidth=0, facecolor=(1, 0, 0, 0.2))
+        #     self.ax.add_patch(rect)
             
 
         # # Draw maximal edges (optional, if visually distinct from normal edges)
@@ -1032,7 +1032,7 @@ class CantileverEnv_0(gym.Env):
             #                 f'Allowable Deflection : {self.allowable_deflection:.3f} m, Max Deflection: {self.max_deflection:.3f} m, Reward: {self.episode_return:.1f}, Episode Length: {self.episode_length}',
             #                 color='black',
             #                 fontsize=14,
-            #                 ha='center',  # Center-aligns the text horizontally
+            #                 ha='left',  # aligns the text horizontally
             #                 transform=self.ax.transAxes  # Use axis coordinates
             #             )
 
@@ -1044,35 +1044,35 @@ class CantileverEnv_0(gym.Env):
                 'Allowable Deflection :',
                 color='black',
                 fontsize=caption_fontsize_small,
-                ha='center',  # Center-aligns the text horizontally
+                ha='left',  # aligns the text horizontally
                 transform=self.ax.transAxes  # Use axis coordinates
             )
 
             self.ax.text(
-                0.25, -0.05,  # Adjust x to position the value correctly
+                0.275, -0.05,  # Adjust x to position the value correctly
                 f'{self.allowable_deflection:.3f} m',
-                color='black',
+                color='gray',
                 fontsize=caption_fontsize_small,
-                ha='center',  # Center-aligns the text horizontally
+                ha='left',  # aligns the text horizontally
                 transform=self.ax.transAxes  # Use axis coordinates
             )
 
             self.ax.text(
-                0.4, -0.05,  # Adjust x to position the text correctly
+                0.375, -0.05,  # Adjust x to position the text correctly
                 'Max Deflection:',
                 color='black',
                 fontsize=caption_fontsize_small,
-                ha='center',  # Center-aligns the text horizontally
+                ha='left',  # aligns the text horizontally
                 transform=self.ax.transAxes  # Use axis coordinates
             )
 
             if self.max_deflection >= self.allowable_deflection:
                 self.ax.text(
-                    0.5, -0.05,  # Adjust x to position the value correctly
+                    0.50, -0.05,  # Adjust x to position the value correctly
                     f'{self.max_deflection:.3f} m',
                     color='red',
                     fontsize=caption_fontsize_large,
-                    ha='center',  # Center-aligns the text horizontally
+                    ha='left',  # aligns the text horizontally
                     transform=self.ax.transAxes  # Use axis coordinates
                 )
             else:
@@ -1081,7 +1081,7 @@ class CantileverEnv_0(gym.Env):
                     f'{self.max_deflection:.3f} m',
                     color='green',
                     fontsize=caption_fontsize_large,
-                    ha='center',  # Center-aligns the text horizontally
+                    ha='left',  # aligns the text horizontally
                     transform=self.ax.transAxes  # Use axis coordinates
                 )
 
@@ -1090,7 +1090,7 @@ class CantileverEnv_0(gym.Env):
                 'Reward:',
                 color='black',
                 fontsize=caption_fontsize_small,
-                ha='center',  # Center-aligns the text horizontally
+                ha='left',  # aligns the text horizontally
                 transform=self.ax.transAxes  # Use axis coordinates
             )
 
@@ -1099,7 +1099,7 @@ class CantileverEnv_0(gym.Env):
                 f'{self.episode_return:.1f}',
                 color='green',
                 fontsize=caption_fontsize_large,
-                ha='center',  # Center-aligns the text horizontally
+                ha='left',  # aligns the text horizontally
                 transform=self.ax.transAxes  # Use axis coordinates
             )
 
@@ -1108,7 +1108,7 @@ class CantileverEnv_0(gym.Env):
                 'Episode Length:',
                 color='black',
                 fontsize=caption_fontsize_small,
-                ha='center',  # Center-aligns the text horizontally
+                ha='left',  # aligns the text horizontally
                 transform=self.ax.transAxes  # Use axis coordinates
             )
 
