@@ -37,9 +37,12 @@ def solve_fea(jl, feagraph, frame_length_m):
     displacement = np.array(displacement).reshape(len(node_coordinates), 6) # reshape to 3D coordinates (Frame Model)
     translational_u = displacement[:, :3]  # Extract the first three translational DOFs (u_x, u_y, u_z)
 
-    failed_elements_idx = [i for i, force in enumerate(axial_forces) if abs(force) > P_cap_kN]
-    # get node idx pairs of failed elements
-    failed_elements = [element_connections[i] for i in failed_elements_idx]
+    # edge indices only (outdated)
+    # failed_elements_idx = [i for i, force in enumerate(axial_forces) if abs(force) > P_cap_kN]
+    # failed_elements = [element_connections[i] for i in failed_elements_idx]
+
+    # Get list of ((node_idx1, node_idx2), signed_force) pairs of failed elements
+    failed_elements = [(element_connections[i], force) for i, force in enumerate(axial_forces) if abs(force) > P_cap_kN]
 
     # print("Elements that failed:", failed_elements)
 
