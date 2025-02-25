@@ -32,7 +32,7 @@ HDF5 file format:
     │   │   │   │   └── load_values (Lx3 array)         # load vectors [load_x, load_y, load_z] at each location
     │   │   │   │
     │   │   │   ├── displacement (Nx3 array)            # nodal displacements [disp_x, disp_y, disp_z]
-    │   │   │   └── failed_elements (Fx2 array)         # pairs of node indices for failed elements
+    │   │   │   └── failed_elements (Fx2 array)         # ((node_idx1, node_idx2), force_mag) for failed elements
     │   │   │
     │   │   ├── frames/
     │   │   │   ├── type_shapes (Px1 array)             # integer codes representing `FrameShapeType` [0,4)
@@ -317,7 +317,7 @@ def load_episode_hdf5(hdf5_filename, eps_idx):
         }
         
         displacement = f[f'{episode_path}/FEAGraph/displacement'][:]
-        failed_elements = [(int(el[0]), int(el[1])) for el in f[f'{episode_path}/FEAGraph/failed_elements'][:]]
+        failed_elements = [((int(el[0]), int(el[1])), force_mag) for (el, force_mag) in f[f'{episode_path}/FEAGraph/failed_elements'][:]]
         
         # Construct FEAGraph
         fea_graph = FEAGraph(
