@@ -36,7 +36,7 @@ class FEAGraph:
     maximal_edges : A dictionary where keys are directions and values are a list of MaximalEdge objects. (only useful for overlapping frames)
     external_loads : dictionary where key : coordinate in board, value : load magnitude [load.x, load.y, load.z]
     displacement :  2D list of nodal displacement [x,y,z] for each node in node index order. Only non-empty upon fea (eps end)
-    failed_elements : 2D list of node index pairs of elements that failed in FEA (eps end)
+    failed_elements : list of tuple (node_idx1, node_idx2, compression-0/tension-1)
     
     """
     
