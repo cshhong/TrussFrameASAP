@@ -138,6 +138,7 @@ class CantileverEnv_0(gym.Env):
                     maximal_edges : A dictionary where keys are directions and values are a list of MaximalEdge objects.
                                     MaximalEdge objects have properties direction, vertices
                     loads :  A list of tuples (node.id, [load.x, load.y, load.z]) 
+                    failed_elements : A list of element index pairs that failed with compression / tension info         (node_idx1, node_idx2, compression-0/tension-1)
                 - Modeled on intersections of the board 
                 - Nodes are Vertex objects which are modeled as structural nodes in ASAP
                 - Edges connect nodes as modeled as structural elements in ASAP
@@ -855,12 +856,16 @@ class CantileverEnv_0(gym.Env):
             # Plot the deflected truss member
             self.ax.plot([start_coord[0], end_coord[0]], [start_coord[1], end_coord[1]],
                     color=displaced_truss_color, linestyle='--', linewidth=1)
-        for edge in self.curr_fea_graph.failed_elements:
+        for edge, force in self.curr_fea_graph.failed_elements:
             start_id, end_id = edge
             start_coord = displaced_vertices[start_id]
             end_coord = displaced_vertices[end_id]
-            self.ax.plot([start_coord[0], end_coord[0]], [start_coord[1], end_coord[1]],
-                    color='red', linestyle='-', linewidth=3)
+            if force >= 0.0: # tension
+                self.ax.plot([start_coord[0], end_coord[0]], [start_coord[1], end_coord[1]],
+                    color='red', linestyle='-', linewidth=2)
+            else:
+                self.ax.plot([start_coord[0], end_coord[0]], [start_coord[1], end_coord[1]],
+                    color='blue', linestyle='-', linewidth=2)
         # Highlight max displacement
         # Find the maximum displacement index and value
         # max_disp_index = np.argmax([np.linalg.norm(d[:2]) for d in self.curr_fea_graph.displacement])
