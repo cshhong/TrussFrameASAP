@@ -248,7 +248,8 @@ class CantileverEnv_0(gym.Env):
         if self.obs_mode not in self.metadata["obs_modes"]:
             raise ValueError(f"Invalid observation mode: {self.obs_mode}. Valid modes are: {self.metadata['obs_modes']}")
         
-        # Set in reset() when boundary conditions are set
+        # Set in reset() when boundary conditions are set 
+        self.bc_inventory = None # dictionary of inventory in order of free frame types this does not change after reset
         self.inventory_dict = None # dictionary of inventory in order of free frame types
         #     inventory = {
         #     FrameStructureType.LIGHT_FREE_FRAME : light_inv, # -1 indicate no limits
@@ -367,6 +368,7 @@ class CantileverEnv_0(gym.Env):
         self.cantilever_length_f = cantilever_length_f
         self.allowable_deflection = self.frame_length_m * cantilever_length_f / 120 # length of cantilever(m) / 120
         self.inventory_dict = inventory_dict
+        self.bc_inventory = inventory_dict.copy() 
         # set FrameStructureType.EXTERNAL_FORCE magnitude values 
         #TODO handle multiple target loads
         FrameStructureType.EXTERNAL_FORCE.node_load = list(targetload_frames.values())[0]
@@ -1113,9 +1115,27 @@ class CantileverEnv_0(gym.Env):
             self.ax.text(
                 0.95, -0.05,  # Adjust x to position the value correctly
                 f'{self.episode_length}',
+                color='gray',
+                fontsize=caption_fontsize_small,
+                ha='left',  # aligns the text horizontally
+                transform=self.ax.transAxes  # Use axis coordinates
+            )
+            # New line of text
+            self.ax.text(
+                0.1, -0.10,  # Adjust x and y to position the new text correctly
+                'Inventory:',
                 color='black',
                 fontsize=caption_fontsize_small,
-                ha='center',  # Center-aligns the text horizontally
+                ha='left',  # aligns the text horizontally
+                transform=self.ax.transAxes  # Use axis coordinates
+            )
+
+            self.ax.text(
+                0.20, -0.10,  # Adjust x and y to position the new value correctly
+                f'light ({self.bc_inventory[FrameStructureType.LIGHT_FREE_FRAME]})     medium ({self.bc_inventory[FrameStructureType.MEDIUM_FREE_FRAME]})',
+                color='gray',
+                fontsize=caption_fontsize_small,
+                ha='left',  # aligns the text horizontally
                 transform=self.ax.transAxes  # Use axis coordinates
             )
         else:
