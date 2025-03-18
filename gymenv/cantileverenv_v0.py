@@ -223,6 +223,11 @@ class CantileverEnv_0(gym.Env):
 
         # Boundary Conditions
         self.frame_length_m = 3.0 # actual length of frame in meters used in truss analysis
+        # from args
+        self.bc_height_options = bc_height_options
+        self.bc_length_options = bc_length_options
+        self.bc_loadmag_options = bc_loadmag_options
+        self.bc_inventory_options = bc_inventory_options
         self.allowable_deflection = 0 # decided in generate_bc
 
         # Initialize current state
