@@ -399,9 +399,10 @@ class ActionBijectiveMapping:
         if not (0 <= encoded_value < self.total_space_size):
             raise ValueError(f"Encoded value {encoded_value} is out of bounds for the total space size {self.total_space_size}.")
         action = []
+        curr_val=encoded_value
         for bound in self.action_bounds:
-            action.append(encoded_value % bound)
-            encoded_value //= bound
+            action.append(curr_val % bound)
+            curr_val //= bound
 
         # NOTFIX without inplace modification of encoded values, vector values become redundant... why?
 
