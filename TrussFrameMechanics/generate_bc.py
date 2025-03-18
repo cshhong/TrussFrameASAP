@@ -82,7 +82,13 @@ def set_cantilever_env(board_size_x, square_size, seed=None):
     return default_frames, support_nodes, target_load
 
 
-def set_cantilever_env_framegrid(frame_grid_size_x, seed=None):
+def set_cantilever_env_framegrid(
+        frame_grid_size_x, 
+        height_options = [1, 2, 3],
+        length_options = [3, 4, 5],
+        magnitude_options = [300, 400, 500],
+        inventory_options = [(10,10), (10,5), (5,5), (8,3)],
+        seed=None):
     """
     Used in cantileverenv_V0.py (agent playable setting)
     Set up the cantilever environment within the frame grid with parametric boundary conditions.
@@ -120,13 +126,14 @@ def set_cantilever_env_framegrid(frame_grid_size_x, seed=None):
 
     # Sample boundary conditions
     # height_options = [1, 2, 3]                 # in terms of frames
-    height_options = [1, ]                 # in terms of frames
+    # height_options = [1,]                 # in terms of frames
     # length_options = [3, 4, 5]              # in terms of frames
-    # length_options = [3,]              # in terms of frames
-    length_options = [3,]              # in terms of frames
+    # length_options = [3, 5]              # in terms of frames
+    # length_options = [5,]              # in terms of frames
     # magnitude_options = [10.0, 20.0, 30.0, 40.0]    # kN
     # magnitude_options = [120.0]    # kN
-    magnitude_options = [300.0]    # kN
+    # magnitude_options = [200.0, 300.0, 400.0]    # kN 300, 
+    # magnitude_options = [300.0,]    # kN 300, 
 
 
     # Choose random height, length, and load magnitude
@@ -136,8 +143,12 @@ def set_cantilever_env_framegrid(frame_grid_size_x, seed=None):
     # light_inv = frame_grid_size_x * 2 # TODO reasonable inventory for light frame?
     # med_inv = random.choice(range(1,length)) # size of medium free frame inventory ; set to length of cantilever
     
-    light_inv = 8
-    med_inv = 3
+    # inventory_options = [(15,10), (10,5), (8,3)]
+    # inventory_options = [(10,10), (10,5), (5,5), (8,3)]
+    # inventory_options = [(7,7)]
+    light_inv, med_inv = random.choice(inventory_options)
+    # light_inv = 15
+    # med_inv = 10
 
     inventory = {
         FrameStructureType.LIGHT_FREE_FRAME : light_inv, # -1 indicate no limits
