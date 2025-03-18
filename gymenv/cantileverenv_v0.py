@@ -1439,14 +1439,29 @@ class CantileverEnv_0(gym.Env):
         '''
         # Get the number of columns in curr_frame_grid
         num_cols = self.curr_frame_grid.shape[0]
+
         # Create a new row with zeros
-        new_frame_row = np.zeros(num_cols, dtype=np.int64)
+        # new_frame_row = np.zeros(num_cols, dtype=np.int64)
+        light_frame_row = np.zeros(num_cols, dtype=np.int64)
+        med_frame_row = np.zeros(num_cols, dtype=np.int64)
+        
         # Get inventory value of medium frame 
+        light_inventory = list(self.inventory_dict.values())[0]
         med_inventory = list(self.inventory_dict.values())[1]
-        # Copy inventory_array values into the new row
-        new_frame_row[:med_inventory] = 4 # fixed value for inventory of medium frame
-        new_frame_row = np.expand_dims(new_frame_row, axis=-1)
+        
+        # Copy inventory_array values into the new rows
+        # new_frame_row[:med_inventory] = 4 # fixed value for inventory of medium frame
+        light_frame_row[:light_inventory] = 4  # fixed value for inventory of light frame
+        med_frame_row[:med_inventory] = 5  # fixed value for inventory of medium frame
+
+        # Expand dimensions to match the shape for stacking
+        # new_frame_row = np.expand_dims(new_frame_row, axis=-1)
+        light_frame_row = np.expand_dims(light_frame_row, axis=-1)
+        med_frame_row = np.expand_dims(med_frame_row, axis=-1)
+
+
         # Append the new row to curr_frame_grid
-        obs = np.hstack([self.curr_frame_grid, new_frame_row]) # confusing bc obs array is frame transpose!
+        # obs = np.hstack([self.curr_frame_grid, new_frame_row]) # confusing bc obs array is frame transpose!
+        obs = np.hstack([self.curr_frame_grid, light_frame_row, med_frame_row])  # confusing bc obs array is frame transpose!
 
         return obs
