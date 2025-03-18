@@ -553,12 +553,22 @@ class CantileverEnv_0(gym.Env):
             # TODO adjust reward scheme 
             if self.max_deflection < self.allowable_deflection:
                 reward += 5 * self.allowable_deflection / self.max_deflection  # large reward for low deflection e.g. 0.5 / 0.01 = 50, scale for allowable displacement considering varying bc 
+                # reward += self.allowable_deflection / self.max_deflection  # large reward for low deflection e.g. 0.5 / 0.01 = 50, scale for allowable displacement considering varying bc 
                 # print(f"    Max Deflection : {self.max_deflection} Deflection Reward : {reward}")
-            reward -= 2*len(self.curr_fea_graph.failed_elements) # large penalty by number of failed elements 
+                # scale reward according to load 
+                # print(f'    deflection reward : {reward}')
+                # reward *= abs(self.extr_load_mag[1])/200 # scale reward by external load magnitude in y direction
+            
+            # reward -= 2*len(self.curr_fea_graph.failed_elements) # large penalty by number of failed elements 
+            reward -= len(self.curr_fea_graph.failed_elements) # large penalty by number of failed elements 
+            # print(f'    failed penalty added : {reward}')
             # store reward value for render 
         
+        
         if truncated and not terminated:
-            reward -= 20 # large penalty for not finishing within inventory 
+            # reward -= 20 # large penalty for not finishing within inventory 
+            # reward -= 2 # large penalty for not finishing within inventory 
+            reward = 0
 
         # Render frame
         self.render_valid_action = True
@@ -683,13 +693,14 @@ class CantileverEnv_0(gym.Env):
         # else:
         #     raise ValueError(f"Position ({new_frame.x_frame}, {new_frame.y_frame}) is not a valid position for placing a frame.")
         
-        if new_frame.type_structure == FrameStructureType.EXTERNAL_FORCE: # target frame
-            assert t_load_mag is not None, "Target load magnitude must be provided for target frame"
-            # stack additional cells in pos y direction according to load magnitude ex) 100kN load -> 0 additional cells, 200KN -> 1 additional cell ...
-            num_additional_cells = int(abs(t_load_mag[1]) / 100) - 1 # 100kN per cell
-            assert new_frame.y_frame + num_additional_cells < 5, "Stacked external load exceeds frame. Decrease the load or place the load lower." # make sure that the additional cells are within the frame grid bounds
-            for i in range(num_additional_cells+1):
-                self.curr_frame_grid[new_frame.x_frame, new_frame.y_frame + i] = FrameStructureType.EXTERNAL_FORCE.idx
+        # (Optional : add load magnitude to frame grid observation)
+        # if new_frame.type_structure == FrameStructureType.EXTERNAL_FORCE: # target frame
+        #     assert t_load_mag is not None, "Target load magnitude must be provided for target frame"
+        #     # stack additional cells in pos y direction according to load magnitude ex) 100kN load -> 0 additional cells, 200KN -> 1 additional cell ...
+        #     num_additional_cells = int(abs(t_load_mag[1]) / 100) - 1 # 100kN per cell
+        #     assert new_frame.y_frame + num_additional_cells < 5, "Stacked external load exceeds frame. Decrease the load or place the load lower." # make sure that the additional cells are within the frame grid bounds
+        #     for i in range(num_additional_cells+1):
+        #         self.curr_frame_grid[new_frame.x_frame, new_frame.y_frame + i] = FrameStructureType.EXTERNAL_FORCE.idx
 
         # Add adjacent cells to valid position (if frame not load frame)
         if new_frame.type_structure != FrameStructureType.EXTERNAL_FORCE: 
