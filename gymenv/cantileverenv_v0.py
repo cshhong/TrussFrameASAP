@@ -175,6 +175,10 @@ class CantileverEnv_0(gym.Env):
                  obs_mode='frame_grid_singleint',
                  env_idx = 0,
                  rand_init_seed = None,
+                 bc_height_options=[1,2],
+                 bc_length_options=[3,4,5],
+                 bc_loadmag_options=[300,400,500],
+                 bc_inventory_options=[(10,10), (10,5), (5,5), (8,3)],
                  ):
         # super().__init__()
 
@@ -364,7 +368,12 @@ class CantileverEnv_0(gym.Env):
         # support_frames : dictionary (x_frame, y_frame)  cell location within frame grid of support frames
         # targetload_frames : dictionary of ((x_frame,y_frame) : [x_forcemag, y_forcemag, z_forcemag] (force is applied in the negative y direction).
         # cantilever_length : length of cantilever in number of frames
-        support_frames, targetload_frames, inventory_dict, cantilever_length_f = generate_bc.set_cantilever_env_framegrid(self.frame_grid_size_x)
+        support_frames, targetload_frames, inventory_dict, cantilever_length_f = \
+            generate_bc.set_cantilever_env_framegrid(self.frame_grid_size_x,
+                                                    height_options = self.bc_height_options,
+                                                    length_options = self.bc_length_options,
+                                                    magnitude_options = self.bc_loadmag_options,
+                                                    inventory_options = self.bc_inventory_options,)
         self.cantilever_length_f = cantilever_length_f
         self.allowable_deflection = self.frame_length_m * cantilever_length_f / 120 # length of cantilever(m) / 120
         self.inventory_dict = inventory_dict
