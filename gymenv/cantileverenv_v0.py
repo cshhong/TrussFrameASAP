@@ -171,7 +171,7 @@ class CantileverEnv_0(gym.Env):
                  render_interval_eps=500,
                  render_interval_consecutive=5,
                  render_dir = 'render',
-                 max_episode_length = 400,
+                 max_episode_length = 40,
                  obs_mode='frame_grid_singleint',
                  env_idx = 0,
                  rand_init_seed = None,
@@ -381,9 +381,11 @@ class CantileverEnv_0(gym.Env):
                                                     inventory_options = self.bc_inventory_options,)
         self.cantilever_length_f = cantilever_length_f
         self.allowable_deflection = self.frame_length_m * cantilever_length_f / 120 # length of cantilever(m) / 120
+        # self.extr_load_mag = list(targetload_frames.values())[0] # magnitude of external load in kN (x,y,z)
         self.inventory_dict = inventory_dict
         self.bc_inventory = inventory_dict.copy() 
-        # set FrameStructureType.EXTERNAL_FORCE magnitude values 
+
+        # set FrameStructureType.EXTERNAL_FORCE magnitude values TODO where is this used? 
         #TODO handle multiple target loads
         FrameStructureType.EXTERNAL_FORCE.node_load = list(targetload_frames.values())[0]
 
@@ -478,7 +480,7 @@ class CantileverEnv_0(gym.Env):
         
         elif self.obs_mode == 'frame_grid':
             # Define Observations : frame grid with extra row with medium inventory values
-            self.observation_space = Box(low=-1, high=4, shape=(self.frame_grid_size_x, self.frame_grid_size_y+1), dtype=np.int64)
+            self.observation_space = Box(low=-1, high=4, shape=(self.frame_grid_size_x, self.frame_grid_size_y+2), dtype=np.int64)
             self.single_observation_space = self.observation_space
             print(f'Obs Mode : "{self.obs_mode}" | Obs Space : {self.observation_space} | Single obs space : {self.single_observation_space}')
 
@@ -533,7 +535,7 @@ class CantileverEnv_0(gym.Env):
         info = {}
         action_tuple = self.action_converter.decode(action) # int to action tuple
         end, freeframe_idx, frame_x, frame_y = action_tuple
-        end_bool = True if end==1 else False
+        end_bool = True if end==1 else False # end is only possible when support and target loads are connected
         
         # Apply action
         # print(f'    applying action : {action_tuple}')
@@ -547,10 +549,11 @@ class CantileverEnv_0(gym.Env):
         # terminate if action ends episode
         if end_bool==True:
             terminated = True
+            # print('Episode Terminated!')
+            # print(f'    External Load : {self.extr_load_mag}')
             self.eps_terminate_valid = True # used in render_frame to trigger displacement vis, in render to save final img
             self.global_terminated_episodes += 1
 
-            # TODO adjust reward scheme 
             if self.max_deflection < self.allowable_deflection:
                 reward += 5 * self.allowable_deflection / self.max_deflection  # large reward for low deflection e.g. 0.5 / 0.01 = 50, scale for allowable displacement considering varying bc 
                 # reward += self.allowable_deflection / self.max_deflection  # large reward for low deflection e.g. 0.5 / 0.01 = 50, scale for allowable displacement considering varying bc 
