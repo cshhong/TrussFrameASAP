@@ -579,6 +579,9 @@ class CantileverEnv_0(gym.Env):
             obs = self.obs_converter.encode(self.curr_frame_grid, inventory_array)
         elif self.obs_mode == 'frame_grid':
             obs = self.get_frame_grid_observation()
+            # if all values in obs is 0, then print action and frame grid
+            if all(value == 0 for value in obs.flatten()):
+                print(f'Action : {action_tuple} \n Frame Grid : \n{self.curr_frame_grid}')
         self.episode_return += reward
         self.render()
         # Add `final_info` for terminated or truncated episodes
