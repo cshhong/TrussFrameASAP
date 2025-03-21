@@ -165,9 +165,9 @@ class CantileverEnv_0(gym.Env):
 
     def __init__(self,
                  render_mode = None,
-                #  board_size_x=20,
-                #  board_size_y=10,
-                #  frame_size=2, 
+                 frame_grid_size_x=10,
+                 frame_grid_size_y=5,
+                 frame_size=2, 
                  render_interval_eps=500,
                  render_interval_consecutive=5,
                  render_dir = 'render',
@@ -182,11 +182,13 @@ class CantileverEnv_0(gym.Env):
                  ):
         # super().__init__()
 
-        # self.board_size_x = board_size_x # likely divisable with self.frame_size
-        # self.board_size_y = board_size_y # likely divisable with self.frame_size
-        self.frame_size = 2 # actual frame length is sized in truss_analysis.jl
-        self.board_size_x = self.frame_size * 10 # fixed size
-        self.board_size_y = self.frame_size * 5 # fixed size
+        # Calculate the size of the frame grid based on the frame size
+        self.frame_grid_size_x = frame_grid_size_x
+        self.frame_grid_size_y = frame_grid_size_y
+        self.frame_size = frame_size # visualization grid coordinates (*physical frame length in m is sized by frame_length_m used in truss_analysis.jl)
+        self.board_size_x = self.frame_size * self.frame_grid_size_x # visualized board size
+        self.board_size_y = self.frame_size * self.frame_grid_size_y # visualized board size
+
         self.max_episode_length = max_episode_length
         self.global_steps = 0 # activated taking valid action in main (not env.step!)
         self.global_terminated_episodes = 0
@@ -217,9 +219,6 @@ class CantileverEnv_0(gym.Env):
         self.frames=[] # stores TrussFrameRL objects in sequence of creation
         # self.support_frames = [] # list of TrussFrameRL objects
         
-        # Calculate the size of the frame grid based on the frame size
-        self.frame_grid_size_x = self.board_size_x // self.frame_size
-        self.frame_grid_size_y = self.board_size_y // self.frame_size
 
         # Boundary Conditions
         self.frame_length_m = 3.0 # actual length of frame in meters used in truss analysis
