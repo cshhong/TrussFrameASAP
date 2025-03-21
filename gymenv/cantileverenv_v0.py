@@ -867,7 +867,7 @@ class CantileverEnv_0(gym.Env):
         Overlay failed elements in red based on self.curr_fea_graph.failed_elements
         '''
         displaced_truss_color = 'gray'
-        disp_vis_scale = 10 # scale displacement for visualization 
+        disp_vis_scale = 2 # scale displacement for visualization 
         
         # Get Displaced vertices
         displaced_vertices = {} # node id : (x, y)
