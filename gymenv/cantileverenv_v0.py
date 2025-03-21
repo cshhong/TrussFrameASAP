@@ -553,6 +553,8 @@ class CantileverEnv_0(gym.Env):
             self.eps_terminate_valid = True # used in render_frame to trigger displacement vis, in render to save final img
             self.global_terminated_episodes += 1
 
+            reward += 5 # completion reward (long horizon)
+
             if self.max_deflection < self.allowable_deflection:
                 reward += 5 * self.allowable_deflection / self.max_deflection  # large reward for low deflection e.g. 0.5 / 0.01 = 50, scale for allowable displacement considering varying bc 
                 # reward += self.allowable_deflection / self.max_deflection  # large reward for low deflection e.g. 0.5 / 0.01 = 50, scale for allowable displacement considering varying bc 
@@ -562,7 +564,8 @@ class CantileverEnv_0(gym.Env):
                 # reward *= abs(self.extr_load_mag[1])/200 # scale reward by external load magnitude in y direction
             
             # reward -= 2*len(self.curr_fea_graph.failed_elements) # large penalty by number of failed elements 
-            reward -= len(self.curr_fea_graph.failed_elements) # large penalty by number of failed elements 
+            # reward -= len(self.curr_fea_graph.failed_elements) # large penalty by number of failed elements 
+            reward -= len(self.curr_fea_graph.failed_elements) * (1/self.cantilever_length_f) # large penalty by number of failed elements 
             # print(f'    failed penalty added : {reward}')
             # store reward value for render 
         
