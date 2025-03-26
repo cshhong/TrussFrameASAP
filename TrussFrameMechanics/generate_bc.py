@@ -136,10 +136,6 @@ def set_cantilever_env_framegrid(
     # magnitude_options = [300.0,]    # kN 300, 
 
 
-    # Choose random height, length, and load magnitude
-    height = random.choice(height_options)
-    length = random.choice(length_options)
-    magnitude = random.choice(magnitude_options)
     # light_inv = frame_grid_size_x * 2 # TODO reasonable inventory for light frame?
     # med_inv = random.choice(range(1,length)) # size of medium free frame inventory ; set to length of cantilever
     
@@ -166,13 +162,123 @@ def set_cantilever_env_framegrid(
             (x_support_start_frame, y_support_frame),  # Support frame at (x, y)
         ]
 
+    # Choose random height, length, and load magnitude
+    height = random.choice(height_options)
+    length = random.choice(length_options)
+    magnitude = random.choice(magnitude_options)
+
     # Set target load frame within the frame grid
     load_x_frame = x_support_start_frame + length
     load_y_frame = y_support_frame + height
-
     # Target load in negative y direction (z assumed to be zero)
     target_frames = {
         (load_x_frame, load_y_frame): [0, -magnitude, 0]
     }
 
+    
+    # # Set multiple target load frames
+    # target_frames = dict()
+    # # one on right and one on left
+    # # randomly choose from height, length, magnitude options for each side
+    # for i in range(1,2):
+    #     # Choose random height, length, and load magnitude
+    #     height = random.choice(height_options)
+    #     length = random.choice(length_options)
+    #     magnitude = random.choice(magnitude_options)
+
+    #     # Set target load frame within the frame grid
+    #     load_x_frame = x_support_start_frame + (-1)^i * length
+    #     load_y_frame = y_support_frame + height
+
+    #     # Add target load frame to dictionary
+    #     target_frames[(load_x_frame, load_y_frame)] = [0, -magnitude, 0]
+    
+
+
     return support_frames, target_frames, inventory, length
+
+def set_multiple_cantilever_env_framegrid(
+        frame_grid_size_x, 
+        height_options = [1, 2, 3],
+        length_options = [3, 4, 5],
+        magnitude_options = [300, 400, 500],
+        inventory_options = [(10,10), (10,5), (5,5), (8,3)],
+        num_target_loads = 2,
+        seed=None):
+    """
+    Used in cantileverenv_V0.py (agent playable setting)
+    Set up the cantilever environment within the frame grid with parametric boundary conditions.
+                    y
+                     ↑
+                     •----•----•----•----•----•----•
+                     |    |    |    |    |    |    |
+                2    •-  -0-  -|-  -0-  -|- -(1)- -|
+                     |    |    |    |    |    |    |
+                     •----•----•----•----•----•----•
+                     |    |    |    |    |    |    |
+                1    •-  -1-  -|-  -1-  -|-  -0-  -|
+                     |    |    |    |    |    |    |
+                     •----•----•----•----•----•----•
+                     |    |    |    |    |    |    |
+                0    •-  -0-  -|-  -2-  -|-  -0-  -|
+                     |    |    |    |    |    |    | 
+                     •----•----•----•----•----•----•
+                          0         1         2 
+
+    Create one support frame and multiple external loads with height & length (right is positive)
+
+    Input:
+        - frame_grid_size_x: Number of frames along the x-dimension of the frame grid.
+        - height_options: List of possible heights for the external loads
+        - length_options: List of possible lengths for the external loads
+        - magnitude_options: List of possible magnitudes for the external loads
+        - inventory_options: List of possible inventory options for the free frames
+        - 
+    
+    Output:
+        - support_frames : list of tuples (x_frame, y_frame) 
+        - targetload_frames : dictionary ((x_frame,y_frame) : [x_forcemag, y_forcemag, z_forcemag]) tuples (force is applied in the negative y direction).
+        - inventory : dictionary of FrameStructureType Free frame type : count 
+    """
+
+    # If a seed is provided, set the random seed for reproducibility
+    if seed is not None:
+        random.seed(seed)
+
+    light_inv, med_inv = random.choice(inventory_options)
+
+    inventory = {
+        FrameStructureType.LIGHT_FREE_FRAME : light_inv, # -1 indicate no limits
+        FrameStructureType.MEDIUM_FREE_FRAME : med_inv,
+        # FrameStructureType.HEAVY_FREE_FRAME : *,
+    }
+
+    # Set pinned supports within the frame grid
+    # x at center even coordinate of the frame grid
+    x_support_start_frame = (frame_grid_size_x // FRAME_SIZE - (FRAME_SIZE//2)) if (frame_grid_size_x // FRAME_SIZE - (FRAME_SIZE//2)) % FRAME_SIZE == 0 else (frame_grid_size_x // FRAME_SIZE - FRAME_SIZE)
+    y_support_frame = 0  # Base of the cantilever, first row of the frame grid
+
+    # Create 1 support frame
+    support_frames = [
+            (x_support_start_frame, y_support_frame),  # Support frame at (x, y)
+        ]
+    
+    # Choose num_target_loads of target load frames 
+    max_cantilever_length = 0
+    target_frames = dict()
+    for i in range(num_target_loads):
+        # Choose random height, length, and load magnitude
+        height = random.choice(height_options)
+        length = random.choice(length_options)
+        magnitude = random.choice(magnitude_options)
+
+        # Set target load frame within the frame grid
+        load_x_frame = x_support_start_frame + (-1)**i * length # right left alternate
+        load_y_frame = y_support_frame + height
+        # Target load in negative y direction (z assumed to be zero)
+        target_frames[(load_x_frame, load_y_frame)] = [0, -magnitude, 0]
+        if length > max_cantilever_length:
+            max_cantilever_length = length
+
+
+    return support_frames, target_frames, inventory, max_cantilever_length
