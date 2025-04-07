@@ -461,7 +461,7 @@ class CantileverEnv_2(gym.Env):
             self.frames.append(new_s_frame)
             self.update_frame_grid(new_s_frame)
             self.update_frame_graph(new_s_frame)
-            # self.update_fea_graph(new_s_frame)
+            self.update_fea_graph(new_s_frame)
 
         for t_frame in targetload_frames.items():
             t_frame_coord, t_load_mag = t_frame # (x,y) on frame grid, magnitude in kN
