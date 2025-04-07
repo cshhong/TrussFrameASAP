@@ -1261,8 +1261,9 @@ class CantileverEnv_2(gym.Env):
                 # arrow_head_y = arrow_tail_y - arrow_dy
 
                 if force_magnitude > 0:
-                    self.ax.arrow(arrow_tail_x, arrow_tail_y, arrow_dx, arrow_dy+0.1, head_width=0.2, head_length=0.2, fc='red', ec='red', linewidth=1.5)
-                self.ax.text(arrow_tail_x, arrow_tail_y + 0.1, f"{force_magnitude:.0f} kN", color='red', fontsize=12)
+                    self.ax.text(arrow_tail_x, arrow_tail_y + 0.1, f"{force_magnitude:.0f} kN", color='black', fontsize=12)
+
+                self.ax.arrow(arrow_tail_x, arrow_tail_y, arrow_dx, arrow_dy+0.2, head_width=0.3, head_length=0.2, fc='black', ec='black', linewidth=linewidth, linestyle = linestyle)
     
     # Render 
     def render_frame(self):
@@ -1326,103 +1327,130 @@ class CantileverEnv_2(gym.Env):
             # Caption at termination
             caption_fontsize_large = 16
             caption_fontsize_small = 12
+            # 0.1 0.25 0.325 0.45 0.55 0.65 0.75 0.85
+            # Max Deflection text
             self.ax.text(
-                0.1, -0.05,  # Adjust x to position the text correctly
-                'Allowable Deflection :',
+                0.1, -0.075,   
+                'Max Deflection :',
                 color='black',
                 fontsize=caption_fontsize_small,
-                ha='left',  # aligns the text horizontally
+                ha='left',   
                 transform=self.ax.transAxes  # Use axis coordinates
             )
-
-            self.ax.text(
-                0.275, -0.05,  # Adjust x to position the value correctly
-                f'{self.allowable_deflection:.3f} m',
-                color='gray',
-                fontsize=caption_fontsize_small,
-                ha='left',  # aligns the text horizontally
-                transform=self.ax.transAxes  # Use axis coordinates
-            )
-
-            self.ax.text(
-                0.375, -0.05,  # Adjust x to position the text correctly
-                'Max Deflection:',
-                color='black',
-                fontsize=caption_fontsize_small,
-                ha='left',  # aligns the text horizontally
-                transform=self.ax.transAxes  # Use axis coordinates
-            )
-
+            # Max Deflection value
             if self.max_deflection >= self.allowable_deflection:
                 self.ax.text(
-                    0.50, -0.05,  # Adjust x to position the value correctly
+                    0.25, -0.075,     
                     f'{self.max_deflection:.3f} m',
                     color='red',
-                    fontsize=caption_fontsize_large,
-                    ha='left',  # aligns the text horizontally
+                    fontsize=caption_fontsize_small,
+                    weight='bold',
+                    ha='left',   
                     transform=self.ax.transAxes  # Use axis coordinates
                 )
             else:
                 self.ax.text(
-                    0.525, -0.05,  # Adjust x to position the value correctly
+                    0.25, -0.075,     
                     f'{self.max_deflection:.3f} m',
-                    color='green',
-                    fontsize=caption_fontsize_large,
-                    ha='left',  # aligns the text horizontally
+                    color='black',
+                    fontsize=caption_fontsize_small,
+                    weight='bold',
+                    ha='left',   
                     transform=self.ax.transAxes  # Use axis coordinates
                 )
-
+            # Reward text
             self.ax.text(
-                0.625, -0.05,  # Adjust x to position the text correctly
-                'Reward:',
+                0.4, -0.075,   
+                'Reward :',
                 color='black',
                 fontsize=caption_fontsize_small,
-                ha='left',  # aligns the text horizontally
+                ha='left',   
                 transform=self.ax.transAxes  # Use axis coordinates
             )
-
+            # Reward value
             self.ax.text(
-                0.7, -0.05,  # Adjust x to position the value correctly
+                0.5, -0.075,  
                 f'{self.episode_return:.1f}',
-                color='green',
-                fontsize=caption_fontsize_large,
-                ha='left',  # aligns the text horizontally
+                color='black',
+                weight='bold',
+                fontsize=caption_fontsize_small,
+                ha='left',   
                 transform=self.ax.transAxes  # Use axis coordinates
             )
 
+            # High Utilization
             self.ax.text(
-                0.825, -0.05,  # Adjust x to position the text correctly
-                'Episode Length:',
+                0.6, -0.075,
+                f'Highly Utilized Elements (>{self.high_util_percentage}%) :',
                 color='black',
                 fontsize=caption_fontsize_small,
-                ha='left',  # aligns the text horizontally
+                ha='left',
                 transform=self.ax.transAxes  # Use axis coordinates
             )
 
             self.ax.text(
-                0.95, -0.05,  # Adjust x to position the value correctly
+                0.85, -0.075,
+                f'{self.high_util_count} / {len(self.curr_fea_graph.edges_dict)}',
+                color='black',
+                weight='bold',
+                fontsize=caption_fontsize_small,
+                ha='left',
+                transform=self.ax.transAxes  # Use axis coordinates
+            )
+
+            # New line of text
+            # Allowable Deflection text
+            self.ax.text(
+                0.1, -0.125,   
+                'Allowable Deflection :',
+                color='black',
+                fontsize=caption_fontsize_small,
+                ha='left',   
+                transform=self.ax.transAxes  # Use axis coordinates
+            )
+            # Allowable Deflection value
+            self.ax.text(
+                0.275, -0.125,     
+                f'{self.allowable_deflection:.3f} m',
+                color='gray',
+                fontsize=caption_fontsize_small,
+                ha='left',   
+                transform=self.ax.transAxes  # Use axis coordinates
+            )
+            # Frame count text
+            self.ax.text(
+                0.35, -0.125,  
+                'Frame Count :',
+                color='black',
+                fontsize=caption_fontsize_small,
+                ha='left',   
+                transform=self.ax.transAxes  # Use axis coordinates
+            )
+            # Frame count text
+            self.ax.text(
+                0.5, -0.125, 
                 f'{self.episode_length}',
                 color='gray',
                 fontsize=caption_fontsize_small,
-                ha='left',  # aligns the text horizontally
+                ha='left',   
                 transform=self.ax.transAxes  # Use axis coordinates
             )
-            # New line of text
+            # Inventory text
             self.ax.text(
-                0.1, -0.10,  # Adjust x and y to position the new text correctly
-                'Inventory:',
+                0.6, -0.125,  
+                'Inventory :',
                 color='black',
                 fontsize=caption_fontsize_small,
-                ha='left',  # aligns the text horizontally
+                ha='left',   
                 transform=self.ax.transAxes  # Use axis coordinates
             )
-
+            # Inventory value
             self.ax.text(
-                0.20, -0.10,  # Adjust x and y to position the new value correctly
+                0.7, -0.125,
                 f'light ({self.bc_inventory[FrameStructureType.LIGHT_FREE_FRAME]})     medium ({self.bc_inventory[FrameStructureType.MEDIUM_FREE_FRAME]})',
                 color='gray',
                 fontsize=caption_fontsize_small,
-                ha='left',  # aligns the text horizontally
+                ha='left',   
                 transform=self.ax.transAxes  # Use axis coordinates
             )
         else:
