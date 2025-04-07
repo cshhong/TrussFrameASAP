@@ -194,6 +194,7 @@ class CantileverEnv_2(gym.Env):
                  bc_loadmag_options=[300,400,500],
                  bc_inventory_options=[(10,10), (10,5), (5,5), (8,3)],
                  num_target_loads = 2,
+                 bc_fixed = None,
                  ):
         # super().__init__()
 
@@ -302,6 +303,7 @@ class CantileverEnv_2(gym.Env):
 
         # Set boundary conditions ; support, target load, inventory
         self.num_target_loads = num_target_loads
+        self.bc_fixed = bc_fixed # fixed boundary conditions used to condition actor, critic network
         self.initBoundaryConditions() # set self.allowable_deflection, self.inventory_dict, self.frames, self.curr_frame_grid, self.target_loads_met, FrameStructureType.EXTERNAL_FORCE.node_load
         self.set_space_converters(self.inventory_dict) # set self.obs_converter, self.action_converter
         self.set_gym_spaces(self.obs_converter, self.action_converter) # set self.observation_space, self.action_space
@@ -410,7 +412,7 @@ class CantileverEnv_2(gym.Env):
                                                     length_options = self.bc_length_options,
                                                     magnitude_options = self.bc_loadmag_options,
                                                     inventory_options = self.bc_inventory_options,
-                                                    num_target_loads = self.num_target_loads,)
+                                                    fixed_hlm=self.bc_fixed,)
         
         self.max_cantilever_length_f = max_cantilever_length_f
         self.allowable_deflection = self.frame_length_m * max_cantilever_length_f / 120 # length of cantilever(m) / 120
