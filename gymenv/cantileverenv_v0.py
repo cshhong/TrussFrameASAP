@@ -92,7 +92,15 @@ class CantileverEnv_0(gym.Env):
                 - frames are created with a side length of 2 units (2 * cell) of the board.
                 - Each TrussFrameRL object has properties defined by the coordinates of its centroid, which aligns with frame distance intersections on the board.
                 - (external forces are represented as frames but in fea_graph apply external load to the bottom right vertex of the frame)
-                - grid where each cell has value unoccupied= 0, free frame (light) = 2, support frame = 1, force = -1
+                - grid where each cell has value 
+                    force = -1, (one cell per 100kN)
+                    unoccupied= 0, 
+                    support frame = 1,
+                    free frame (light) = 2,  
+                    free frame (medium) = 3,
+                    inventory light = 4,
+                    inventory medium = 5,
+                    
                     Defined in FrameStructureType
                 
                      y
