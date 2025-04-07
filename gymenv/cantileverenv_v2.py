@@ -1693,9 +1693,10 @@ class CantileverEnv_2(gym.Env):
         # initialize action mask using self.action_space 
         action_mask = np.zeros(self.action_space.n, dtype=np.int8)
         # Get all raw valid action vectors based on current state (end_bool, freeframe_idx, frame_x, frame_y) using self.valid_pos and self.inventory_dict, self.is_connected
+        exists_end_action = False
         valid_actions = []
         for freeframe_idx in [0, 1]:
-            freeframe_type = FrameStructureType.get_framestructuretype_from_idx(freeframe_idx+2)# dictionary key is FrameStructureType
+            freeframe_type = FrameStructureType.get_framestructuretype_from_idx(freeframe_idx+2) # dictionary key is FrameStructureType
             if self.inventory_dict[freeframe_type] > 0:
                 for frame_x, frame_y in self.valid_pos:
                     # forward look ahead to check if support and target loads are connected
@@ -1706,20 +1707,25 @@ class CantileverEnv_2(gym.Env):
                     # multiple loads 
                     # temp_is_connected = self.check_is_connected_multiple(frame_x, frame_y) # dictionary of target center, boolean 
                     temp_is_connected = self.check_is_connected_bidirectional(frame_x, frame_y) # dictionary of target center, boolean 
+                    # print(f'for valid pos {frame_x, frame_y} is there path? {temp_is_connected}')
                     if all(temp_is_connected.values()): # check if all values in the dictionary are true
-                        for end_bool in [False, True]:
-                            valid_actions.append((end_bool, freeframe_idx, frame_x, frame_y))
-
+                        # for end_bool in [False, True]:
+                            # valid_actions.append((end_bool, freeframe_idx, frame_x, frame_y))
+                        valid_actions.append((True, freeframe_idx, frame_x, frame_y)) # only add action to end if connected
+                        exists_end_action = True
+                        valid_actions = [action for action in valid_actions if action[0] is True]
                     else:
-                        end_bool = False
-                        valid_actions.append((end_bool, freeframe_idx, frame_x, frame_y))
-        
+                        if not exists_end_action: # Add action with end_bool=False only if no end_bool=True action exists
+                            valid_actions.append((False, freeframe_idx, frame_x, frame_y))
+
+
         if len(valid_actions) == 0:
             print(f'valid actions are empty!')
             print(f'inventory_dict : {self.inventory_dict}')
             print(f'valid_pos : {self.valid_pos}')
             self.print_framegrid()
-            print(f'temp_is_connected : {temp_is_connected}')
+            # print(f'temp_is_connected : {temp_is_connected}')
+            return None
 
         # encode action vectors to action integers using self.action_converter.encode(action)
         valid_action_ints = [self.action_converter.encode(action) for action in valid_actions]
