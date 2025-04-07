@@ -234,7 +234,9 @@ def set_multiple_cantilever_env_framegrid(
         - length_options: List of possible lengths for the external loads
         - magnitude_options: List of possible magnitudes for the external loads
         - inventory_options: List of possible inventory options for the free frames
-        - 
+        - num_target_loads = 2, (tree like structure)
+        - seed=None,
+        - fixed_hlm = None list of (height, length, magnitude) for fixed boundary condition
     
     Output:
         - support_frames : list of tuples (x_frame, y_frame) 
