@@ -472,7 +472,6 @@ class CantileverEnv_2(gym.Env):
             self.update_frame_grid(new_t_frame, t_load_mag=t_load_mag)
             self.update_frame_graph(new_t_frame)
             self.update_fea_graph(new_t_frame, t_load_mag) #TODO? need implementation
-            # self.target_loads_met[t_load_board] = False
             self.target_loads_met[t_center_board] = False
             
             # init light frame under target
@@ -484,7 +483,6 @@ class CantileverEnv_2(gym.Env):
             self.update_frame_graph(new_t_frame_support)
             self.update_fea_graph(new_t_frame_support)
 
-    
     def set_space_converters(self, inventory_dict):
         '''
         set self.obs_converter, self.action_converter 
@@ -612,8 +610,9 @@ class CantileverEnv_2(gym.Env):
         # print(f'    applying action : {action_tuple}')
         self.apply_action(action_tuple) # if end updates displacement and failed elements in curr_fea_graph
 
+
         # interim target reward
-        reward += self.is_connected_fraction * 0.1 # 0.05 for each step once one target is connected
+        reward += self.is_connected_fraction * 0.01 # 0.05 for each step once one/two target is connected
         # Using masked actions : all actions taken are valid actions 
         # if inventory is used up, episode is truncated
         if all(value <= 0 for value in self.inventory_dict.values()):
@@ -627,11 +626,13 @@ class CantileverEnv_2(gym.Env):
             self.eps_terminate_valid = True # used in render_frame to trigger displacement vis, in render to save final img
             self.global_terminated_episodes += 1
 
-            reward += 3 # completion reward (long horizon)
+            reward += self.num_target_loads # completion reward (long horizon)
+            # reward += 1 # completion reward (long horizon)
 
             if self.max_deflection < self.allowable_deflection:
                 # reward += 3 * self.allowable_deflection / self.max_deflection  # large reward for low deflection e.g. 0.5 / 0.01 = 50, scale for allowable displacement considering varying bc 
-                reward += self.allowable_deflection / self.max_deflection  # large reward for low deflection e.g. 0.5 / 0.01 = 50, scale for allowable displacement considering varying bc 
+                # reward += self.allowable_deflection / self.max_deflection  # large reward for low deflection e.g. 0.5 / 0.01 = 50, scale for allowable displacement considering varying bc 
+                reward += 0.5 * np.log(self.allowable_deflection / self.max_deflection)  # large reward for low deflection e.g. 0.5 / 0.01 = 50, scale for allowable displacement considering varying bc 
                 # print(f"    Max Deflection : {self.max_deflection} Deflection Reward : {reward}")
                 # scale reward according to load 
                 # print(f'    deflection reward : {reward}')
