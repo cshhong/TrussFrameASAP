@@ -363,6 +363,8 @@ class CantileverEnv_2(gym.Env):
         self.curr_frame_graph = None # TODO graph representation of adjacent frames
         self.valid_pos = set()
 
+        self.target_loads_met = {}
+
         # Reset the Vertex ID counter
         Vertex._id_counter = 1
 
