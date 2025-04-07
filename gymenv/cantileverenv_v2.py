@@ -1175,7 +1175,7 @@ class CantileverEnv_2(gym.Env):
             if trussframe.type_structure == FrameStructureType.SUPPORT_FRAME or trussframe.type_structure == FrameStructureType.LIGHT_FREE_FRAME:
                 self.ax.add_patch(patches.Rectangle((trussframe.x - self.frame_size//2, trussframe.y - self.frame_size//2), self.frame_size, self.frame_size, color='black', lw=1.5, fill=False))
             elif trussframe.type_structure == FrameStructureType.MEDIUM_FREE_FRAME:
-                self.ax.add_patch(patches.Rectangle((trussframe.x - self.frame_size//2, trussframe.y - self.frame_size//2), self.frame_size, self.frame_size, facecolor=((0.7, 0.7, 0.7, 0.8)), edgecolor = 'black', lw=1.5, fill=True))
+                self.ax.add_patch(patches.Rectangle((trussframe.x - self.frame_size//2, trussframe.y - self.frame_size//2), self.frame_size, self.frame_size, facecolor=((0.7, 0.7, 0.7, 0.6)), edgecolor = 'black', lw=1.5, fill=True))
 
             # brace
             if trussframe.type_shape == FrameShapeType.DOUBLE_DIAGONAL:
@@ -1191,6 +1191,17 @@ class CantileverEnv_2(gym.Env):
                 # Diagonal from top-left to bottom-right
                 line2 = mlines.Line2D([x0, x1], [y1, y0], color='black', lw=1)
                 self.ax.add_line(line2)
+
+        # add edge thickness for stronger elements
+        strong_elements = self.curr_fea_graph.get_strong_element_pos() # list of [(x_1,y_1), (x_2,y_2), outer_diameter, inward thickness ratio]
+        for edge in strong_elements:
+            start_coord, end_coord, outer_d, inward_thickness_ratio = edge
+            start_x, start_y = start_coord
+            end_x, end_y = end_coord
+            # Draw the line connecting the start and end vertices
+            strong_line = mlines.Line2D([start_x, end_x], [start_y, end_y], color='black', linewidth=1+5* inward_thickness_ratio)
+            self.ax.add_line(strong_line)
+            # self.ax.plot([start_x, end_x], [start_y, end_y], color='black', linestyle='-', linewidth=1+5* inward_thickness_ratio)
 
         # random frame (red highlight)
         # for act in self.rand_init_actions:
