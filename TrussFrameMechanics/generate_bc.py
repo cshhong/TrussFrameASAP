@@ -204,7 +204,8 @@ def set_multiple_cantilever_env_framegrid(
         magnitude_options = [300, 400, 500],
         inventory_options = [(10,10), (10,5), (5,5), (8,3)],
         num_target_loads = 2,
-        seed=None):
+        seed=None,
+        fixed_hlm = None):
     """
     Used in cantileverenv_V0.py (agent playable setting)
     Set up the cantilever environment within the frame grid with parametric boundary conditions.
@@ -266,19 +267,33 @@ def set_multiple_cantilever_env_framegrid(
     # Choose num_target_loads of target load frames 
     max_cantilever_length = 0
     target_frames = dict()
-    for i in range(num_target_loads):
-        # Choose random height, length, and load magnitude
-        height = random.choice(height_options)
-        length = random.choice(length_options)
-        magnitude = random.choice(magnitude_options)
+    if fixed_hlm == None:
+        for i in range(num_target_loads):
+            # Choose random height, length, and load magnitude
+            height = random.choice(height_options)
+            length = random.choice(length_options)
+            magnitude = random.choice(magnitude_options)
 
-        # Set target load frame within the frame grid
-        load_x_frame = x_support_start_frame + (-1)**i * length # right left alternate
-        load_y_frame = y_support_frame + height
-        # Target load in negative y direction (z assumed to be zero)
-        target_frames[(load_x_frame, load_y_frame)] = [0, -magnitude, 0]
-        if length > max_cantilever_length:
-            max_cantilever_length = length
+            # Set target load frame within the frame grid
+            load_x_frame = x_support_start_frame + (-1)**i * length # right left alternate
+            load_y_frame = y_support_frame + height
+            # Target load in negative y direction (z assumed to be zero)
+            target_frames[(load_x_frame, load_y_frame)] = [0, -magnitude, 0]
+            if length > max_cantilever_length:
+                max_cantilever_length = length
+
+    else: # fixed boundary conditions 
+        assert num_target_loads == len(fixed_hlm)
+        for i, target in enumerate(fixed_hlm):
+            height, length, magnitude = target
+
+            # Set target load frame within the frame grid
+            load_x_frame = x_support_start_frame + (-1)**i * length # right left alternate
+            load_y_frame = y_support_frame + height
+            # Target load in negative y direction (z assumed to be zero)
+            target_frames[(load_x_frame, load_y_frame)] = [0, -magnitude, 0]
+            if length > max_cantilever_length:
+                max_cantilever_length = length
 
 
     return support_frames, target_frames, inventory, max_cantilever_length
