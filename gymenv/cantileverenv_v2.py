@@ -151,6 +151,8 @@ class CantileverEnv_2(gym.Env):
                                     MaximalEdge objects have properties direction, vertices
                     loads :  A list of tuples (node.id, [load.x, load.y, load.z]) 
                     failed_elements : A list of element index pairs that failed with compression / tension info         (node_idx1, node_idx2, compression-0/tension-1)
+                    edge_type_dict : dictionary where key : edge type int (weakest -> strongest), value : (outer diameter, inner wall thickness ratio) 
+                    edges_dict : dictionary where keys : tuple of Vertex objects (v_1, v_2) and value : (outer diameter, inner wall thickness ratio)
                 - Modeled on intersections of the board 
                 - Nodes are Vertex objects which are modeled as structural nodes in ASAP
                 - Edges connect nodes as modeled as structural elements in ASAP
@@ -242,11 +244,16 @@ class CantileverEnv_2(gym.Env):
         self.bc_inventory_options = bc_inventory_options
         self.allowable_deflection = 0 # decided in generate_bc
 
+        # element type - adjust diagonal geometry for different frame types, feagraph->pythonAsap.solve_fea->truss_analysis.jl
+        self.element_type_dict = dict() # key: element type int, value : (outer diameter (m), inwards thickness ratio) 
+        self.element_type_dict[0] = elem_sections[0] # default tube 
+        self.element_type_dict[1] = elem_sections[1] # stronger (thicker) tube
+
         # Initialize current state
         self.curr_frame_grid = np.zeros((self.frame_grid_size_x, self.frame_grid_size_y), dtype=np.int64)
 
         # create dictionary frame values 
-        self.curr_fea_graph = FEAGraph() #FEAGraph object
+        self.curr_fea_graph = FEAGraph(edge_type_dict=self.element_type_dict) #FEAGraph object
         self.curr_frame_graph = None # TODO graph representation of adjacent frames
 
         # if actions are taken outside of valid_pos, large negative reward is given.  
@@ -341,7 +348,7 @@ class CantileverEnv_2(gym.Env):
         # Reset the current state
         self.frames = []
         self.curr_frame_grid = np.zeros((self.frame_grid_size_x, self.frame_grid_size_y), dtype=np.int64)
-        self.curr_fea_graph = FEAGraph() #FEAGraph object
+        self.curr_fea_graph = FEAGraph(edge_type_dict=self.element_type_dict) #FEAGraph object
         self.curr_frame_graph = None # TODO graph representation of adjacent frames
         self.valid_pos = set()
 
@@ -1045,7 +1052,11 @@ class CantileverEnv_2(gym.Env):
             self.ax.text(new_x + 0.1, new_y + 0.1, f'{d_mag:.2f}', color='gray', fontsize=8)
         
         # Connect deflected nodes with edges
-        for edge in self.curr_fea_graph.edges:
+        if self.curr_fea_graph.edges == []:
+            deformed_edges = [(e[0].id, e[1].id) for e in self.curr_fea_graph.edges_dict.keys()]
+        else:
+            deformed_edges = self.curr_fea_graph.edges
+        for edge in deformed_edges:
             start_id, end_id = edge  # node ids
             start_coord = displaced_vertices[start_id]
             end_coord = displaced_vertices[end_id]
