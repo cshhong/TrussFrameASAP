@@ -274,5 +274,54 @@ class FEAGraph:
         max_magnitude = magnitudes[max_index]
 
         return max_index, max_magnitude
+    
+    def find_coordinates_by_id(self, vertex_id):
+        """
+        Finds the coordinates of a vertex given its id.
+        Args:
+            vertex_id (int): The id of the vertex to find.
 
+        Returns:
+            tuple: The coordinates of the vertex if found, otherwise None.
+        """
+        for coordinates, vertex in self.vertices.items():
+            if vertex.id == vertex_id:
+                return coordinates
+        return None  # Return None if no vertex with the given id is found
+    
+    def get_strong_element_pos(self):
+        '''
+        Output 
+            list of [(x_1,y_1), (x_2,y_2), outer_diameter, inward thickness ratio] coordinates of edges that have type !=0
+        '''
+        strong_elements = []
+        for v_pairs, section in self.edges_dict.items():
+            if section == (self.edge_medium_d, self.edge_medium_thickness):
+                v1_coords = v_pairs[0].coordinates
+                v2_coords = v_pairs[1].coordinates
+                outer_diameter, inward_thickness = section
+                strong_elements.append((v1_coords, v2_coords, outer_diameter, inward_thickness))
+        # print(f"Strong elements : {strong_elements}")
+        
+        return strong_elements
+    
+
+    def get_element_list_with_type(self):
+        '''
+        Used in pythonASAP-> create_and_solve_model_julia
+        Output
+            list of (v1_idx, v2_idx, element_type_idx) for each edge in the graph
+            where edge_type_idx is in order of weakest -> strongest
+
+        '''
+        # edges_dict : dictionary where keys : (v_1, v_2) Vertex objects, values : (outer diameter, inner wall thickness ratio)
+        elem_list = []
+        for v_pairs, section in self.edges_dict.items():
+            if section == (self.edge_medium_d, self.edge_medium_thickness):
+                elem_type = 1
+            elif section == (self.edge_light_d, self.edge_light_thickness):
+                elem_type = 0
+            elem_list.append((v_pairs[0].id, v_pairs[1].id, elem_type)) # (v1_idx, v2_idx, element_type_idx)
+        
+        return elem_list
 
