@@ -32,7 +32,24 @@ def solve_fea(jl, feagraph, frame_length_m):
     # model = jl.create_and_solve_model_julia(node_coordinates, element_connections, fixed_idx, loads, frame_length_m)
     # displacement = model.u
 
-    displacement, axial_forces, P_cap_kN =  jl.create_and_solve_model_julia(node_coordinates, element_connections, fixed_idx, loads, frame_length_m)
+    # displacement, axial_forces, P_cap_kN =  jl.create_and_solve_model_julia(node_coordinates, element_connections, fixed_idx, loads, frame_length_m)
+
+    # feagraph.edge_type_dict is dictionary where key : edge type int (weakest -> strongest), value : (outer diameter, inner wall thickness ratio) 
+    # convert feagraph.edge_type_dict to Vector{Tuple{Int, Vector{Float64})
+    element_types = []
+    for idx, section in feagraph.edge_type_dict.items():
+        element_types.append((idx, section[0], section[1])) # (edge_type, outer_diameter, inner_wall_thickness_ratio)
+    
+    element_id_type = feagraph.get_element_list_with_type() # list of v1_idx, v2_idx, element_type_idx)
+    displacement, axial_forces, P_cap_kN =  jl._create_and_solve_model_julia(node_coordinates,     
+                                                                             element_id_type, 
+                                                                             fixed_idx, 
+                                                                             loads,
+                                                                             frame_length_m,
+                                                                             element_types,
+                                                                             )
+
+
 
     displacement = np.array(displacement).reshape(len(node_coordinates), 6) # reshape to 3D coordinates (Frame Model)
     translational_u = displacement[:, :3]  # Extract the first three translational DOFs (u_x, u_y, u_z)
@@ -43,7 +60,8 @@ def solve_fea(jl, feagraph, frame_length_m):
     # failed_elements = [element_connections[i] for i in failed_elements_idx]
 
     # Get list of ((node_idx1, node_idx2), signed_force) pairs of failed elements
-    failed_elements = [(element_connections[i], force) for i, force in enumerate(axial_forces) if abs(force) > P_cap_kN]
+    failed_elements = [((element_id_type[i][0], element_id_type[i][1]), force) for i, force in enumerate(axial_forces) if abs(force) > P_cap_kN[i]]
+    # TODO adjust such that P_cap_kN is a list of allowable stresses for element in order of idx
 
     # print("Elements that failed:", failed_elements)
 
