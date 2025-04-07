@@ -423,6 +423,7 @@ class CantileverEnv_2(gym.Env):
                                                     length_options = self.bc_length_options,
                                                     magnitude_options = self.bc_loadmag_options,
                                                     inventory_options = self.bc_inventory_options,
+                                                    num_target_loads = self.num_target_loads,
                                                     fixed_hlm=self.bc_fixed,)
         
         self.max_cantilever_length_f = max_cantilever_length_f
