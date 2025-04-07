@@ -196,6 +196,7 @@ class CantileverEnv_2(gym.Env):
                  num_target_loads = 2,
                  bc_fixed = None,
                  elem_sections = [(0.1, 0.1), (0.1, 0.2)],
+                 high_util_percentage = 25
                  ):
         # super().__init__()
 
@@ -315,6 +316,11 @@ class CantileverEnv_2(gym.Env):
         self.support_board = []
         print(f'init support board : {self.support_board}')
         self.target_support_board = []
+
+        # Element utilization
+        self.high_util_percentage = high_util_percentage
+        self.high_util_count = 0
+
 
         # Human Playable mode 
         if self.render_mode == "human_playable":
@@ -1077,25 +1083,45 @@ class CantileverEnv_2(gym.Env):
             else:
                 self.ax.plot([start_coord[0], end_coord[0]], [start_coord[1], end_coord[1]],
                     color='blue', linestyle='-', linewidth=2)
-        # Highlight max displacement
-        # Find the maximum displacement index and value
-        # max_disp_index = np.argmax([np.linalg.norm(d[:2]) for d in self.curr_fea_graph.displacement])
-        # max_disp_value = np.linalg.norm(self.curr_fea_graph.displacement[max_disp_index][:2])
-        # max_disp_coord = displaced_vertices[max_disp_index]
-        # Add text to highlight the max displacement
-        maxd_x_coord, maxd_y_coord = displaced_vertices[max_disp[0]]
-        maxd_value = max_disp[1]
-        self.max_deflection = max_disp[1]
+                
+        # # Highlight max displacement
+        # # Add text to highlight the max displacement
+        # maxd_x_coord, maxd_y_coord = displaced_vertices[max_disp[0]]
+        # maxd_value = max_disp[1]
+        # self.max_deflection = max_disp[1]
         
-        # Overlay max deflection value on the max deflection node
-        # if self.max_deflection >= self.allowable_deflection:
-        #     self.ax.text(maxd_x_coord+0.1, maxd_y_coord+0.2, f'{maxd_value:.5f}', color='red', fontsize=11)
-        # else:
-        #     self.ax.text(maxd_x_coord+0.1, maxd_y_coord+0.2, f'{maxd_value:.5f}', color='green', fontsize=11)
-        # Draw circle around max delfected node max_dixp = (V.id, d_mag) 
-        max_v_id, max_d_mag = max_disp
-        max_x_new, max_y_new = displaced_vertices[max_v_id]
-        self.ax.add_patch(patches.Circle((max_x_new, max_y_new), radius=0.2, color='red', alpha=0.5))
+        # # Draw circle around max deflected node max_disp = (V.id, d_mag) 
+        # max_v_id, max_d_mag = max_disp
+        # max_x_new, max_y_new = displaced_vertices[max_v_id]
+        # self.ax.add_patch(patches.Circle((max_x_new, max_y_new), radius=0.2, color='red', alpha=0.3))
+
+        # Overlay utilization on each edge
+        high_util_count = 0
+        edge_utilization = self.curr_fea_graph.get_element_utilization() # list of (center_x, center_y, utilization) for each edge 
+        for edge in edge_utilization:
+            center_x, center_y, util, dir = edge
+            util_percent = abs(util)*100
+            if util_percent > self.high_util_percentage:
+                # Determine placement of text depending on edge direction
+                if dir == 'H':  # Horizontal
+                    text_x = center_x
+                    text_y = center_y  # Place above the edge
+                elif dir == 'V':  # Vertical
+                    text_x = center_x # Place to the right of the edge
+                    text_y = center_y
+                elif dir == 'D_LB_RT':  # Diagonal left-bottom to right-top
+                    text_x = center_x - 0.4
+                    text_y = center_y - 0.4 # Place above and to the right
+                elif dir == 'D_LT_RB':  # Diagonal left-top to right-bottom
+                    text_x = center_x + 0.4
+                    text_y = center_y - 0.4  # Place below and to the right
+
+                self.ax.text(text_x, text_y, f'{abs(util)*100:.1f}', color='green', rotation=25, fontsize=9, ha='center', va='center')
+                high_util_count += 1
+        
+        self.high_util_count = high_util_count # update number of highly utilized elements
+
+        
 
     def draw_fea_graph(self):
         '''
