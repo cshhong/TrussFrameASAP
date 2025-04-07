@@ -36,6 +36,7 @@ def solve_fea(jl, feagraph, frame_length_m):
 
     displacement = np.array(displacement).reshape(len(node_coordinates), 6) # reshape to 3D coordinates (Frame Model)
     translational_u = displacement[:, :3]  # Extract the first three translational DOFs (u_x, u_y, u_z)
+    utilization = np.array(axial_forces) / np.array(P_cap_kN)  # Calculate utilization as a ratio of axial forces to capacity
 
     # edge indices only (outdated)
     # failed_elements_idx = [i for i, force in enumerate(axial_forces) if abs(force) > P_cap_kN]
@@ -51,4 +52,4 @@ def solve_fea(jl, feagraph, frame_length_m):
     # element_forces = jl.get_element_forces(model, increment)
     # print(f" element forces : {element_forces}")
 
-    return translational_u, failed_elements
+    return translational_u, failed_elements, utilization

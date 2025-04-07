@@ -992,7 +992,7 @@ class CantileverEnv_2(gym.Env):
         # jl.include("TrussFrameMechanics/truss_analysis.jl") # system path error
         jl.seval('using .TrussAnalysis')
 
-        displacement, failed_elements = pythonAsap.solve_fea(jl, self.curr_fea_graph, self.frame_length_m) # return nodal displacement
+        displacement, failed_elements, utilization = pythonAsap.solve_fea(jl, self.curr_fea_graph, self.frame_length_m) # return nodal displacement
         self.curr_fea_graph.displacement = displacement
         self.curr_fea_graph.failed_elements = failed_elements
 
