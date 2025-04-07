@@ -1074,8 +1074,10 @@ class CantileverEnv_2(gym.Env):
 
             displaced_vertices[V.id] = (new_x, new_y)
             self.ax.add_patch(patches.Circle((new_x, new_y), radius=0.05, color=displaced_truss_color, alpha=0.8))
-            # Add text showing displacement magnitude next to each circle
-            self.ax.text(new_x + 0.1, new_y + 0.1, f'{d_mag:.2f}', color='gray', fontsize=8)
+            # Add text showing displacement magnitude next to each circle if over allowable deflection
+            if d_mag >= self.allowable_deflection:
+                self.ax.text(new_x + 0.1, new_y + 0.1, f'{d_mag:.3f}', color='gray', fontsize=8)
+                self.ax.add_patch(patches.Circle((new_x, new_y), radius=0.1, color='red', alpha=0.3))
         
         # Connect deflected nodes with edges
         if self.curr_fea_graph.edges == []:
@@ -1086,7 +1088,6 @@ class CantileverEnv_2(gym.Env):
             start_id, end_id = edge  # node ids
             start_coord = displaced_vertices[start_id]
             end_coord = displaced_vertices[end_id]
-
             # Plot the deflected truss member
             self.ax.plot([start_coord[0], end_coord[0]], [start_coord[1], end_coord[1]],
                     color=displaced_truss_color, linestyle='--', linewidth=1)
