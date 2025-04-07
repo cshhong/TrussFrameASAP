@@ -813,7 +813,6 @@ class CantileverEnv_2(gym.Env):
         # self.update_target_meet(new_frame) # updates self.target_loads_met and self.is_connected
         # self.update_target_meet_multiple(new_frame) # updates self.target_loads_met and self.is_connected_fraction
         self.update_target_meet_bidirectional(new_frame) # updates self.target_loads_met and self.is_connected_fraction
-        print(f'target met : {self.target_loads_met}')
     
     ## Update Current State
     def update_inventory_dict(self, new_frame):
@@ -934,7 +933,7 @@ class CantileverEnv_2(gym.Env):
                 self.curr_fea_graph.external_loads[pos] = [l / 2 for l in t_load_mag] # distribute load to two nodes
             # print(f'adding external load to fea graph : {target_load_pos}')
             # TODO need to cross check with existing Vertices if target load is added after environment init
-        else: # free or support
+        else: # SUPPORT_FRAME, LIGHT_FREE_FRAME, MEDIUM_FREE_FRAME
             new_vertices = [] # Vertex object in order of bottom-left, bottom-right, top-right, top-left
             for i, pos in enumerate(vert_pos):
                 # If new node overlaps with existing node, merge (preserve existing node attributes - id, is_free)
@@ -946,21 +945,17 @@ class CantileverEnv_2(gym.Env):
                 else: # If node does not overlap with existing node, create new node 
                     is_free = None
                     if new_frame.type_structure == FrameStructureType.LIGHT_FREE_FRAME or new_frame.type_structure == FrameStructureType.MEDIUM_FREE_FRAME: # Free 
-                        # new_v = Vertex(pos, is_free=True, load=new_frame.type_structure.node_load)
                         is_free = True
                     elif new_frame.type_structure == FrameStructureType.SUPPORT_FRAME: # Support
                         if i==0 or i==1: # Bottom left, Bottom right are fixed 
-                            # new_v = Vertex(pos, is_free=False, load=new_frame.type_structure.node_load)
                             is_free = False
                             self.curr_fea_graph.supports.append(pos) # add to list of supports
                         else: # Top left, Top right are free
                             is_free = True
-                            # new_v = Vertex(pos, is_free=True, load=new_frame.type_structure.node_load)
                     new_v = Vertex(pos, is_free=is_free, load=new_frame.type_structure.node_load)
                     
-                    # additionally check if meets with external load
+                    # additionally check if meets with external load, and if so, combine load
                     if pos in self.curr_fea_graph.external_loads:
-                        # new_v.load += self.curr_fea_graph.external_loads[pos]
                         new_v.load = [x + y for x, y in zip(new_v.load, self.curr_fea_graph.external_loads[pos])]
 
                     # add new node to fea graph
@@ -1167,9 +1162,10 @@ class CantileverEnv_2(gym.Env):
                 self.ax.add_patch(patches.Polygon(triangle_vertices, color='black', lw=1.5, fill=True))
             else:
                 self.ax.add_patch(patches.Circle(coord, radius=0.1, color='black', lw=0.5, fill=True ))
-            self.ax.text(coord[0]-text_offset, coord[1]+text_offset, 
-                         str(vertex.id), 
-                         fontsize=10, ha='right', color='black')
+            # vertex ind
+            # self.ax.text(coord[0]-text_offset, coord[1]+text_offset, 
+            #              str(vertex.id), 
+            #              fontsize=10, ha='right', color='black')
             
         # Draw frames
         for trussframe in self.frames:
@@ -1618,6 +1614,9 @@ class CantileverEnv_2(gym.Env):
                 End bool : 0,1 (False, True)
                 Free Frame index : 0, 1  (light, medium) (FrameStructureType index - 2)
                 Frame x, y : 0 to self.frame_grid_size_x, self.frame_grid_size_y
+        Return
+            action_mask : list of valid action tuples (end_bool, freeframe_idx, frame_x, frame_y)
+
         invalid action is defined as union of following cases 
             - frame_x, frame_y not in valid position (tangent cells to existing design)
             - freeframe_idx inventory is 0 (other frame types are not used up)
