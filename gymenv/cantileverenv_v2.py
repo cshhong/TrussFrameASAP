@@ -306,6 +306,8 @@ class CantileverEnv_2(gym.Env):
         # Set boundary conditions ; support, target load, inventory
         self.num_target_loads = num_target_loads
         self.bc_fixed = bc_fixed # fixed boundary conditions used to condition actor, critic network
+        self.target_x_bounds = None # (left, right) set at initBoundaryCondition to prevent going beyond target x
+
         self.initBoundaryConditions() # set self.allowable_deflection, self.inventory_dict, self.frames, self.curr_frame_grid, self.target_loads_met, FrameStructureType.EXTERNAL_FORCE.node_load
         self.set_space_converters(self.inventory_dict) # set self.obs_converter, self.action_converter
         self.set_gym_spaces(self.obs_converter, self.action_converter) # set self.observation_space, self.action_space
@@ -444,6 +446,9 @@ class CantileverEnv_2(gym.Env):
         # used for Path finding
         self.support_board = []
         self.target_support_board = []
+
+        # set target_x_bounds 
+        self.target_x_bounds = (min([coord[0] for coord in targetload_frames.keys()]), max([coord[0] for coord in targetload_frames.keys()]))
 
         # Init supports and targets in curr_frame_grid according to bc
         for s_frame_coords in support_frames:
@@ -857,12 +862,16 @@ class CantileverEnv_2(gym.Env):
             for (x_adj, y_adj) in adj_cells:
                 # Check if the adjacent cell is within the frame grid bounds
                 if 0 <= x_adj < self.frame_grid_size_x and 0 <= y_adj < self.frame_grid_size_y:
-                    # print(f'self.frame_grid_size_x, frame_grid_size_y : {self.frame_grid_size_x, self.frame_grid_size_y}')
-                    # If the adjacent cell is unoccupied or load placeholder frame, add it to valid_pos
-                    if self.curr_frame_grid[x_adj, y_adj] == FrameStructureType.UNOCCUPIED.idx \
-                                                                or self.curr_frame_grid[x_adj, y_adj] == FrameStructureType.EXTERNAL_FORCE.idx:
-                        if (x_adj, y_adj) not in self.valid_pos:
-                            self.valid_pos.add((x_adj, y_adj)) # 
+                    # check if adjacent cell is in target x bounds
+                    if self.target_x_bounds[0] <= x_adj and x_adj <= self.target_x_bounds[1]:
+                        # check if adjacent cell is not in external force cell
+                        if self.curr_frame_grid[x_adj, y_adj] != FrameStructureType.EXTERNAL_FORCE.idx:
+                            # print(f'self.frame_grid_size_x, frame_grid_size_y : {self.frame_grid_size_x, self.frame_grid_size_y}')
+                            # If the adjacent cell is unoccupied, add it to valid_pos
+                            if self.curr_frame_grid[x_adj, y_adj] == FrameStructureType.UNOCCUPIED.idx:
+                                self.valid_pos.add((x_adj, y_adj)) 
+                                # if (x_adj, y_adj) not in self.valid_pos:
+
 
     def update_frame_graph(self, new_frame):
         '''
