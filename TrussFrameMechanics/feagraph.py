@@ -324,4 +324,35 @@ class FEAGraph:
             elem_list.append((v_pairs[0].id, v_pairs[1].id, elem_type)) # (v1_idx, v2_idx, element_type_idx)
         
         return elem_list
+    
+    def get_element_utilization(self):
+        '''
+        Used in draw_truss_analysis
+        Output
+            list of (center_x, center_y, utilization, direction) for each edge in the graph
+            where direction is in ['H', 'V', 'D_LB_RT', 'D_LT_RB']
+        '''
+        res = []
+        for i, v_pair in enumerate(self.edges_dict.keys()):
+            v1_coords = v_pair[0].coordinates
+            v2_coords = v_pair[1].coordinates
+            center_x = (v1_coords[0] + v2_coords[0]) / 2
+            center_y = (v1_coords[1] + v2_coords[1]) / 2
+            util = self.utilization[i]
+            # Determine direction based on vertex coordinates
+            dx = v2_coords[0] - v1_coords[0]
+            dy = v2_coords[1] - v1_coords[1]
+            if dy == 0:
+                dir = "H"
+            elif dx == 0:
+                dir = "V"
+            elif dx > 0 and dy > 0:
+                dir = "D_LB_RT"
+            elif dx < 0 and dy > 0: # vertices tored in order of y
+                dir = "D_LT_RB"
+
+            res.append((center_x, center_y, util, dir))
+        return res
+
+
 
