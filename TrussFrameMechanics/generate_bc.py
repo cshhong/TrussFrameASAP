@@ -256,7 +256,8 @@ def set_multiple_cantilever_env_framegrid(
 
     # Set pinned supports within the frame grid
     # x at center even coordinate of the frame grid
-    x_support_start_frame = (frame_grid_size_x // FRAME_SIZE - (FRAME_SIZE//2)) if (frame_grid_size_x // FRAME_SIZE - (FRAME_SIZE//2)) % FRAME_SIZE == 0 else (frame_grid_size_x // FRAME_SIZE - FRAME_SIZE)
+    # x_support_start_frame = (frame_grid_size_x // FRAME_SIZE - (FRAME_SIZE//2)) if (frame_grid_size_x // FRAME_SIZE - (FRAME_SIZE//2)) % FRAME_SIZE == 0 else (frame_grid_size_x // FRAME_SIZE - FRAME_SIZE)
+    x_support_start_frame = int(frame_grid_size_x // FRAME_SIZE)
     y_support_frame = 0  # Base of the cantilever, first row of the frame grid
 
     # Create 1 support frame
