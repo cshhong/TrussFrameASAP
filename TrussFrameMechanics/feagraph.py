@@ -2,7 +2,7 @@
 Custom graph data structure that stores additional information needed for structural analysis
 """
 from .maximaledge import MaximalEdge  # Relative import
-from .trussframe import FrameShapeType     # Relative import
+from .trussframe import FrameShapeType, FrameStructureType     # Relative import
 import numpy as np
     
 class FEAGraph:
@@ -44,7 +44,7 @@ class FEAGraph:
     
     """
     
-    def __init__(self, vertices=None, supports=None, edges=None, maximal_edges=None, external_loads=None, displacement=None, failed_elements=None):
+    def __init__(self, vertices=None, supports=None, edges=None, maximal_edges=None, external_loads=None, displacement=None, failed_elements=None, edge_type_dict=None, edges_dict=None, utilization=None):
         """
         Initializes the graph with dictionaries of vertices, edges, and maximal edges.
         """
@@ -73,6 +73,20 @@ class FEAGraph:
             self.failed_elements = failed_elements
         else:
             self.failed_elements = []
+
+        self.edge_type_dict = edge_type_dict
+        self.edge_light_d, self.edge_light_thickness = edge_type_dict[0]
+        self.edge_medium_d, self.edge_medium_thickness = edge_type_dict[1]
+        
+        if edges_dict is not None:
+            self.edges_dict = edges_dict
+        else:
+            self.edges_dict = dict() 
+
+        if utilization is not None:
+            self.utilization = utilization
+        else:
+            self.utilization = []
 
     def __repr__(self):
         """Nicely formatted representation of the graph."""
