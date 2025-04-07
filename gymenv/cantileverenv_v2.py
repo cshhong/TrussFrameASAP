@@ -39,6 +39,8 @@ import matplotlib.patches as patches
 from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 import matplotlib.pyplot as plt
 import matplotlib.lines as mlines
+import matplotlib
+matplotlib.use('Agg')  # prevent python memory accumulate
 
 
 import numpy as np
