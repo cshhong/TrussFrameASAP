@@ -1044,7 +1044,7 @@ class CantileverEnv_2(gym.Env):
         Check if any of target load is met with addition of new frame(top right or top left node meets with external load node)
         Update self.target_loads_met and self.is_connected_fraction in place
         '''
-        self.target_loads_met = self.check_is_connected_bidirectional(new_frame.x, new_frame.y)
+        self.target_loads_met = self.check_is_connected_bidirectional(new_frame.x_frame, new_frame.y_frame)
         self.is_connected_fraction = sum(self.target_loads_met.values()) / len(self.target_loads_met)
 
     ## Drawing
