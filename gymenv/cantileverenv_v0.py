@@ -249,7 +249,9 @@ class CantileverEnv_0(gym.Env):
         self.render_valid_action = False
         # if episode ends without being connected, large negative reward is given.
         self.target_loads_met = {} # Whether target load was reached : key is (x,y) coordinate on board value is True/False
-        self.is_connected = False # whether the support is connected to (all) the target loads, 
+        self.is_connected = False # whether the support is connected to (all) the target loads,
+        self.is_connected_fraction = 0 # fraction of target loads connected to support
+
         self.eps_terminate_valid = False # after applying action with end_bool=1, signify is episode end is valid, used in visualization
 
         self.disp_reward_scale = 1e2 # scale displacement reward to large positive reward
@@ -272,6 +274,7 @@ class CantileverEnv_0(gym.Env):
         #     FrameStructureType.MEDIUM_FREE_FRAME : med_inv,
         #     # FrameStructureType.HEAVY_FREE_FRAME : *,
         # }
+        self.n_all_inventory = None # total number of inventory
         self.obs_converter = None # ObservationBijectiveMapping object, used to encode and decode observations
         self.action_converter = None # ActionBijectiveMapping object, used to encode and decode actions
         self.observation_space = None
@@ -289,6 +292,8 @@ class CantileverEnv_0(gym.Env):
         self.initBoundaryConditions() # set self.allowable_deflection, self.inventory_dict, self.frames, self.curr_frame_grid, self.target_loads_met, FrameStructureType.EXTERNAL_FORCE.node_load
         self.set_space_converters(self.inventory_dict) # set self.obs_converter, self.action_converter
         self.set_gym_spaces(self.obs_converter, self.action_converter) # set self.observation_space, self.action_space
+
+        self.bc_condition = None # condition of boundary conditions (height, length, loadmag, inventory_light, inventory_med) used to condition actor, critic network
 
         # Human Playable mode 
         if self.render_mode == "human_playable":
@@ -335,8 +340,6 @@ class CantileverEnv_0(gym.Env):
         self.cantilever_length_f = 0 # used to limit random init in training function 
         # Set boundary conditions ; support, target load, inventory
         self.initBoundaryConditions() # set self.cantiliver_length_f , self.allowable_deflection, self.inventory_dict, self.frames, self.curr_frame_grid, self.target_loads_met, FrameStructureType.EXTERNAL_FORCE.node_load
-        # self.set_space_converters(self.inventory_dict) # set self.obs_converter, self.action_converter
-        # self.set_gym_spaces(self.obs_converter, self.action_converter) # set self.observation_space, self.action_space
         
         self.eps_terminate_valid = False
 
@@ -391,10 +394,15 @@ class CantileverEnv_0(gym.Env):
         # self.extr_load_mag = list(targetload_frames.values())[0] # magnitude of external load in kN (x,y,z)
         self.inventory_dict = inventory_dict
         self.bc_inventory = inventory_dict.copy() 
+        self.n_all_inventory = sum(inventory_dict.values())
 
         # set FrameStructureType.EXTERNAL_FORCE magnitude values TODO where is this used? 
         #TODO handle multiple target loads
         FrameStructureType.EXTERNAL_FORCE.node_load = list(targetload_frames.values())[0]
+
+        target_condition = [item for (x_frame, y_frame), forces in targetload_frames.items() for item in (x_frame, y_frame, forces[1])] # list of (x_frame, y_frame, y_forcemag) of target loads
+        inventory_condition = list(inventory_dict.values()) # list of inventory values
+        self.bc_condition = target_condition + inventory_condition
 
         # Logging
         # self.support_frames = [list(sf) for sf in support_frames] 
@@ -500,12 +508,13 @@ class CantileverEnv_0(gym.Env):
         elif self.obs_mode == 'fea_graph':
             print('TODO Need to implement set_gym_spaces for fea_graph!')
             pass
-            # Gymnasium Composite Spaces - Graph or Dict?
-            # Graph - node_features, edge_features, edge_links
+            # Gymnasium Composite Spaces - Graph 
+            # Graph - node_features (frame type), edge_features(connection direction), edge_links
             # Dict (not directly used in learning but can store human interpretable info)
         elif self.obs_mode == 'frame_graph':
             print('TODO Need to implement set_gym_spaces for frame_graph!')
             pass
+            self.observation_space = Graph(node_space=Box(low=0, high=self.n_all_inventory+len(self.target_loads_met), shape=(1,)), edge_space=Discrete(3), seed=1)
     
 
     def step(self, action):
@@ -561,10 +570,10 @@ class CantileverEnv_0(gym.Env):
             self.eps_terminate_valid = True # used in render_frame to trigger displacement vis, in render to save final img
             self.global_terminated_episodes += 1
 
-            reward += 5 # completion reward (long horizon)
+            reward += 3 # completion reward (long horizon)
 
             if self.max_deflection < self.allowable_deflection:
-                reward += 5 * self.allowable_deflection / self.max_deflection  # large reward for low deflection e.g. 0.5 / 0.01 = 50, scale for allowable displacement considering varying bc 
+                reward += 3 * self.allowable_deflection / self.max_deflection  # large reward for low deflection e.g. 0.5 / 0.01 = 50, scale for allowable displacement considering varying bc 
                 # reward += self.allowable_deflection / self.max_deflection  # large reward for low deflection e.g. 0.5 / 0.01 = 50, scale for allowable displacement considering varying bc 
                 # print(f"    Max Deflection : {self.max_deflection} Deflection Reward : {reward}")
                 # scale reward according to load 
@@ -613,11 +622,9 @@ class CantileverEnv_0(gym.Env):
     
     def check_is_connected(self, frame_x, frame_y):
         '''
-        Used in step to temporarily forward check given action whetner overall structure is connected (support and target load)
-        (this frame is not necessarily created in env)
-        (Assumption that frames can only be built in adjacent cells allows us to check only most recent frame)
-        Input
-            frame center coordinates (frame_x, frame_y)
+        Used in step to temporarily forward check given action whether structure is connected (support and target load)
+        Input : frame center coordinates (frame_x, frame_y)
+        Output : True if single target load is met
         '''
         # check if top-right, or top-left node of frame changes current self.target_loads_met values
         # given temporary changed values, if all are true, return True
@@ -633,13 +640,33 @@ class CantileverEnv_0(gym.Env):
             if top_left == target:
                 temp_target_loads_met[target] = True
 
-        # print(f"check_is_connected : {temp_target_loads_met}")
-        
         # Check if all target loads are met
         if all(temp_target_loads_met.values()):
             return True
         else:
             return False
+        
+    def check_is_connected_multiple(self, frame_x, frame_y):
+        '''
+        Used in step to temporarily forward check given action whether structure is connected (support and target load)
+        Input : frame center coordinates (frame_x, frame_y)
+        Output : list of boolean values for each target load
+        '''
+        # check if top-right, or top-left node of frame changes current self.target_loads_met values
+        # given temporary changed values, if all are true, return True
+        temp_target_loads_met = self.target_loads_met.copy()
+        
+        center = self.framegrid_to_board(frame_x, frame_y) # get center board coordinates
+        top_right = (center[0] + self.frame_size//2, center[1] + self.frame_size//2)
+        top_left = (center[0] - self.frame_size//2, center[1] + self.frame_size//2)
+
+        for target in self.target_loads_met:
+            if top_right == target:
+                temp_target_loads_met[target] = True
+            if top_left == target:
+                temp_target_loads_met[target] = True
+
+        return temp_target_loads_met
     
     def apply_action(self, valid_action_tuple):
         '''
@@ -673,6 +700,7 @@ class CantileverEnv_0(gym.Env):
         self.frames.append(new_frame)
 
         self.update_target_meet(new_frame) # updates self.target_loads_met and self.is_connected
+        self.update_target_meet_multiple(new_frame) # updates self.target_loads_met and self.is_connected_fraction
     
     ## Update Current State
     def update_inventory_dict(self, new_frame):
@@ -868,6 +896,24 @@ class CantileverEnv_0(gym.Env):
                 self.target_loads_met[target] = True
         if all(self.target_loads_met.values()):
             self.is_connected = True
+
+    def update_target_meet_multiple(self, new_frame):
+        '''
+        Used in apply_action
+        Input : new_frame 
+        Check if any of target load is met with addition of new frame(top right or top left node of frame meets with external load node) 
+        Update self.target_loads_met and self.is_connected_fraction in place
+        '''
+        top_right = (new_frame.x + self.frame_size//2, new_frame.y + self.frame_size//2)
+        top_left = (new_frame.x - self.frame_size//2, new_frame.y + self.frame_size//2)
+        for target in self.target_loads_met:
+            if top_right == target:
+                self.target_loads_met[target] = True
+            if top_left == target:
+                self.target_loads_met[target] = True
+        # update is_connected_fraction 
+        # get list of boolean values from target_loads_met and calculate fraction of True values
+        self.is_connected_fraction = sum(self.target_loads_met.values()) / len(self.target_loads_met)
 
     ## Drawing
     def draw_truss_analysis(self):
@@ -1418,6 +1464,13 @@ class CantileverEnv_0(gym.Env):
                     if temp_is_connected == True:
                         for end_bool in [False, True]:
                             valid_actions.append((end_bool, freeframe_idx, frame_x, frame_y))
+
+                    # forward look ahead to check if support and target loads are connected (TODO multiple loads)
+                    # temp_connected_list = self.check_is_connected_multiple(frame_x, frame_y) # list of boolean values for each target
+                    # if all(temp_connected_list) == True:
+                    #     for end_bool in [False, True]:
+                    #         valid_actions.append((end_bool, freeframe_idx, frame_x, frame_y))
+                    
                     else:
                         end_bool = False
                         valid_actions.append((end_bool, freeframe_idx, frame_x, frame_y))
@@ -1445,6 +1498,8 @@ class CantileverEnv_0(gym.Env):
         Used in training to store random actions taken at initialization in self.rand_init_actions
         later used for random frame visualization in draw_fea_graph()
         '''
+        if isinstance(action_ind, torch.Tensor):
+            action = action_ind.cpu().numpy()
         self.rand_init_actions.append(action_ind)
 
     # Observation Helper
