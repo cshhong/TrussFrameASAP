@@ -49,10 +49,10 @@ class FrameStructureType(Enum):
     # MEDIUM_FREE_FRAME = (3, [0.0, -4.0, 0.0], True)  # Node weight in kN
     # Node load in kN
     EXTERNAL_FORCE = (-1, [0.0, -120.0, 0.0], False)  # Set in generate_bc.py
-    UNOCCUPIED = (0, None, False)  # Not used
-    SUPPORT_FRAME = (1, [0.0, -4.0, 0.0], False)  # x10 self weight of steel member
-    LIGHT_FREE_FRAME = (2, [0.0, -4.0, 0.0], True)  # x10 self weight of steel member
-    MEDIUM_FREE_FRAME = (3, [0.0, -40.0, 0.0], True)  # x100 self weight of steel member
+    UNOCCUPIED = (0, None, False)  # index used
+    SUPPORT_FRAME = (1, [0.0, -4.0, 0.0], False)  # 0.01m tube with 10% thickness
+    LIGHT_FREE_FRAME = (2, [0.0, -4.0, 0.0], True)  # 0.01m tube with 10% thickness
+    MEDIUM_FREE_FRAME = (3, [0.0, -6.0, 0.0], True)  # 0.01m tube with 20% thickness
 
     def __init__(self, idx, node_load, is_free_frame):
         self.idx = idx
@@ -127,6 +127,8 @@ class FrameStructureType(Enum):
     def get_idx_bounds(cls):
         idx_values = [member.idx for member in cls]
         return min(idx_values), max(idx_values)
+    
+    
 
 class TrussFrame:
     '''
