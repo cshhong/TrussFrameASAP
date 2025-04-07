@@ -995,6 +995,7 @@ class CantileverEnv_2(gym.Env):
         displacement, failed_elements, utilization = pythonAsap.solve_fea(jl, self.curr_fea_graph, self.frame_length_m) # return nodal displacement
         self.curr_fea_graph.displacement = displacement
         self.curr_fea_graph.failed_elements = failed_elements
+        self.curr_fea_graph.utilization = utilization
 
     def update_target_meet(self, new_frame):
         '''
