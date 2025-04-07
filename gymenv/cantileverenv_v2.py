@@ -731,42 +731,50 @@ class CantileverEnv_2(gym.Env):
         temp_target_loads_met = self.target_loads_met.copy()
         # check targets that are not connected 
         unconnected_targets = [target for target, met in temp_target_loads_met.items() if not met]
+        # start from support, find path to target_support given current frames
+        support_board = [coord for tup in self.support_board for coord in tup]# unpack support_board list and tuple
+        support_frame = self.board_to_frame(*support_board)
+
         for target in unconnected_targets:
-        # for target in self.target_loads_met.keys():
-            target_support_board = (target[0], target[1]-2)# take +-2 in all 4 directions and check if there is path from support to target
-            if self.check_connected_path(target_support_board) :
+            target_frame = self.board_to_frame(*target)
+            temp_connected = self.check_connected_path_temp(support_frame, target_frame, frame_x, frame_y)
+            if temp_connected:
                 temp_target_loads_met[target] = True
                  # function to check if current board has path from support to target load
         return temp_target_loads_met
     
-    def check_connected_path(self, target_support_board):
+    def check_connected_path_temp(self, support_frame, target_frame, frame_x, frame_y):
         '''
-        Given target_support (board_x,board_y) on board, check if there is path from support to target load
+        Lookahead to check if there is path from support to target load, given hypothetical frame
         '''
-        # start from support, find path to target_support given current frames
-        support_board = [coord for tup in self.support_board for coord in tup]# unpack support_board list and tuple
-        support_frame = self.board_to_frame(*support_board)
-        target_support_frame = self.board_to_frame(*target_support_board)
+        # create temporary frame grid with new frame
+        temp_frame_grid = copy.deepcopy(self.curr_frame_grid) # Deep copy of the current frame grid
+        temp_frame_grid[frame_x][frame_y] = 2  # Add the hypothetical light free frame
 
-        rows, cols = len(self.curr_frame_grid), len(self.curr_frame_grid[0])
-        directions = [(-1, 0), (1, 0), (0, -1), (0, 1)]  # Up, down, left, right
+        # BFS setup
+        queue = deque()
+        visited = set()
 
-        # Perform BFS
-        queue = deque([support_frame])
-        visited = set([support_frame])
+        start_x, start_y = support_frame
+        goal_x, goal_y = target_frame
 
+        queue.append((start_x, start_y))
+        visited.add((start_x, start_y))
+
+        # 4-directional movement (up, down, left, right)
+        directions = [(-1, 0), (1, 0), (0, -1), (0, 1)]
         while queue:
             x, y = queue.popleft()
-            if (x, y) == target_support_frame:
-                print(f"Path found from support to target_support : {target_support_frame}")
+            if (x, y) == (goal_x, goal_y):
                 return True
 
             for dx, dy in directions:
                 nx, ny = x + dx, y + dy
-                if 0 <= nx < rows and 0 <= ny < cols and (nx, ny) not in visited:
-                    if self.curr_frame_grid[nx][ny] in [2, 3]:
-                        queue.append((nx, ny))
-                        visited.add((nx, ny))
+                if (0 <= nx < self.frame_grid_size_x) and (0 <= ny < self.frame_grid_size_y):
+                    if (nx, ny) not in visited:
+                        if temp_frame_grid[nx][ny] in {2, 3} or (nx, ny) == (goal_x, goal_y):
+                            queue.append((nx, ny))
+                            visited.add((nx, ny))
 
         return False
     
