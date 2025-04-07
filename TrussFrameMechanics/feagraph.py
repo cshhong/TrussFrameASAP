@@ -37,6 +37,10 @@ class FEAGraph:
     external_loads : dictionary where key : coordinate in board, value : load magnitude [load.x, load.y, load.z]
     displacement :  2D list of nodal displacement [x,y,z] for each node in node index order. Only non-empty upon fea (eps end)
     failed_elements : list of tuple (node_idx1, node_idx2, compression-0/tension-1)
+
+    # apply stronger elements to diagonals of medium weights
+    edge_type_dict : dictionary where key : edge type int (weakest -> strongest), value : (outer diameter, inner wall thickness ratio) 
+    edges_dict : dictionary where keys : (v_1, v_2) Vertex objects, values : (outer diameter, inner wall thickness ratio)
     
     """
     
@@ -97,8 +101,9 @@ class FEAGraph:
         """Get all integer value node ids from FEAGraph object"""
         return [vertex.id for vertex in self.vertices.values()]
     
-    def combine_and_merge_edges(self, frame_type_shape, new_vertices):
+    def combine_and_merge_edges(self, frame_type_shape, new_vertices, frame_structure_type=None):
         '''
+        (overlapping vertices are merged already)
         Input
             frame_type : FrameShapeType object to indicate which vertices should be connected
             new_vertices : List of Vertex objects in order of bottom-left, bottom-right, top-right, top-left
@@ -118,7 +123,7 @@ class FEAGraph:
             d1 = (new_vertices[0], new_vertices[2])
         elif frame_type_shape == FrameShapeType.DIAGONAL_LT_RB:
             d2 = (new_vertices[1], new_vertices[3])
-        elif frame_type_shape == FrameShapeType.DOUBLE_DIAGONAL:
+        elif frame_type_shape == FrameShapeType.DOUBLE_DIAGONAL: # we only use this type for now
             d1 = (new_vertices[0], new_vertices[2])
             d2 = (new_vertices[1], new_vertices[3])
         segments = {
@@ -127,69 +132,97 @@ class FEAGraph:
                     'LB_RT': [d1],
                     'LT_RB': [d2]
                 }
-        for direction, segs in segments.items():
-            self._combine_segments(segs, direction)
+        
+        # update edges using maximal edge
+        # for direction, segs in segments.items():
+        #     self._combine_segments(segs, direction)
 
-        # Update edge list with new line segments
-        # get minimal edge list from each maximal edge
-        maximal_edges = self.maximal_edges
-        all_edges = []
-        for dir in maximal_edges:
-            self._merge_maximal_edges() # update maximal edges that are merged from new frame 
-            for me in maximal_edges[dir]:
-                # print(f'extracting edge from maximal edge : {me}')
-                all_edges.extend(me.get_edge_list()) # get list of tuples of vertex indices
-        self.edges = all_edges
+        # # Update edge list with new line segments
+        # # get minimal edge list from each maximal edge
+        # maximal_edges = self.maximal_edges
+        # all_edges = []
+        # for dir in maximal_edges:
+        #     self._merge_maximal_edges() # update maximal edges that are merged from new frame 
+        #     for me in maximal_edges[dir]:
+        #         # print(f'extracting edge from maximal edge : {me}')
+        #         all_edges.extend(me.get_edge_list()) # get list of tuples of vertex indices
+        # self.edges = all_edges
+
+        # update edges without maximal edge, edge with section geometry
+        for dir, segs in segments.items():
+            for e in segs:
+                self._update_edges_dict(e, dir, frame_structure_type)
+
+        # print(f"Edges ({len(self.edges_dict)}):\n{self.edges_dict}\n")
+
     
-    def _combine_segments(self, segments, direction):
+    def _update_edges_dict(self, edge, direction, frame_structure_type):
         '''
-        Combine segments with existing maximal edges in the specified direction.
-        Updates self.maximal_edges[direction] in place.
+        Update self.edges_dict with new segments in the specified direction.
+        self.edges_dict : dictionary where keys : (v_1, v_2) Vertex objects, values : (outer diameter, inner wall thickness ratio)
+        edge: a tuple of Vertex objects
+        direction : 'horizontal', 'vertical', 'LB_RT', 'LT_RB'
+        frame_structure_type : FrameStructureType object
         '''
-        # Check if the list of maximal edges is not empty
-        if len(self.maximal_edges[direction]) != 0:
-            for seg in segments:
-                if seg == None:
-                    continue # skip if segment is None
-                merged = False  # Track if merging occurs for this pair
-                # Try to merge with existing maximal edges
-                for me in self.maximal_edges[direction]:
-                    if me.merge_segment(*seg):  # Try to merge
-                        merged = True
-                        break  # Stop after the first successful merge
-                # If not merged, create a new maximal edge
-                if not merged:
-                    new_me = MaximalEdge(direction)  # Create new maximal edge object
-                    new_me.vertices += list(seg)
-                    self.maximal_edges[direction].append(new_me)
+        # Set geometry for each edge
+        outer_diameter, inward_thickness = self.edge_light_d, self.edge_light_thickness # default
+        if frame_structure_type == FrameStructureType.MEDIUM_FREE_FRAME: # thick diagonal for medium frame
+            if direction == 'LB_RT' or direction == 'LT_RB':
+                outer_diameter, inward_thickness = self.edge_medium_d, self.edge_medium_thickness
 
-        else: # If the list is empty, create new maximal edges for all segments
-            for seg in segments:
-                if seg == None:
-                    continue # skip if segment is None
-                new_me = MaximalEdge(direction)  # Create new maximal edge object
-                new_me.vertices += list(seg)
-                self.maximal_edges[direction].append(new_me)
+        # add to edge dict with replacement 
+        self.edges_dict[edge] = outer_diameter, inward_thickness
 
-        self.maximal_edges_merged = False
+
+    # def _combine_segments(self, segments, direction):
+    #     '''
+    #     Combine segments with existing maximal edges in the specified direction.
+    #     Updates self.maximal_edges[direction] in place.
+    #     '''
+    #     # Check if the list of maximal edges is not empty
+    #     if len(self.maximal_edges[direction]) != 0:
+    #         for seg in segments:
+    #             if seg == None:
+    #                 continue # skip if segment is None
+    #             merged = False  # Track if merging occurs for this pair
+    #             # Try to merge with existing maximal edges
+    #             for me in self.maximal_edges[direction]:
+    #                 if me.merge_segment(*seg):  # Try to merge
+    #                     merged = True
+    #                     break  # Stop after the first successful merge
+    #             # If not merged, create a new maximal edge
+    #             if not merged:
+    #                 new_me = MaximalEdge(direction)  # Create new maximal edge object
+    #                 new_me.vertices += list(seg)
+    #                 self.maximal_edges[direction].append(new_me)
+
+    #     else: # If the list is empty, create new maximal edges for all segments
+    #         for seg in segments:
+    #             if seg == None:
+    #                 continue # skip if segment is None
+    #             new_me = MaximalEdge(direction)  # Create new maximal edge object
+    #             new_me.vertices += list(seg)
+    #             self.maximal_edges[direction].append(new_me)
+
+    #     self.maximal_edges_merged = False
     
-    def _merge_maximal_edges(self):
-        '''
-        After combining segment, merge maximal edges that are connected from new frame 
-        '''
-        for dir in self.maximal_edges:
-            # check for pairs of maximal edges in the same direction
-            for i in range(len(self.maximal_edges[dir])-2):
-                for j in range(i + 1, len(self.maximal_edges[dir])-1):
-                    me1 = self.maximal_edges[dir][i]
-                    me2 = self.maximal_edges[dir][j]
-                    if me1.is_connected(me2):
-                        # Merge the two maximal edges
-                        me1.vertices += me2.vertices 
-                        me1.vertices = sorted(set(me1.vertices))
-                        self.maximal_edges[dir].remove(me2)
+    # def _merge_maximal_edges(self):
+    #     '''
+    #     After combining segment, merge maximal edges that are connected from new frame 
+    #     '''
+    #     for dir in self.maximal_edges:
+    #         # check for pairs of maximal edges in the same direction
+    #         for i in range(len(self.maximal_edges[dir])-2):
+    #             for j in range(i + 1, len(self.maximal_edges[dir])-1):
+    #                 me1 = self.maximal_edges[dir][i]
+    #                 me2 = self.maximal_edges[dir][j]
+    #                 if me1.is_connected(me2):
+    #                     # Merge the two maximal edges
+    #                     me1.vertices += me2.vertices 
+    #                     me1.vertices = sorted(set(me1.vertices))
+    #                     self.maximal_edges[dir].remove(me2)
 
-        self.maximal_edges_merged = True
+    #     self.maximal_edges_merged = True
 
     def _add_external_load(self, vertex):
         '''
