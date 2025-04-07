@@ -24,7 +24,7 @@ def solve_fea(jl, feagraph, frame_length_m):
     '''
     node_coordinates = [list(v.coordinates)+[0.0] for v in list(feagraph.vertices.values())]
     # node_coordinates = [(float(x), float(y)) for x, y in (v.coordinates for v in list(feagraph.vertices.values()))]
-    element_connections = feagraph.edges
+    # element_connections = feagraph.edges
     fixed_idx = [feagraph.vertices[support].id for support in feagraph.supports]
     loads = [list((v.id, v.load)) for v in list(feagraph.vertices.values())]
     # print(f'(solve fea) loads : {loads}')
