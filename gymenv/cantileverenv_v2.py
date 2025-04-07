@@ -195,6 +195,7 @@ class CantileverEnv_2(gym.Env):
                  bc_inventory_options=[(10,10), (10,5), (5,5), (8,3)],
                  num_target_loads = 2,
                  bc_fixed = None,
+                 elem_sections = [(0.1, 0.1), (0.1, 0.2)],
                  ):
         # super().__init__()
 
