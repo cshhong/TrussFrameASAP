@@ -171,7 +171,7 @@ class CantileverEnv_2(gym.Env):
 
     
     '''
-    metadata = {"render_modes": [None, "debug_all", "debug_valid", "rgb_list", "debug_end", "rgb_end", "rgb_end_interval", "human_playable"], 
+    metadata = {"render_modes": [None, "debug_all", "debug_valid", "rgb_list", "debug_end", "rgb_end", "rgb_end_interval", "rgb_end_interval_nofail", "human_playable"], 
                 "render_fps": 1,
                 "obs_modes" : ['frame_grid_singleint', 'frame_grid', 'fea_graph', 'frame_graph'],
                 }
@@ -229,7 +229,7 @@ class CantileverEnv_2(gym.Env):
         # Ensure the directory exists
         if not os.path.exists(self.render_dir):
             os.makedirs(self.render_dir)
-        if self.render_mode == "rgb_end" or self.render_mode == "rgb_end_interval":
+        if self.render_mode == "rgb_end" or self.render_mode == "rgb_end_interval" or self.render_mode == "rgb_end_interval_nofail":
             self.render_counter = 0
         self.render_interval_eps = render_interval_eps
         self.render_interval_consecutive = render_interval_consecutive # number of episodes to render consecutively at interval
@@ -1491,13 +1491,29 @@ class CantileverEnv_2(gym.Env):
         elif self.render_mode == "rgb_end_interval":
             render_name = f"render{self.render_counter}_eps{self.global_terminated_episodes}_step{self.global_steps}.png" 
             if self.eps_terminate_valid and self.global_terminated_episodes % self.render_interval_eps < self.render_interval_consecutive:
-                render_path = os.path.join(self.render_dir, render_name)
+                render_path = os.path.join(self.render_dir, "img")
+                os.makedirs(render_path, exist_ok=True) # make sure that render directory exists
+                render_path = os.path.join(render_path, render_name)
                 # Save the render
                 self.render_frame()
                 plt.savefig(render_path, bbox_inches='tight')
                 plt.close(self.fig)
                 # Increment the counter for the next file
                 self.render_counter += 1
+
+        elif self.render_mode == "rgb_end_interval_nofail":
+            render_name = f"render{self.render_counter}_eps{self.global_terminated_episodes}_step{self.global_steps}.png" 
+            if self.eps_terminate_valid and self.global_terminated_episodes % self.render_interval_eps < self.render_interval_consecutive:
+                if len(self.curr_fea_graph.failed_elements) == 0:
+                    render_path = os.path.join(self.render_dir, "img")
+                    os.makedirs(render_path, exist_ok=True) # make sure that render directory exists
+                    render_path = os.path.join(render_path, render_name)
+                    # Save the render
+                    self.render_frame()
+                    plt.savefig(render_path, bbox_inches='tight')
+                    plt.close(self.fig)
+                    # Increment the counter for the next file
+                    self.render_counter += 1
 
         elif self.render_mode == "debug_valid":
             if self.render_valid_action:
