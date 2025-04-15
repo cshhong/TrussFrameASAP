@@ -195,8 +195,7 @@ class CantileverEnv_2(gym.Env):
                  bc_inventory_options=[(10,10), (10,5), (5,5), (8,3)],
                  num_target_loads = 2,
                  bc_fixed = None,
-                 elem_sections = [(0.1, 0.1), (0.1, 0.2)],
-                 high_util_percentage = 25
+                 elem_sections = [(0.3, 0.2), (0.1, 0.1), (0.1, 0.2)],
                  ):
         # super().__init__()
 
@@ -249,8 +248,9 @@ class CantileverEnv_2(gym.Env):
 
         # element type - adjust diagonal geometry for different frame types, feagraph->pythonAsap.solve_fea->truss_analysis.jl
         self.element_type_dict = dict() # key: element type int, value : (outer diameter (m), inwards thickness ratio) 
-        self.element_type_dict[0] = elem_sections[0] # default tube 
-        self.element_type_dict[1] = elem_sections[1] # stronger (thicker) tube
+        self.element_type_dict[0] = elem_sections[0] # support tube
+        self.element_type_dict[1] = elem_sections[1] # default tube
+        self.element_type_dict[2] = elem_sections[2] # stronger (thicker) tube
 
         # Initialize current state
         self.curr_frame_grid = np.zeros((self.frame_grid_size_x, self.frame_grid_size_y), dtype=np.int64)
