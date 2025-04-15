@@ -196,6 +196,7 @@ class CantileverEnv_2(gym.Env):
                  num_target_loads = 2,
                  bc_fixed = None,
                  elem_sections = [(0.3, 0.2), (0.1, 0.1), (0.1, 0.2)],
+                 vis_utilization = False,
                  frame_count_penalty = False,
                  ):
         # super().__init__()
@@ -321,8 +322,7 @@ class CantileverEnv_2(gym.Env):
         self.target_support_board = []
 
         # Element utilization
-        self.high_util_percentage = high_util_percentage
-        self.high_util_count = 0
+        self.vis_utilization = vis_utilization # visualizes edges > P90 utilization
 
 
         # Human Playable mode 
@@ -1108,35 +1108,34 @@ class CantileverEnv_2(gym.Env):
         # max_v_id, max_d_mag = max_disp
         # max_x_new, max_y_new = displaced_vertices[max_v_id]
         # self.ax.add_patch(patches.Circle((max_x_new, max_y_new), radius=0.2, color='red', alpha=0.3))
-
-        # Overlay utilization on each edge
-        high_util_count = 0
+        
+        # Get utlization value from edge_utilization
         edge_utilization = self.curr_fea_graph.get_element_utilization() # list of (center_x, center_y, utilization) for each edge 
-        for edge in edge_utilization:
-            center_x, center_y, util, dir = edge
-            util_percent = abs(util)*100
-            if util_percent > self.high_util_percentage:
-                # Determine placement of text depending on edge direction
-                if dir == 'H':  # Horizontal
-                    text_x = center_x
-                    text_y = center_y  # Place above the edge
-                elif dir == 'V':  # Vertical
-                    text_x = center_x # Place to the right of the edge
-                    text_y = center_y
-                elif dir == 'D_LB_RT':  # Diagonal left-bottom to right-top
-                    text_x = center_x - 0.4
-                    text_y = center_y - 0.4 # Place above and to the right
-                elif dir == 'D_LT_RB':  # Diagonal left-top to right-bottom
-                    text_x = center_x + 0.4
-                    text_y = center_y - 0.4  # Place below and to the right
+        util_val = [abs(edge[2])*100 for edge in edge_utilization]
+        # Overlay utilization on each edge
+        if self.vis_utilization == True:
+            for edge in edge_utilization:
+                center_x, center_y, util, dir = edge
+                if util >= self.utilization_ninety_percentile:
+                    # util_percent = abs(util)*100
+                    # if util_percent > self.high_util_percentage:
+                        # Determine placement of text depending on edge direction
+                    if dir == 'H':  # Horizontal
+                        text_x = center_x
+                        text_y = center_y  # Place above the edge
+                    elif dir == 'V':  # Vertical
+                        text_x = center_x # Place to the right of the edge
+                        text_y = center_y
+                    elif dir == 'D_LB_RT':  # Diagonal left-bottom to right-top
+                        text_x = center_x - 0.4
+                        text_y = center_y - 0.4 # Place above and to the right
+                    elif dir == 'D_LT_RB':  # Diagonal left-top to right-bottom
+                        text_x = center_x + 0.4
+                        text_y = center_y - 0.4  # Place below and to the right
 
-                self.ax.text(text_x, text_y, f'{abs(util)*100:.1f}', color='green', rotation=25, fontsize=9, ha='center', va='center')
-                high_util_count += 1
+                    self.ax.text(text_x, text_y, f'{abs(util)*100:.1f}', color='green', rotation=25, fontsize=9, ha='center', va='center')
+                    # high_util_count += 1
         
-        self.high_util_count = high_util_count # update number of highly utilized elements
-
-        
-
     def draw_fea_graph(self):
         '''
         Update self.fig and self.ax based on self.curr_fea_graph
