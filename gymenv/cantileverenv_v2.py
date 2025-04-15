@@ -196,6 +196,7 @@ class CantileverEnv_2(gym.Env):
                  num_target_loads = 2,
                  bc_fixed = None,
                  elem_sections = [(0.3, 0.2), (0.1, 0.1), (0.1, 0.2)],
+                 frame_count_penalty = False,
                  ):
         # super().__init__()
 
@@ -341,6 +342,8 @@ class CantileverEnv_2(gym.Env):
         print("Initialized Cantilever Env!")
         # self.render()
 
+        self.frame_count_penalty = frame_count_penalty # boolean to indicate if frame count penalty is used
+        print(f"Frame count penalty : {self.frame_count_penalty}")
 
     def reset(self, seed=None, **kwargs):
         '''
@@ -625,26 +628,19 @@ class CantileverEnv_2(gym.Env):
             # print(f'    External Load : {self.extr_load_mag}')
             self.eps_terminate_valid = True # used in render_frame to trigger displacement vis, in render to save final img
             self.global_terminated_episodes += 1
-
-            reward += self.num_target_loads # completion reward (long horizon)
-            # reward += 1 # completion reward (long horizon)
-
-            if self.max_deflection < self.allowable_deflection:
-                # reward += 3 * self.allowable_deflection / self.max_deflection  # large reward for low deflection e.g. 0.5 / 0.01 = 50, scale for allowable displacement considering varying bc 
-                # reward += self.allowable_deflection / self.max_deflection  # large reward for low deflection e.g. 0.5 / 0.01 = 50, scale for allowable displacement considering varying bc 
-                reward += 0.5 * np.log(self.allowable_deflection / self.max_deflection)  # large reward for low deflection e.g. 0.5 / 0.01 = 50, scale for allowable displacement considering varying bc 
-                # print(f"    Max Deflection : {self.max_deflection} Deflection Reward : {reward}")
-                # scale reward according to load 
-                # print(f'    deflection reward : {reward}')
-                # reward *= abs(self.extr_load_mag[1])/200 # scale reward by external load magnitude in y direction
+            self.med_frame_count = np.count_nonzero(self.curr_frame_grid == 3)
+            self.light_frame_count = np.count_nonzero(self.curr_frame_grid == 2)
             
-            # reward -= 2*len(self.curr_fea_graph.failed_elements) # large penalty by number of failed elements 
-            # reward -= len(self.curr_fea_graph.failed_elements) # large penalty by number of failed elements 
-            reward -= len(self.curr_fea_graph.failed_elements) * (1/self.max_cantilever_length_f) # large penalty by number of failed elements 
-            # print(f'    failed penalty added : {reward}')
-            # store reward value for render 
-        
-        
+            if self.frame_count_penalty:
+                med_inventory = self.bc_inventory[FrameStructureType.MEDIUM_FREE_FRAME]
+                light_inventory = self.bc_inventory[FrameStructureType.LIGHT_FREE_FRAME]
+
+                # Inventory penalty capped at 1
+                reward -= 2*(self.med_frame_count+self.light_frame_count)/(med_inventory + light_inventory)
+                # if med_inventory > 0:
+                #     reward -= med_frame_count/med_inventory * 0.5 # penalty for using medium frames
+                # if light_inventory > 0:
+                #     reward -= light_frame_count/light_inventory * 0.5 # penalty for using light frames
         if truncated and not terminated:
             # reward -= 20 # large penalty for not finishing within inventory 
             # reward -= 2 # large penalty for not finishing within inventory 
