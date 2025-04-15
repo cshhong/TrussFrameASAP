@@ -1097,11 +1097,11 @@ class CantileverEnv_2(gym.Env):
                 self.ax.add_patch(patches.Circle((new_x, new_y), radius=0.1, color='red', alpha=0.3))
         
         # Connect deflected nodes with edges
-        if self.curr_fea_graph.edges == []:
-            deformed_edges = [(e[0].id, e[1].id) for e in self.curr_fea_graph.edges_dict.keys()]
+        if self.curr_fea_graph.edges == []: # uses edges_dict where keys : (v_1, v_2) Vertex objects, values : (outer diameter, inner wall thickness ratio) instead of edges list of (v_id_1, v_id_2) to get strong edges
+            edges = [(e[0].id, e[1].id) for e in self.curr_fea_graph.edges_dict.keys()]
         else:
-            deformed_edges = self.curr_fea_graph.edges
-        for edge in deformed_edges:
+            edges = self.curr_fea_graph.edges
+        for edge in edges:
             start_id, end_id = edge  # node ids
             start_coord = displaced_vertices[start_id]
             end_coord = displaced_vertices[end_id]
