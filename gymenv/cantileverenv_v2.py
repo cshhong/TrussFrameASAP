@@ -610,6 +610,7 @@ class CantileverEnv_2(gym.Env):
         terminated = False
         truncated = False
         info = {}
+
         action_tuple = self.action_converter.decode(action) # int to action tuple
         end, freeframe_idx, frame_x, frame_y = action_tuple
         end_bool = True if end==1 else False # end is only possible when support and target loads are connected
@@ -617,10 +618,9 @@ class CantileverEnv_2(gym.Env):
         # Apply action
         # print(f'    applying action : {action_tuple}')
         self.apply_action(action_tuple) # if end updates displacement and failed elements in curr_fea_graph
-
-
-        # interim target reward
-        reward += self.is_connected_fraction * 0.01 # 0.05 for each step once one/two target is connected
+        
+        # interim target REWARD
+        reward += self.is_connected_fraction * 0.025 # 0.05 for each step once one/two target is connected
         # Using masked actions : all actions taken are valid actions 
         # if inventory is used up, episode is truncated
         if all(value <= 0 for value in self.inventory_dict.values()):
@@ -725,14 +725,14 @@ class CantileverEnv_2(gym.Env):
                 temp_target_loads_met[target] = True
         return temp_target_loads_met
     
-    def check_is_connected_bidirectional(self, frame_x, frame_y):
+    def check_is_connected_bidirectional_temp(self, frame_x, frame_y):
         '''
         Used in get_action_mask to temporarily forward check given action whether structure is connected (support and target load)
         bidirectional, so have to path find with current frames in board 
         Input : frame center coordinates (frame_x, frame_y)
         Output : copy of self.target_loads_met with updated boolean values
         '''
-        temp_target_loads_met = self.target_loads_met.copy()
+        temp_target_loads_met = copy.deepcopy(self.target_loads_met)
         # check targets that are not connected 
         unconnected_targets = [target for target, met in temp_target_loads_met.items() if not met]
         # start from support, find path to target_support given current frames
@@ -740,27 +740,28 @@ class CantileverEnv_2(gym.Env):
         support_frame = self.board_to_frame(*support_board)
 
         for target in unconnected_targets:
-            target_frame = self.board_to_frame(*target)
-            temp_connected = self.check_connected_path_temp(support_frame, target_frame, frame_x, frame_y)
+            target_support_frame = self.board_to_frame(target[0], target[1]-2)
+            temp_connected = self.check_connected_path_temp(support_frame, target_support_frame, frame_x, frame_y)
             if temp_connected:
                 temp_target_loads_met[target] = True
                  # function to check if current board has path from support to target load
         return temp_target_loads_met
     
-    def check_connected_path_temp(self, support_frame, target_frame, frame_x, frame_y):
+    def check_connected_path_temp(self, support_frame, target_support_frame, frame_x=None, frame_y=None):
         '''
         Lookahead to check if there is path from support to target load, given hypothetical frame
         '''
         # create temporary frame grid with new frame
         temp_frame_grid = copy.deepcopy(self.curr_frame_grid) # Deep copy of the current frame grid
-        temp_frame_grid[frame_x][frame_y] = 2  # Add the hypothetical light free frame
+        if frame_x is not None and frame_y is not None:
+            temp_frame_grid[frame_x][frame_y] = 2  # Add the hypothetical light free frame
 
         # BFS setup
         queue = deque()
         visited = set()
 
         start_x, start_y = support_frame
-        goal_x, goal_y = target_frame
+        goal_x, goal_y = target_support_frame
 
         queue.append((start_x, start_y))
         visited.add((start_x, start_y))
@@ -781,8 +782,7 @@ class CantileverEnv_2(gym.Env):
                             visited.add((nx, ny))
 
         return False
-    
-    
+
     def apply_action(self, valid_action_tuple):
         '''
         Used in step to apply action to current state
@@ -803,20 +803,17 @@ class CantileverEnv_2(gym.Env):
         self.update_inventory_dict(new_frame)
         self.update_frame_grid(new_frame)
         self.update_fea_graph(new_frame)
+
         if end == 1: # update displacement info in fea graph if episode end
             self.update_displacement()
             # update self.max_deflection
             max_node_idx, self.max_deflection = self.curr_fea_graph.get_max_deflection()
             
-        # TODO self.update_frame_graph(new_frame)
-
-        # self.update_curr_obs()
-
         self.frames.append(new_frame)
 
         # self.update_target_meet(new_frame) # updates self.target_loads_met and self.is_connected
         # self.update_target_meet_multiple(new_frame) # updates self.target_loads_met and self.is_connected_fraction
-        self.update_target_meet_bidirectional(new_frame) # updates self.target_loads_met and self.is_connected_fraction
+        self.update_target_loads_met_bidirectional() # updates self.target_loads_met and self.is_connected_fraction
     
     ## Update Current State
     def update_inventory_dict(self, new_frame):
@@ -1041,14 +1038,23 @@ class CantileverEnv_2(gym.Env):
         self.target_loads_met = self.check_is_connected_multiple(new_frame.x, new_frame.y)
         self.is_connected_fraction = sum(self.target_loads_met.values()) / len(self.target_loads_met)
 
-    def update_target_meet_bidirectional(self, new_frame):
+    def update_target_loads_met_bidirectional(self):
         '''
-        Used in apply_action
-        Input : new_frame (x,y) center coordinate
-        Check if any of target load is met with addition of new frame(top right or top left node meets with external load node)
+        given updated grid, update target loads that were not previously connected
         Update self.target_loads_met and self.is_connected_fraction in place
         '''
-        self.target_loads_met = self.check_is_connected_bidirectional(new_frame.x_frame, new_frame.y_frame)
+        unconnected_targets = [target for target, met in self.target_loads_met.items() if not met]
+        
+        # start from support, find path to target_support given current frames
+        support_board = [coord for tup in self.support_board for coord in tup]# unpack support_board list and tuple
+        support_frame = self.board_to_frame(*support_board)
+
+        for target in unconnected_targets:
+            target_support = self.board_to_frame(target[0], target[1]-2)
+            temp_connected = self.check_connected_path_temp(support_frame, target_support)
+            if temp_connected:
+                self.target_loads_met[target] = True
+
         self.is_connected_fraction = sum(self.target_loads_met.values()) / len(self.target_loads_met)
 
     ## Drawing
@@ -1275,8 +1281,6 @@ class CantileverEnv_2(gym.Env):
         '''
         # Create the figure and axes
         self.fig, self.ax = plt.subplots(figsize=self.figsize)
-        # self.ax.set_xlim([0, self.board_size_x])
-        # self.ax.set_ylim([0, self.board_size_y])
         self.ax.clear() # TODO debug existing rect patches showing
 
         if self.render_mode == "human_playable":
@@ -1285,21 +1289,13 @@ class CantileverEnv_2(gym.Env):
             # Connect the keypress event (select frame type)
             self.key_event_id = self.fig.canvas.mpl_connect('key_press_event', self.on_keypress)
 
-        margin = 1
-        self.ax.set_xlim([-margin, self.board_size_x + margin])
-        self.ax.set_ylim([-margin, self.board_size_y + margin])
-        self.ax.set_aspect('equal', adjustable='box')
-        # self.ax.set_xticks(range(self.board_size_x + 1))
-        # self.ax.set_yticks(range(self.board_size_y + 1))
-        self.ax.set_xticklabels([])
-        self.ax.set_yticklabels([])
 
         # Draw grid lines
         # self.ax.grid(True, which='both', color='lightblue', linestyle='-', linewidth=0.5,  zorder=0)
-        for i in range(0, self.board_size_x + 1, 2):
-            self.ax.axvline(x=i, color='lightblue', linestyle='-', linewidth=2, zorder=0)
-        for j in range(0, self.board_size_y + 1, 2):
-            self.ax.axhline(y=j, color='lightblue', linestyle='-', linewidth=2, zorder=0)
+        # for i in range(0, self.board_size_x + 1, 2):
+        #     self.ax.axvline(x=i, color='lightblue', linestyle='-', linewidth=2, zorder=0)
+        # for j in range(0, self.board_size_y + 1, 2):
+        #     self.ax.axhline(y=j, color='lightblue', linestyle='-', linewidth=2, zorder=0)
 
         # Highlight valid position cells (except for final frame if terminated)
         if self.eps_terminate_valid == False:
@@ -1317,15 +1313,6 @@ class CantileverEnv_2(gym.Env):
         if self.eps_terminate_valid == True:
         # if len(self.curr_fea_graph.displacement) != 0 : # check if displacement has been analyzed 
             self.draw_truss_analysis() # last plot has displaced structure 
-            # self.ax.text(
-            #                 0.5, -0.05,  # x=0.5 centers the text, y=0.01 places it at the bottom
-            #                 # f'Allowable Deflection : {self.allowable_deflection:.4f} m',
-            #                 f'Allowable Deflection : {self.allowable_deflection:.3f} m, Max Deflection: {self.max_deflection:.3f} m, Reward: {self.episode_return:.1f}, Episode Length: {self.episode_length}',
-            #                 color='black',
-            #                 fontsize=14,
-            #                 ha='left',  # aligns the text horizontally
-            #                 transform=self.ax.transAxes  # Use axis coordinates
-            #             )
 
             # Caption at termination
             caption_fontsize_large = 16
@@ -1465,6 +1452,15 @@ class CantileverEnv_2(gym.Env):
         #     # Ensure the canvas is available
         #     self.fig.canvas.draw()
         #     self.click_event_id = self.fig.canvas.mpl_connect('button_press_event', self.on_click)
+        
+        margin = 1
+        self.ax.set_xlim([-margin, self.board_size_x + margin])
+        self.ax.set_ylim([-margin, self.board_size_y + margin])
+        self.ax.set_aspect('equal', adjustable='box')
+        # self.ax.set_xticks(range(self.board_size_x + 1))
+        # self.ax.set_yticks(range(self.board_size_y + 1))
+        self.ax.set_xticklabels([])
+        self.ax.set_yticklabels([])
 
     def render(self):
         ''' 
@@ -1709,8 +1705,9 @@ class CantileverEnv_2(gym.Env):
                     #         valid_actions.append((end_bool, freeframe_idx, frame_x, frame_y))
                     # multiple loads 
                     # temp_is_connected = self.check_is_connected_multiple(frame_x, frame_y) # dictionary of target center, boolean 
-                    temp_is_connected = self.check_is_connected_bidirectional(frame_x, frame_y) # dictionary of target center, boolean 
-                    # print(f'for valid pos {frame_x, frame_y} is there path? {temp_is_connected}')
+                    temp_is_connected = self.check_is_connected_bidirectional_temp(frame_x, frame_y) # dictionary of target center, boolean 
+
+                    # with hypothetical frame, all targets are connected add only end action
                     if all(temp_is_connected.values()): # check if all values in the dictionary are true
                         # for end_bool in [False, True]:
                             # valid_actions.append((end_bool, freeframe_idx, frame_x, frame_y))
