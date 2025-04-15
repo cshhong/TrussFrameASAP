@@ -448,9 +448,12 @@ class CantileverEnv_2(gym.Env):
 
         target_condition = [item for (x_frame, y_frame), forces in targetload_frames.items() for item in (x_frame, y_frame, forces[1])] # list of (x_frame, y_frame, y_forcemag) of target loads
         inventory_condition = list(inventory_dict.values()) # list of inventory values
-        target_condition_short = [item for (x_frame, y_frame), _ in targetload_frames.items() for item in (x_frame, y_frame)]
+        target_condition_short = [item for (x_frame, y_frame), forces in targetload_frames.items() for item in (x_frame, y_frame)]
         # self.bc_condition = target_condition + inventory_condition
         self.bc_condition = target_condition_short
+
+        self.csv_bc = target_condition
+        self.csv_inventory = inventory_condition
         # Logging
         # self.support_frames = [list(sf) for sf in support_frames] 
         # self.target_load_frames = [[coord[0], coord[1], force[0], force[1], force[2]] for coord, force in targetload_frames.items()]
@@ -1485,7 +1488,6 @@ class CantileverEnv_2(gym.Env):
         elif self.render_mode == "rgb_end":
             render_name = f"end_{self.render_counter}.png" 
             if self.eps_terminate_valid:
-                self.render_frame()
                 render_path = os.path.join(self.render_dir, render_name)
                 # Save the render
                 self.render_frame()
@@ -1649,8 +1651,6 @@ class CantileverEnv_2(gym.Env):
                 self.human_action_frame_coords = (frame_x, frame_y) 
                 print(f"human selected Frame grid coordinates: ({frame_x}, {frame_y})")
         # if event.inaxes != self.done_button_ax and event.xdata is not None and event.ydata is not None:
-        
-
     
     def on_keypress(self, event):
         '''
