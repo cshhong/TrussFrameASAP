@@ -192,7 +192,15 @@ class FEAGraph:
                 outer_diameter, inward_thickness = self.edge_medium_d, self.edge_medium_thickness
 
         # add to edge dict with replacement 
-        self.edges_dict[edge] = outer_diameter, inward_thickness
+        # self.edges_dict[edge] = outer_diameter, inward_thickness
+
+        # add to edge dict overwriting only when outer_diameter, inward_thickness is larger
+        if edge in self.edges_dict:
+            existing_diameter, existing_thickness = self.edges_dict[edge]
+            if outer_diameter > existing_diameter or inward_thickness > existing_thickness:
+                self.edges_dict[edge] = outer_diameter, inward_thickness
+        else:
+            self.edges_dict[edge] = outer_diameter, inward_thickness
 
 
     # def _combine_segments(self, segments, direction):
