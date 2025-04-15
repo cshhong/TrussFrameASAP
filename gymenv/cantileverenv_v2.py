@@ -292,6 +292,9 @@ class CantileverEnv_2(gym.Env):
         #     # FrameStructureType.HEAVY_FREE_FRAME : *,
         # }
         self.n_all_inventory = None # total number of inventory
+        self.med_frame_count = None # At end of episode, populate number of medium frames used
+        self.light_frame_count = None # At end of episode, populate number of light frames used
+
         self.obs_converter = None # ObservationBijectiveMapping object, used to encode and decode observations
         self.action_converter = None # ActionBijectiveMapping object, used to encode and decode actions
         self.observation_space = None
@@ -435,6 +438,8 @@ class CantileverEnv_2(gym.Env):
         self.inventory_dict = inventory_dict
         self.bc_inventory = inventory_dict.copy() 
         self.n_all_inventory = sum(inventory_dict.values())
+        self.med_frame_count = None # At end of episode, populate number of medium frames used
+        self.light_frame_count = None # At end of episode, populate number of light frames used
 
         # set FrameStructureType.EXTERNAL_FORCE magnitude values TODO where is this used? 
         #TODO handle multiple target loads
