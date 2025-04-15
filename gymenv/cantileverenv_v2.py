@@ -326,6 +326,7 @@ class CantileverEnv_2(gym.Env):
 
         # Element utilization
         self.vis_utilization = vis_utilization # visualizes edges > P90 utilization
+        self.utilization_ninety_percentile = 0 # determined at termination
 
 
         # Human Playable mode 
@@ -1126,6 +1127,7 @@ class CantileverEnv_2(gym.Env):
         # Get utlization value from edge_utilization
         edge_utilization = self.curr_fea_graph.get_element_utilization() # list of (center_x, center_y, utilization) for each edge 
         util_val = [abs(edge[2])*100 for edge in edge_utilization]
+        self.utilization_ninety_percentile = np.percentile(util_val, 90)
         # Overlay utilization on each edge
         if self.vis_utilization == True:
             for edge in edge_utilization:
@@ -1387,11 +1389,32 @@ class CantileverEnv_2(gym.Env):
                 ha='left',
                 transform=self.ax.transAxes  # Use axis coordinates
             )
+            # Utilization 
+            self.ax.text(
+                0.65, -0.075,
+                # f'Utilization Median (%), Std, P90 :',
+                f'Utilization P90:',
+                color='black',
+                fontsize=caption_fontsize_small,
+                ha='left',
+                transform=self.ax.transAxes  # Use axis coordinates
+            )
+
+            self.ax.text(
+                0.75, -0.075,
+                # f'{self.utilization_median:.1f} %, {self.utilization_std:.1f},  {self.utilization_ninety_percentile:.1f} ',
+                f'{self.utilization_ninety_percentile:.1f} ',
+                color='black',
+                weight='bold',
+                fontsize=caption_fontsize_small,
+                ha='left',
+                transform=self.ax.transAxes  # Use axis coordinates
+            )
 
             # New line of text
             # Allowable Deflection text
             self.ax.text(
-                0.1, -0.125,   
+                0.0, -0.125,   
                 'Allowable Deflection :',
                 color='black',
                 fontsize=caption_fontsize_small,
@@ -1400,7 +1423,7 @@ class CantileverEnv_2(gym.Env):
             )
             # Allowable Deflection value
             self.ax.text(
-                0.275, -0.125,     
+                0.175, -0.125,     
                 f'{self.allowable_deflection:.3f} m',
                 color='gray',
                 fontsize=caption_fontsize_small,
@@ -1409,7 +1432,7 @@ class CantileverEnv_2(gym.Env):
             )
             # Frame count text
             self.ax.text(
-                0.35, -0.125,  
+                0.275, -0.125,  
                 'Frame Count :',
                 color='black',
                 fontsize=caption_fontsize_small,
@@ -1418,26 +1441,8 @@ class CantileverEnv_2(gym.Env):
             )
             # Frame count text
             self.ax.text(
-                0.5, -0.125, 
-                f'{self.episode_length}',
-                color='gray',
-                fontsize=caption_fontsize_small,
-                ha='left',   
-                transform=self.ax.transAxes  # Use axis coordinates
-            )
-            # Inventory text
-            self.ax.text(
-                0.6, -0.125,  
-                'Inventory :',
-                color='black',
-                fontsize=caption_fontsize_small,
-                ha='left',   
-                transform=self.ax.transAxes  # Use axis coordinates
-            )
-            # Inventory value
-            self.ax.text(
-                0.7, -0.125,
-                f'light ({self.bc_inventory[FrameStructureType.LIGHT_FREE_FRAME]})     medium ({self.bc_inventory[FrameStructureType.MEDIUM_FREE_FRAME]})',
+                0.4, -0.125, 
+                f'light ({self.light_frame_count} / {self.bc_inventory[FrameStructureType.LIGHT_FREE_FRAME]})      medium ({self.med_frame_count} / {self.bc_inventory[FrameStructureType.MEDIUM_FREE_FRAME]})      total ({self.episode_length} / {self.bc_inventory[FrameStructureType.LIGHT_FREE_FRAME] + self.bc_inventory[FrameStructureType.MEDIUM_FREE_FRAME]})',
                 color='gray',
                 fontsize=caption_fontsize_small,
                 ha='left',   
