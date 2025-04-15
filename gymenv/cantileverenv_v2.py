@@ -1186,39 +1186,50 @@ class CantileverEnv_2(gym.Env):
             #              str(vertex.id), 
             #              fontsize=10, ha='right', color='black')
             
-        # Draw frames
-        for trussframe in self.frames:
-            # outer frame
-            if trussframe.type_structure == FrameStructureType.SUPPORT_FRAME or trussframe.type_structure == FrameStructureType.LIGHT_FREE_FRAME:
-                self.ax.add_patch(patches.Rectangle((trussframe.x - self.frame_size//2, trussframe.y - self.frame_size//2), self.frame_size, self.frame_size, color='black', lw=1.5, fill=False))
-            elif trussframe.type_structure == FrameStructureType.MEDIUM_FREE_FRAME:
-                self.ax.add_patch(patches.Rectangle((trussframe.x - self.frame_size//2, trussframe.y - self.frame_size//2), self.frame_size, self.frame_size, facecolor=((0.7, 0.7, 0.7, 0.6)), edgecolor = 'black', lw=1.5, fill=True))
+        # Draw frames (fill frames)
+        # for trussframe in self.frames:
+        #     # outer frame
+        #     if trussframe.type_structure == FrameStructureType.SUPPORT_FRAME or trussframe.type_structure == FrameStructureType.LIGHT_FREE_FRAME:
+        #         self.ax.add_patch(patches.Rectangle((trussframe.x - self.frame_size//2, trussframe.y - self.frame_size//2), self.frame_size, self.frame_size, color='black', lw=1.5, fill=False))
+        #     elif trussframe.type_structure == FrameStructureType.MEDIUM_FREE_FRAME:
+        #         self.ax.add_patch(patches.Rectangle((trussframe.x - self.frame_size//2, trussframe.y - self.frame_size//2), self.frame_size, self.frame_size, facecolor=((0.7, 0.7, 0.7, 0.6)), edgecolor = 'black', lw=1.5, fill=False))
 
-            # brace
-            if trussframe.type_shape == FrameShapeType.DOUBLE_DIAGONAL:
-                # Add diagonal lines from left bottom to right top, right bottom to left top
-                # Coordinates of the rectangle corners
-                x0 = trussframe.x - self.frame_size / 2
-                y0 = trussframe.y - self.frame_size / 2
-                x1 = trussframe.x + self.frame_size / 2
-                y1 = trussframe.y + self.frame_size / 2
-                # Diagonal from bottom-left to top-right
-                line1 = mlines.Line2D([x0, x1], [y0, y1], color='black', lw=1)
-                self.ax.add_line(line1)
-                # Diagonal from top-left to bottom-right
-                line2 = mlines.Line2D([x0, x1], [y1, y0], color='black', lw=1)
-                self.ax.add_line(line2)
+        #     # brace
+        #     if trussframe.type_shape == FrameShapeType.DOUBLE_DIAGONAL:
+        #         # Add diagonal lines from left bottom to right top, right bottom to left top
+        #         # Coordinates of the rectangle corners
+        #         x0 = trussframe.x - self.frame_size / 2
+        #         y0 = trussframe.y - self.frame_size / 2
+        #         x1 = trussframe.x + self.frame_size / 2
+        #         y1 = trussframe.y + self.frame_size / 2
+        #         # Diagonal from bottom-left to top-right
+        #         line1 = mlines.Line2D([x0, x1], [y0, y1], color='black', lw=1)
+        #         self.ax.add_line(line1)
+        #         # Diagonal from top-left to bottom-right
+        #         line2 = mlines.Line2D([x0, x1], [y1, y0], color='black', lw=1)
+        #         self.ax.add_line(line2)
 
-        # add edge thickness for stronger elements
-        strong_elements = self.curr_fea_graph.get_strong_element_pos() # list of [(x_1,y_1), (x_2,y_2), outer_diameter, inward thickness ratio]
-        for edge in strong_elements:
-            start_coord, end_coord, outer_d, inward_thickness_ratio = edge
-            start_x, start_y = start_coord
-            end_x, end_y = end_coord
+        # # add edge thickness for stronger elements
+        # strong_elements = self.curr_fea_graph.get_strong_element_pos() # list of [(x_1,y_1), (x_2,y_2), outer_diameter, inward thickness ratio]
+        # for edge in strong_elements:
+        #     start_coord, end_coord, outer_d, inward_thickness_ratio = edge
+        #     start_x, start_y = start_coord
+        #     end_x, end_y = end_coord
+        #     # Draw the line connecting the start and end vertices
+        #     strong_line = mlines.Line2D([start_x, end_x], [start_y, end_y], color='black', linewidth=10*outer_d+10* inward_thickness_ratio)
+        #     self.ax.add_line(strong_line)
+        #     # self.ax.plot([start_x, end_x], [start_y, end_y], color='black', linestyle='-', linewidth=1+5* inward_thickness_ratio)
+
+        # Draw edges (alternative to frame)
+        for v_pair, e_section in self.curr_fea_graph.edges_dict.items():
+            start_v, end_v = v_pair
+            outer_d, inward_thickness_ratio = e_section
+            start_coord = start_v.coordinates
+            end_coord = end_v.coordinates
             # Draw the line connecting the start and end vertices
-            strong_line = mlines.Line2D([start_x, end_x], [start_y, end_y], color='black', linewidth=1+5* inward_thickness_ratio)
-            self.ax.add_line(strong_line)
-            # self.ax.plot([start_x, end_x], [start_y, end_y], color='black', linestyle='-', linewidth=1+5* inward_thickness_ratio)
+            linewidth=5*outer_d+50*(inward_thickness_ratio**1.5)
+            self.ax.plot([start_coord[0], end_coord[0]], [start_coord[1], end_coord[1]], color='black', linestyle='-', linewidth=linewidth)
+
 
         # random frame (red highlight)
         # for act in self.rand_init_actions:
@@ -1328,7 +1339,7 @@ class CantileverEnv_2(gym.Env):
             # 0.1 0.25 0.325 0.45 0.55 0.65 0.75 0.85
             # Max Deflection text
             self.ax.text(
-                0.1, -0.075,   
+                0.0, -0.075,   
                 'Max Deflection :',
                 color='black',
                 fontsize=caption_fontsize_small,
@@ -1338,7 +1349,7 @@ class CantileverEnv_2(gym.Env):
             # Max Deflection value
             if self.max_deflection >= self.allowable_deflection:
                 self.ax.text(
-                    0.25, -0.075,     
+                    0.15, -0.075,     
                     f'{self.max_deflection:.3f} m',
                     color='red',
                     fontsize=caption_fontsize_small,
@@ -1348,7 +1359,7 @@ class CantileverEnv_2(gym.Env):
                 )
             else:
                 self.ax.text(
-                    0.25, -0.075,     
+                    0.15, -0.075,     
                     f'{self.max_deflection:.3f} m',
                     color='black',
                     fontsize=caption_fontsize_small,
@@ -1358,7 +1369,7 @@ class CantileverEnv_2(gym.Env):
                 )
             # Reward text
             self.ax.text(
-                0.4, -0.075,   
+                0.3, -0.075,   
                 'Reward :',
                 color='black',
                 fontsize=caption_fontsize_small,
@@ -1367,7 +1378,7 @@ class CantileverEnv_2(gym.Env):
             )
             # Reward value
             self.ax.text(
-                0.5, -0.075,  
+                0.4, -0.075,  
                 f'{self.episode_return:.1f}',
                 color='black',
                 weight='bold',
@@ -1377,9 +1388,30 @@ class CantileverEnv_2(gym.Env):
             )
 
             # High Utilization
+            # self.ax.text(
+            #     0.6, -0.075,
+            #     f'Highly Utilized Elements (>{self.high_util_percentage}%) :',
+            #     color='black',
+            #     fontsize=caption_fontsize_small,
+            #     ha='left',
+            #     transform=self.ax.transAxes  # Use axis coordinates
+            # )
+
+            # self.ax.text(
+            #     0.85, -0.075,
+            #     f'{self.high_util_count} / {len(self.curr_fea_graph.edges_dict)}',
+            #     color='black',
+            #     weight='bold',
+            #     fontsize=caption_fontsize_small,
+            #     ha='left',
+            #     transform=self.ax.transAxes  # Use axis coordinates
+            # )
+
+            # Failed Elements
             self.ax.text(
-                0.6, -0.075,
-                f'Highly Utilized Elements (>{self.high_util_percentage}%) :',
+                0.475, -0.075,
+                # f'Utilization Median (%), Std, P90 :',
+                f'Failed elements :',
                 color='black',
                 fontsize=caption_fontsize_small,
                 ha='left',
@@ -1387,8 +1419,9 @@ class CantileverEnv_2(gym.Env):
             )
 
             self.ax.text(
-                0.85, -0.075,
-                f'{self.high_util_count} / {len(self.curr_fea_graph.edges_dict)}',
+                0.60, -0.075,
+                # f'{self.utilization_median:.1f} %, {self.utilization_std:.1f},  {self.utilization_ninety_percentile:.1f} ',
+                f'{len(self.curr_fea_graph.failed_elements)} ',
                 color='black',
                 weight='bold',
                 fontsize=caption_fontsize_small,
