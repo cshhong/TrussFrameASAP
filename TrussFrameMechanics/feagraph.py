@@ -75,8 +75,9 @@ class FEAGraph:
             self.failed_elements = []
 
         self.edge_type_dict = edge_type_dict
-        self.edge_light_d, self.edge_light_thickness = edge_type_dict[0]
-        self.edge_medium_d, self.edge_medium_thickness = edge_type_dict[1]
+        self.edge_support_d, self.edge_support_thickness = edge_type_dict[0]
+        self.edge_light_d, self.edge_light_thickness = edge_type_dict[1]
+        self.edge_medium_d, self.edge_medium_thickness = edge_type_dict[2]
         
         if edges_dict is not None:
             self.edges_dict = edges_dict
@@ -180,6 +181,12 @@ class FEAGraph:
         '''
         # Set geometry for each edge
         outer_diameter, inward_thickness = self.edge_light_d, self.edge_light_thickness # default
+        if frame_structure_type == FrameStructureType.SUPPORT_FRAME: # support frame
+            # set diagonals strong
+            # if direction == 'LB_RT' or direction == 'LT_RB':
+            #     outer_diameter, inward_thickness = self.edge_support_d, self.edge_support_thickness
+            # set all edges strong
+            outer_diameter, inward_thickness = self.edge_support_d, self.edge_support_thickness
         if frame_structure_type == FrameStructureType.MEDIUM_FREE_FRAME: # thick diagonal for medium frame
             if direction == 'LB_RT' or direction == 'LT_RB':
                 outer_diameter, inward_thickness = self.edge_medium_d, self.edge_medium_thickness
@@ -317,10 +324,14 @@ class FEAGraph:
         # edges_dict : dictionary where keys : (v_1, v_2) Vertex objects, values : (outer diameter, inner wall thickness ratio)
         elem_list = []
         for v_pairs, section in self.edges_dict.items():
-            if section == (self.edge_medium_d, self.edge_medium_thickness):
-                elem_type = 1
-            elif section == (self.edge_light_d, self.edge_light_thickness):
+            if section == (self.edge_support_d, self.edge_support_thickness):
                 elem_type = 0
+            elif section == (self.edge_light_d, self.edge_light_thickness):
+                elem_type = 1
+            elif section == (self.edge_medium_d, self.edge_medium_thickness):
+                elem_type = 2
+            else: 
+                raise ValueError(f"Unknown edge type: {section}")
             elem_list.append((v_pairs[0].id, v_pairs[1].id, elem_type)) # (v1_idx, v2_idx, element_type_idx)
         
         return elem_list
