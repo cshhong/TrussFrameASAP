@@ -646,6 +646,9 @@ class CantileverEnv_2(gym.Env):
                 #     reward -= med_frame_count/med_inventory * 0.5 # penalty for using medium frames
                 # if light_inventory > 0:
                 #     reward -= light_frame_count/light_inventory * 0.5 # penalty for using light frames
+            reward += self.num_target_loads * 2 # completion reward (long horizon)
+            # reward += 1 # completion reward (long horizon)
+            
         if truncated and not terminated:
             # reward -= 20 # large penalty for not finishing within inventory 
             # reward -= 2 # large penalty for not finishing within inventory 
