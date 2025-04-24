@@ -1043,45 +1043,8 @@ class CantileverEnv_2(gym.Env):
         self.curr_fea_graph.failed_elements = failed_elements
         self.curr_fea_graph.utilization = utilization
 
-    def update_target_meet(self, new_frame):
-        '''
-        Used in apply_action
-        Input
-            new_frame 
-        Check if target loads are met (top right or top left node of frame meets with external load node) 
-        Update self.target_loads_met and self.is_connected in place
-        '''
-        # top_right = (new_frame.x + self.frame_size//2, new_frame.y + self.frame_size//2)
-        # top_left = (new_frame.x - self.frame_size//2, new_frame.y + self.frame_size//2)
-        # for target in self.target_loads_met:
-        #     if top_right == target:
-        #         self.target_loads_met[target] = True
-        #     if top_left == target:
-        #         self.target_loads_met[target] = True
-        # if all(self.target_loads_met.values()):
-        #     self.is_connected = True
+        self.max_deflection_node_idx, self.max_deflection = self.curr_fea_graph.get_max_deflection() # update max_deflection
 
-        # use check_is_connected TODO
-
-    def update_target_meet_multiple(self, new_frame):
-        '''
-        Used in apply_action
-        Input : new_frame (x,y) center coordinate
-        Check if any of target load is met with addition of new frame(top right or top left node of frame meets with external load node) 
-        Update self.target_loads_met and self.is_connected_fraction in place
-        '''
-        # top_right = (new_frame.x + self.frame_size//2, new_frame.y + self.frame_size//2)
-        # top_left = (new_frame.x - self.frame_size//2, new_frame.y + self.frame_size//2)
-
-        # for target in self.target_loads_met:
-        #     # print(f'new_frame.x, new_frame.y : {new_frame.x, new_frame.y} target : {target}')
-        #     if (new_frame.x, new_frame.y+2) == target:
-        #         self.target_loads_met[target] = True
-        # update is_connected_fraction 
-        # get list of boolean values from target_loads_met and calculate fraction of True values
-
-        self.target_loads_met = self.check_is_connected_multiple(new_frame.x, new_frame.y)
-        self.is_connected_fraction = sum(self.target_loads_met.values()) / len(self.target_loads_met)
 
     def update_target_loads_met_bidirectional(self):
         '''
