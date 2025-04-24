@@ -1505,6 +1505,24 @@ class CantileverEnv_2(gym.Env):
                 ha='left',   
                 transform=self.ax.transAxes  # Use axis coordinates
             )
+            # # Inventory text
+            # self.ax.text(
+            #     0.575, -0.125,  
+            #     'Inventory :',
+            #     color='black',
+            #     fontsize=caption_fontsize_small,
+            #     ha='left',   
+            #     transform=self.ax.transAxes  # Use axis coordinates
+            # )
+            # # Inventory value
+            # self.ax.text(
+            #     0.7, -0.125,
+            #     f'light ({self.bc_inventory[FrameStructureType.LIGHT_FREE_FRAME]})     medium ({self.bc_inventory[FrameStructureType.MEDIUM_FREE_FRAME]})',
+            #     color='gray',
+            #     fontsize=caption_fontsize_small,
+            #     ha='left',   
+            #     transform=self.ax.transAxes  # Use axis coordinates
+            # )
         else:
             pass
             # print(f'Displacement is empty!')
