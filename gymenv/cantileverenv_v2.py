@@ -359,6 +359,11 @@ class CantileverEnv_2(gym.Env):
 
         self.frame_count_penalty = frame_count_penalty # boolean to indicate if frame count penalty is used
         print(f"Frame count penalty : {self.frame_count_penalty}")
+        self.reward_utilization_scheme = reward_utilization_scheme # boolean to indicate if utilization reward scheme is used
+        print(f'Reward utilization scheme : {self.reward_utilization_scheme}')
+        self.add_max_deflection_reward = add_max_deflection_reward # boolean to indicate if max deflection reward is used
+        print(f'Add max deflection reward : {self.add_max_deflection_reward}')
+
         # Baseline mode
         self.baseline_mode = baseline_mode
         self.baseline_csv_path = baseline_csv_path # path to csv file to save baseline results
