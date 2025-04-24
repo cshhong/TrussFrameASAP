@@ -357,6 +357,13 @@ class CantileverEnv_2(gym.Env):
 
         self.frame_count_penalty = frame_count_penalty # boolean to indicate if frame count penalty is used
         print(f"Frame count penalty : {self.frame_count_penalty}")
+        # Baseline mode
+        self.baseline_mode = baseline_mode
+        self.baseline_csv_path = baseline_csv_path # path to csv file to save baseline results
+        self.baseline_eps_count = baseline_eps_count
+        self.baseline_n_expand = baseline_n_expand
+        self.baseline_n_permute = baseline_n_permute
+
 
     def reset(self, seed=None, **kwargs):
         '''
