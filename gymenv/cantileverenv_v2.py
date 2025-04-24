@@ -442,12 +442,12 @@ class CantileverEnv_2(gym.Env):
             - self.allowable_deflection
             - self.inventory_dict
             - self.frames (add support frame)
-            - self.curr_frame_grid, self.curr_fea_graph, self.frame_graph (populate with support and target frames)
+            - self.curr_frame_grid, self.curr_fea_graph, (populate with support and target frames)
             - self.target_loads_met : dictionary of (center coordinate of frame, bool) indicating if target load is met
             - FrameStructureType.EXTERNAL_FORCE.node_load (set load value)
 
         Set frame grid, frame graph, fea graph accordingly 
-        Set support_frames, target_load_frames for logging and target_loads_met for checking if target is met
+        Set self.support_board, self.target_support_board for logging and target_loads_met for checking if target is met
         '''
         # Get boundary conditions
         # support_frames : dictionary (x_frame, y_frame)  cell location within frame grid of support frames
