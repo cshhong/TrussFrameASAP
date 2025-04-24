@@ -466,7 +466,7 @@ class CantileverEnv_2(gym.Env):
         self.allowable_deflection = self.frame_length_m * max_cantilever_length_f / 120 # length of cantilever(m) / 120
         # self.extr_load_mag = list(targetload_frames.values())[0] # magnitude of external load in kN (x,y,z)
         self.inventory_dict = inventory_dict
-        self.bc_inventory = inventory_dict.copy() 
+        self.bc_inventory = copy.deepcopy(inventory_dict) # does not change after reset
         self.n_all_inventory = sum(inventory_dict.values())
         self.med_frame_count = None # At end of episode, populate number of medium frames used
         self.light_frame_count = None # At end of episode, populate number of light frames used
