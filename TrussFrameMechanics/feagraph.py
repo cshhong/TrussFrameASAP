@@ -119,14 +119,14 @@ class FEAGraph:
         """Get all integer value node ids from FEAGraph object"""
         return [vertex.id for vertex in self.vertices.values()]
     
-    def combine_and_merge_edges(self, frame_type_shape, new_vertices, frame_structure_type=None):
+    def combine_and_merge_edges(self, frame_type_shape=FrameShapeType.DOUBLE_DIAGONAL, new_vertices=None, frame_structure_type=None):
         '''
         (overlapping vertices are merged already)
         Input
             frame_type : FrameShapeType object to indicate which vertices should be connected
             new_vertices : List of Vertex objects in order of bottom-left, bottom-right, top-right, top-left
-        Check overlapping edge segments and merge with maximal edge representation
-        Update self.curr_fea_graph.edges, self.curr_fea_graph.maximal_edges in place
+        Check overlapping edge segments with self.curr_fea_graph.edges_dict
+        Update self.curr_fea_graph.edges_dict, in place
         used within update_curr_fea_graph
         '''
         # check horizontal edges 
