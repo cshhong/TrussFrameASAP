@@ -377,7 +377,7 @@ class CantileverEnv_2(gym.Env):
         Create boundary condition within environment with 
             generate_bc.set_cantilever_env_framegrid(self.frame_grid_size_x)
         that returns support_frames, targetload_frames within the frame grid
-        self.frames, self.valid_pos, self.curr_frame_grid, self.curr_frame_graph, self.curr_fea_graph is updated
+        self.frames, self.valid_pos, self.curr_frame_grid, self.curr_fea_graph is updated
 
         '''
         # print('Resetting Env!')
@@ -390,7 +390,6 @@ class CantileverEnv_2(gym.Env):
         self.frames = []
         self.curr_frame_grid = np.zeros((self.frame_grid_size_x, self.frame_grid_size_y), dtype=np.int64)
         self.curr_fea_graph = FEAGraph(edge_type_dict=self.element_type_dict) #FEAGraph object
-        self.curr_frame_graph = None # TODO graph representation of adjacent frames
         self.valid_pos = set()
 
         self.target_loads_met = {}
@@ -401,9 +400,7 @@ class CantileverEnv_2(gym.Env):
         self.max_cantilever_length_f = 0 # used to limit random init in training function 
         # Set boundary conditions ; support, target load, inventory
         self.initBoundaryConditions() # set self.cantiliver_length_f , self.allowable_deflection, self.inventory_dict, self.frames, self.curr_frame_grid, self.target_loads_met, FrameStructureType.EXTERNAL_FORCE.node_load
-        # self.set_space_converters(self.inventory_dict) # set self.obs_converter, self.action_converter
-        # self.set_gym_spaces(self.obs_converter, self.action_converter) # set self.observation_space, self.action_space
-        
+
         self.eps_terminate_valid = False
 
         self.render_valid_action = True # temporarily turn on to trigger render
@@ -420,7 +417,6 @@ class CantileverEnv_2(gym.Env):
             obs = self.obs_converter.encode(self.curr_frame_grid, inventory_array) # encoded int value obs
         elif self.obs_mode == 'frame_grid':
             obs = self.get_frame_grid_observation()
-            # print(f'Reset obs : \n{self.curr_frame_grid} \n Inventory : {inventory_array} \n obs : \n{obs}')
         # print(f'Reset obs : {self.curr_frame_grid} \n {inventory_array} \n Encoded obs : {obs}')
         info = {} # no info to return
 
