@@ -417,6 +417,12 @@ class CantileverEnv_2(gym.Env):
         # print(f'Reset obs : {self.curr_frame_grid} \n {inventory_array} \n Encoded obs : {obs}')
         info = {} # no info to return
 
+        # Baseline mode
+        if self.baseline_mode:
+            # generate one set of random designs and save in baseline csv
+            for i in range(self.baseline_eps_count):
+                self.generate_random_designs(self.baseline_n_expand, self.baseline_n_permute)
+
         return obs, info
     
     def initBoundaryConditions(self):
