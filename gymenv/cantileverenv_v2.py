@@ -472,7 +472,6 @@ class CantileverEnv_2(gym.Env):
         self.light_frame_count = None # At end of episode, populate number of light frames used
 
         # set FrameStructureType.EXTERNAL_FORCE magnitude values TODO where is this used? 
-        #TODO handle multiple target loads
         FrameStructureType.EXTERNAL_FORCE.node_load = list(targetload_frames.values())[0]
 
         target_condition = [item for (x_frame, y_frame), forces in targetload_frames.items() for item in (x_frame, y_frame, forces[1])] # list of (x_frame, y_frame, y_forcemag) of target loads
@@ -483,9 +482,6 @@ class CantileverEnv_2(gym.Env):
 
         self.csv_bc = target_condition
         self.csv_inventory = inventory_condition
-        # Logging
-        # self.support_frames = [list(sf) for sf in support_frames] 
-        # self.target_load_frames = [[coord[0], coord[1], force[0], force[1], force[2]] for coord, force in targetload_frames.items()]
 
         # used for Path finding
         self.support_board = []
@@ -501,7 +497,6 @@ class CantileverEnv_2(gym.Env):
             self.support_board.append(s_board_coords)
             self.frames.append(new_s_frame)
             self.update_frame_grid(new_s_frame)
-            self.update_frame_graph(new_s_frame)
             self.update_fea_graph(new_s_frame)
 
         for t_frame in targetload_frames.items():
@@ -511,8 +506,7 @@ class CantileverEnv_2(gym.Env):
             new_t_frame = TrussFrameRL(t_center_board, type_structure=FrameStructureType.EXTERNAL_FORCE)
             
             self.update_frame_grid(new_t_frame, t_load_mag=t_load_mag)
-            self.update_frame_graph(new_t_frame)
-            self.update_fea_graph(new_t_frame, t_load_mag) #TODO? need implementation
+            self.update_fea_graph(new_t_frame, t_load_mag) 
             self.target_loads_met[t_center_board] = False
             
             # init light frame under target
@@ -521,7 +515,6 @@ class CantileverEnv_2(gym.Env):
             self.target_support_board.append(t_support_center_board)
             self.frames.append(new_t_frame_support)
             self.update_frame_grid(new_t_frame_support)
-            self.update_frame_graph(new_t_frame_support)
             self.update_fea_graph(new_t_frame_support)
 
     def set_space_converters(self, inventory_dict):
@@ -565,8 +558,6 @@ class CantileverEnv_2(gym.Env):
             
             # Define Observations : frame grid 
             n_max = obs_converter.encoded_reduced_framegrid_max
-            # self.observation_space = Discrete(n=n_obs)
-            # self.observation_space = Box(low=0, high=n_obs, dtype=np.float64)
             # Bounds for the inventory values
             inventory_low = np.zeros(len(self.inventory_dict), dtype=np.float64)  # All inventory values >= 0
             inventory_high = np.array(list(self.inventory_dict.values()), dtype=np.float64)  # Upper bounds for inventory
@@ -575,7 +566,6 @@ class CantileverEnv_2(gym.Env):
             high = np.concatenate([np.array([n_max], dtype=np.float64), inventory_high])
             # Create the Box observation space
             self.observation_space=Box(low=low, high=high, dtype=np.float64)
-            # TODO edit obs_conversion according to this
             print(f'Observation Space : {self.observation_space}')
             self.single_observation_space = self.observation_space
             
