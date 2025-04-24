@@ -930,14 +930,6 @@ class CantileverEnv_2(gym.Env):
                             self.curr_frame_grid[x_adj, y_adj] != FrameStructureType.SUPPORT_FRAME.idx :
                             self.valid_pos.add((x_adj, y_adj)) 
 
-    def update_frame_graph(self, new_frame):
-        '''
-        Given new TrussFrameRL object that is placed, update current frame graph where 
-            - nodes are TrussFrameRL objects
-            - edges are physical adjacencies, relative distance to external forces and supports
-        '''
-        pass #TODO
-    
     def update_fea_graph(self, new_frame, t_load_mag=[0.0, 0.0, 0.0]):
         '''
         Input 
