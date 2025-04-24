@@ -1009,6 +1009,8 @@ class CantileverEnv_2(gym.Env):
                 # add to new vertices to combine edges                    
                 new_vertices.append(new_v) 
 
+            # Check line overlap with existing edge  
+            self.curr_fea_graph.combine_and_merge_edges(frame_type_shape=new_frame.type_shape,new_vertices=new_vertices, frame_structure_type=new_frame.type_structure)
 
     def update_utilization(self):
         '''
