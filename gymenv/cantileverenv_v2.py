@@ -882,6 +882,7 @@ class CantileverEnv_2(gym.Env):
         - self.curr_frame_grid : A grid where each cell is updated based on the frame type.
             - (cell state for array size frame_grid_size_x frame_grid_size_y) 
             - grid where each cell has value force = -1, unoccupied= 0, support frame = 1, free frame (light) = 2, free frame (med) = 3, inventory (light) = 4, inventory (med) = 5
+            - * light frame is added below target load frame
         - self.valid_pos : A set of valid (x, y) frame positions on the frame grid where a new frame can be placed.
         '''
         # Update the current frame grid with the new frame's type
