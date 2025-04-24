@@ -1175,17 +1175,11 @@ class CantileverEnv_2(gym.Env):
         # max_x_new, max_y_new = displaced_vertices[max_v_id]
         # self.ax.add_patch(patches.Circle((max_x_new, max_y_new), radius=0.2, color='red', alpha=0.3))
         
-        # Get utlization value from edge_utilization
-        edge_utilization = self.curr_fea_graph.get_element_utilization() # list of (center_x, center_y, utilization) for each edge 
-        util_val = [abs(edge[2])*100 for edge in edge_utilization]
-        self.utilization_ninety_percentile = np.percentile(util_val, 90)
         # Overlay utilization on each edge
         if self.vis_utilization == True:
-            for edge in edge_utilization:
+            for edge in self.edge_utilization:
                 center_x, center_y, util, dir = edge
                 if util >= self.utilization_ninety_percentile:
-                    # util_percent = abs(util)*100
-                    # if util_percent > self.high_util_percentage:
                         # Determine placement of text depending on edge direction
                     if dir == 'H':  # Horizontal
                         text_x = center_x
@@ -1201,7 +1195,6 @@ class CantileverEnv_2(gym.Env):
                         text_y = center_y - 0.4  # Place below and to the right
 
                     self.ax.text(text_x, text_y, f'{abs(util)*100:.1f}', color='green', rotation=25, fontsize=9, ha='center', va='center')
-                    # high_util_count += 1
         
     def draw_fea_graph(self):
         '''
