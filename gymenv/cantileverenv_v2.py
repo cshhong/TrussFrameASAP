@@ -778,7 +778,7 @@ class CantileverEnv_2(gym.Env):
         # check targets that are not connected 
         unconnected_targets = [target for target, met in temp_target_loads_met.items() if not met]
         # start from support, find path to target_support given current frames
-        support_board = [coord for tup in self.support_board for coord in tup]# unpack support_board list and tuple
+        support_board = [coord for tup in self.support_board for coord in tup] # unpack support_board list and tuple
         support_frame = self.board_to_frame(*support_board)
 
         for target in unconnected_targets:
