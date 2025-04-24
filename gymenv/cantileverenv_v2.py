@@ -1793,13 +1793,7 @@ class CantileverEnv_2(gym.Env):
             freeframe_type = FrameStructureType.get_framestructuretype_from_idx(freeframe_idx+2) # dictionary key is FrameStructureType
             if self.inventory_dict[freeframe_type] > 0:
                 for frame_x, frame_y in self.valid_pos:
-                    # forward look ahead to check if support and target loads are connected
-                    # temp_is_connected = self.check_is_connected(frame_x, frame_y)
-                    # if temp_is_connected == True:
-                    #     for end_bool in [False, True]:
-                    #         valid_actions.append((end_bool, freeframe_idx, frame_x, frame_y))
-                    # multiple loads 
-                    # temp_is_connected = self.check_is_connected_multiple(frame_x, frame_y) # dictionary of target center, boolean 
+                    # look ahead to check if support and target loads are connected
                     temp_is_connected = self.check_is_connected_bidirectional_temp(frame_x, frame_y) # dictionary of target center, boolean 
 
                     # with hypothetical frame, all targets are connected add only end action
