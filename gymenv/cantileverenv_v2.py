@@ -918,13 +918,7 @@ class CantileverEnv_2(gym.Env):
                 if 0 <= x_adj < self.frame_grid_size_x and 0 <= y_adj < self.frame_grid_size_y:
                     # check if adjacent cell is in target x bounds
                     if self.target_x_bounds[0] <= x_adj and x_adj <= self.target_x_bounds[1]:
-                        # check if adjacent cell is not in external force cell
-                        # if self.curr_frame_grid[x_adj, y_adj] != FrameStructureType.EXTERNAL_FORCE.idx:
-                        #     # print(f'self.frame_grid_size_x, frame_grid_size_y : {self.frame_grid_size_x, self.frame_grid_size_y}')
-                        #     # If the adjacent cell is unoccupied, add it to valid_pos
-                        #     if self.curr_frame_grid[x_adj, y_adj] == FrameStructureType.UNOCCUPIED.idx:
-                        #         self.valid_pos.add((x_adj, y_adj)) 
-                        #         # if (x_adj, y_adj) not in self.valid_pos:
+                        # check if adjacent cell is not occupied
                         if self.curr_frame_grid[x_adj, y_adj] != FrameStructureType.LIGHT_FREE_FRAME.idx and \
                             self.curr_frame_grid[x_adj, y_adj] != FrameStructureType.MEDIUM_FREE_FRAME.idx and \
                             self.curr_frame_grid[x_adj, y_adj] != FrameStructureType.SUPPORT_FRAME.idx :
