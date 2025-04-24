@@ -1200,9 +1200,12 @@ class CantileverEnv_2(gym.Env):
         '''
         Update self.fig and self.ax based on self.curr_fea_graph
         used in render_frame
-        '''
-        text_offset = 0.1
+        uses 
+            - self.curr_fea_graph.vertices to draw nodes
+            - self.curr_fea_graph.edges_dict to add strong edges
+            - self.curr_fea_graph.external_loads to draw external loads
 
+        '''
         vertices = self.curr_fea_graph.vertices.items() # coord, Vertex object pairs
         # maximal_edges = self.curr_fea_graph.maximal_edges.items()
         # supports = self.curr_fea_graph.supports # list of board coords where the nodes are supports / pinned (as opposed to free)
