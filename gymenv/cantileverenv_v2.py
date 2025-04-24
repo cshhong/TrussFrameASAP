@@ -625,6 +625,13 @@ class CantileverEnv_2(gym.Env):
             - freeframe_idx inventory is 0 (other frame types are not used up)
             - end_bool = True but support and target loads are not connected
         '''
+        if self.baseline_mode == True:
+            # already sampled in reset(), only need to terminate
+            obs, reward, terminated, truncated, info = None, 0, True, False, {} #Debug is it ok if obs is None?
+            self.eps_terminate_valid = True
+            self.render()
+            return obs, reward, terminated, truncated, info
+        
         if self.reset_env_bool==True:
                 self.reset_env_bool = False # set to True to initialize random actions in training function
 
