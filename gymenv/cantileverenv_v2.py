@@ -686,13 +686,41 @@ class CantileverEnv_2(gym.Env):
                 #     reward -= med_frame_count/med_inventory * 0.5 # penalty for using medium frames
                 # if light_inventory > 0:
                 #     reward -= light_frame_count/light_inventory * 0.5 # penalty for using light frames
+
+            if self.reward_utilization_scheme:
+                # count frame types used in current frame grid
+                med_frame_count = np.count_nonzero(self.curr_frame_grid == 3)
+                light_frame_count = np.count_nonzero(self.curr_frame_grid == 2)
+                med_inventory = self.bc_inventory[FrameStructureType.MEDIUM_FREE_FRAME]
+                light_inventory = self.bc_inventory[FrameStructureType.LIGHT_FREE_FRAME]
+                # reward for using less frames
+                if med_inventory > 0:
+                    reward += med_inventory/med_frame_count * 0.5
+                reward += light_inventory/light_frame_count * 0.5 
+                
+                # Large failed element penalty
+                reward -= len(self.curr_fea_graph.failed_elements) # large penalty by number of failed elements
+
+                if self.max_deflection > self.allowable_deflection:
+                    reward -= 1 # large penalty for deflection over allowable
+
+                if self.add_max_deflection_reward:
+                    if self.max_deflection < self.allowable_deflection:
+                        reward += np.log(self.allowable_deflection / self.max_deflection)
+
+
+            if self.reward_utilization_scheme == False:
+                # max_deflection reward
+                # if self.max_deflection < self.allowable_deflection:
+                #     reward += np.log(self.allowable_deflection / self.max_deflection)  # large reward for low deflection e.g. 0.5 / 0.01 = 50, scale for allowable displacement considering varying bc 
+                if self.max_deflection >= self.allowable_deflection:
+                    reward -= 1 # penalty for exceeding max deflection
+                reward -= len(self.curr_fea_graph.failed_elements) # large penalty by number of failed elements 
+
             reward += self.num_target_loads * 2 # completion reward (long horizon)
-            # reward += 1 # completion reward (long horizon)
             
         if truncated and not terminated:
-            # reward -= 20 # large penalty for not finishing within inventory 
-            # reward -= 2 # large penalty for not finishing within inventory 
-            reward = 0
+            reward = 0 # Fixed value for episodes that truncate
 
         # Render frame
         self.render_valid_action = True
