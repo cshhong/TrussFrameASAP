@@ -201,6 +201,8 @@ class CantileverEnv_2(gym.Env):
                  elem_sections = [(0.3, 0.2), (0.1, 0.1), (0.1, 0.2)],
                  vis_utilization = False,
                  frame_count_penalty = False,
+                 reward_utilization_scheme = False,
+                 add_max_deflection_reward = False,
                  predetermined_framegrids = None, 
                  baseline_mode=False,
                  baseline_csv_path = None,
