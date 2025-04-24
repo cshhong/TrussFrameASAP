@@ -1271,21 +1271,6 @@ class CantileverEnv_2(gym.Env):
         #     self.ax.add_patch(rect)
             
 
-        # # Draw maximal edges (optional, if visually distinct from normal edges)
-        # for direction, edges in maximal_edges:
-        #     for edge in edges:
-        #         if len(edge.vertices) >= 2:
-        #             # Get start and end vertices from the list of vertices
-        #             start_me = edge.vertices[0]
-        #             end_me = edge.vertices[-1]
-                    
-        #             # Draw the line connecting the start and end vertices
-        #             self.ax.plot([start_me.coordinates[0], end_me.coordinates[0]], 
-        #                         [start_me.coordinates[1], end_me.coordinates[1]], 
-        #                         color='black', linestyle='-', linewidth=1)
-        #         else:
-        #             print(f"Warning: Maximal edge in direction {direction} has less than 2 vertices and cannot be drawn.")
-        
         # Draw external forces as red arrows
         # self.curr_fea_graph.external_loads.items() are list of (coord, loads)
         # loads are distributed along bottom left and right nodes of target load frame
