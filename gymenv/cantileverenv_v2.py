@@ -62,7 +62,6 @@ class CantileverEnv_2(gym.Env):
         Observation Modes: 
         - 'frame_grid': Only use the frame grid.
         - 'fea_graph': Only use the FEA graph.
-        - 'frame_graph': Only use the frame graph.
         
         Render modes:
             None : no render is computed (used in training) 
@@ -126,11 +125,6 @@ class CantileverEnv_2(gym.Env):
             (obs_mode)'frame_grid_singleint' : single int encoding of frame_grid with inventory values
             (obs_mode)'frame_grid' : frame_grid representation + added row with inventory values at end of row
 
-            frame_graph 
-                - Based on the frame_grid representation
-                - Nodes represent frames and Edges represent adjacency, and relative distance to support/external force
-                - TrussFrameRL objects are connected based on adjacency, all free TrussFrameRL objects are connected with external force object 
-
             fea_graph
                      y
                      ↑
@@ -169,14 +163,10 @@ class CantileverEnv_2(gym.Env):
                 Free Frame index : 2, 3  (light, medium) (follows FrameStructureType index)
                 Frame x, y : 0 to self.frame_grid_size_x, self.frame_grid_size_y
             
-            2) (decided not to use) Relative Coordinates (end_bool, frame_graph_id, left/right/top/bottom)
-                - if there are multiple supports, should only be used with frame_graph state space
-
-    
     '''
     metadata = {"render_modes": [None, "debug_all", "debug_valid", "rgb_list", "debug_end", "rgb_end", "rgb_end_interval", "rgb_end_interval_nofail", "human_playable"], 
                 "render_fps": 1,
-                "obs_modes" : ['frame_grid_singleint', 'frame_grid', 'fea_graph', 'frame_graph'],
+                "obs_modes" : ['frame_grid_singleint', 'frame_grid', 'fea_graph'],
                 }
 
 
@@ -247,9 +237,7 @@ class CantileverEnv_2(gym.Env):
 
         # Current State (Frames)
         self.frames=[] # stores TrussFrameRL objects in sequence of creation
-        # self.support_frames = [] # list of TrussFrameRL objects
         
-
         # Boundary Conditions
         self.frame_length_m = 3.0 # actual length of frame in meters used in truss analysis
         # from args
@@ -270,7 +258,6 @@ class CantileverEnv_2(gym.Env):
 
         # create dictionary frame values 
         self.curr_fea_graph = FEAGraph(edge_type_dict=self.element_type_dict) #FEAGraph object
-        self.curr_frame_graph = None # TODO graph representation of adjacent frames
 
         # if actions are taken outside of valid_pos, large negative reward is given.  
         self.valid_pos = set() # set of frame_grid coordinates (frame_x, frame_y) in which new frame can be placed 
@@ -285,8 +272,6 @@ class CantileverEnv_2(gym.Env):
         self.disp_reward_scale = 1e2 # scale displacement reward to large positive reward
 
         # Used for Logging
-        # self.support_frames = [] # 2D list of [x_frame, y_frame]
-        # self.target_load_frames = [] # 2D list of [x_frame,y_frame, x_forcemag, y_forcemag, z_forcemag] 
         self.max_deflection = None # float max deflection of the structure after completion at FEA
         self.max_deflection_node_idx = None
         
