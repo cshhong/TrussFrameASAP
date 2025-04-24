@@ -893,7 +893,7 @@ class CantileverEnv_2(gym.Env):
         # else:
         #     raise ValueError(f"Position ({new_frame.x_frame}, {new_frame.y_frame}) is not a valid position for placing a frame.")
         
-        # (Optional : add load magnitude to frame grid observation)
+        # (optional) Add load magnitude to frame grid observation
         # if new_frame.type_structure == FrameStructureType.EXTERNAL_FORCE: # target frame
         #     assert t_load_mag is not None, "Target load magnitude must be provided for target frame"
         #     # stack additional cells in pos y direction according to load magnitude ex) 100kN load -> 0 additional cells, 200KN -> 1 additional cell ...
