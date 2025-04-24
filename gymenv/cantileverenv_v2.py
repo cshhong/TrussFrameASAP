@@ -1009,8 +1009,20 @@ class CantileverEnv_2(gym.Env):
                 # add to new vertices to combine edges                    
                 new_vertices.append(new_v) 
 
-            # Check line overlap with existing edge using maximal edge representation 
-            self.curr_fea_graph.combine_and_merge_edges(frame_type_shape=new_frame.type_shape, new_vertices=new_vertices, frame_structure_type=new_frame.type_structure)
+
+    def update_utilization(self):
+        '''
+        Called in apply_action at termination 
+        Updates self.utilization_median, self.utilization_std, self.utilization_ninety_percentile
+        '''
+        # Get utlization value from edge_utilization
+        self.edge_utilization = self.curr_fea_graph.get_element_utilization() # list of (center_x, center_y, utilization) for each edge 
+        util_val = [abs(edge[2])*100 for edge in self.edge_utilization]
+        self.utilization_min = np.min(util_val)
+        self.utilization_max = np.max(util_val)
+        self.utilization_median = np.median(util_val)
+        self.utilization_std = np.std(util_val)
+        self.utilization_ninety_percentile = np.percentile(util_val, 90) # TODO should this exclude failed elements?
 
     def update_displacement(self):
         '''
