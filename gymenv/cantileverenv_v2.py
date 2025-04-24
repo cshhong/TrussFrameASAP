@@ -750,32 +750,6 @@ class CantileverEnv_2(gym.Env):
         return obs, reward, terminated, truncated, info
         
     
-    def check_is_connected(self, frame_x, frame_y):
-        '''
-        # Used in step to temporarily forward check given action whether structure is connected (support and target load)
-        # Input : frame center coordinates (frame_x, frame_y)
-        # Output : True if single target load is met
-        # '''
-        # # check if top-right, or top-left node of frame changes current self.target_loads_met values
-        # # given temporary changed values, if all are true, return True
-        # temp_target_loads_met = self.target_loads_met.copy()
-        
-        # center = self.frame_to_board(frame_x, frame_y) # get center board coordinates
-        # top_right = (center[0] + self.frame_size//2, center[1] + self.frame_size//2)
-        # top_left = (center[0] - self.frame_size//2, center[1] + self.frame_size//2)
-
-        # for target in self.target_loads_met:
-        #     if top_right == target:
-        #         temp_target_loads_met[target] = True
-        #     if top_left == target:
-        #         temp_target_loads_met[target] = True
-
-        # # Check if all target loads are met
-        # if all(temp_target_loads_met.values()):
-        #     return True
-        # else:
-        #     return False
-        
     def check_is_connected_multiple(self, frame_x, frame_y):
         '''
         Used in get_action_mask to forward check given action whether structure is connected (support and target load)
