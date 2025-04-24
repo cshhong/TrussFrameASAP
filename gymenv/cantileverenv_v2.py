@@ -599,17 +599,6 @@ class CantileverEnv_2(gym.Env):
             print(f'Action Space : {self.action_space} sampling seed : {self.rand_init_seed}')
             self.single_action_space = self.action_space
 
-        elif self.obs_mode == 'fea_graph':
-            print('TODO Need to implement set_gym_spaces for fea_graph!')
-            pass
-            # Gymnasium Composite Spaces - Graph 
-            # Graph - node_features (frame type), edge_features(connection direction), edge_links
-            # Dict (not directly used in learning but can store human interpretable info)
-        elif self.obs_mode == 'frame_graph':
-            print('TODO Need to implement set_gym_spaces for frame_graph!')
-            pass
-            self.observation_space = Graph(node_space=Box(low=0, high=self.n_all_inventory+len(self.target_loads_met), shape=(1,)), edge_space=Discrete(3), seed=1)
-    
 
     def step(self, action):
         '''
