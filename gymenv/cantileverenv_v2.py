@@ -971,14 +971,10 @@ class CantileverEnv_2(gym.Env):
         ]
 
         if new_frame.type_structure == FrameStructureType.EXTERNAL_FORCE: # target frame
-            # Bottom right vertex of proxy frame is registered as load but not as Vertex object
-            # target_load_pos = vert_pos[1]
-            # self.curr_fea_graph.external_loads[target_load_pos] = t_load_mag
-            target_load_pos = vert_pos[0], vert_pos[1] # bottom right, top right
+            target_load_pos = vert_pos[0], vert_pos[1] # bottom right, top right vertices of target frame
             for pos in target_load_pos:
                 self.curr_fea_graph.external_loads[pos] = [l / 2 for l in t_load_mag] # distribute load to two nodes
-            # print(f'adding external load to fea graph : {target_load_pos}')
-            # TODO need to cross check with existing Vertices if target load is added after environment init
+            # print(f'added external load to fea graph : {target_load_pos}')
         else: # SUPPORT_FRAME, LIGHT_FREE_FRAME, MEDIUM_FREE_FRAME
             new_vertices = [] # Vertex object in order of bottom-left, bottom-right, top-right, top-left
             for i, pos in enumerate(vert_pos):
