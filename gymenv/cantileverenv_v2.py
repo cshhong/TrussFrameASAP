@@ -1024,7 +1024,6 @@ class CantileverEnv_2(gym.Env):
         # Solve truss model with ASAP
         module_name = f"TrussFrameRL_{self.env_idx}"
         jl = juliacall.newmodule(module_name) 
-        # jl = juliacall.newmodule("TrussFrameRL") 
         curr_env = jl.seval('Base.active_project()')
         # print(f"The current active Julia environment is located at: {curr_env}")
 
@@ -1032,10 +1031,9 @@ class CantileverEnv_2(gym.Env):
         # jl.seval('using AsapToolkit')
         jl.seval('using Asap')
 
-        truss_analysis_path = os.path.join(PARENT_DIR, "..", "TrussFrameMechanics", "truss_analysis.jl")
         # Include the Julia file using the absolute path
+        truss_analysis_path = os.path.join(PARENT_DIR, "..", "TrussFrameMechanics", "truss_analysis.jl")
         jl.include(truss_analysis_path)
-        # jl.include("TrussFrameMechanics/truss_analysis.jl") # system path error
         jl.seval('using .TrussAnalysis')
 
         displacement, failed_elements, utilization = pythonAsap.solve_fea(jl, self.curr_fea_graph, self.frame_length_m) # return nodal displacement
