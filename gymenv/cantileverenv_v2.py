@@ -424,6 +424,8 @@ class CantileverEnv_2(gym.Env):
         # print(f'Reset obs : {self.curr_frame_grid} \n {inventory_array} \n Encoded obs : {obs}')
         info = {} # no info to return
 
+        gc.collect() # garbage collection to prevent memory leak
+
         # Baseline mode
         if self.baseline_mode:
             # generate one set of random designs and save in baseline csv
