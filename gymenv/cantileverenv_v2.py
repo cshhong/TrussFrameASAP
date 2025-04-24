@@ -682,9 +682,10 @@ class CantileverEnv_2(gym.Env):
 
                 # Inventory penalty capped at 1
                 reward -= 2*(self.med_frame_count+self.light_frame_count)/(med_inventory + light_inventory)
+                # (optional) separate inventory panalty for frame types
                 # if med_inventory > 0:
                 #     reward -= med_frame_count/med_inventory * 0.5 # penalty for using medium frames
-                # if light_inventory > 0:
+                # if light_inventory > 0:f
                 #     reward -= light_frame_count/light_inventory * 0.5 # penalty for using light frames
 
             if self.reward_utilization_scheme:
