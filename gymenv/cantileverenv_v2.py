@@ -847,10 +847,9 @@ class CantileverEnv_2(gym.Env):
         self.update_fea_graph(new_frame)
 
         if end == 1: # update displacement info in fea graph if episode end
-            self.update_displacement()
-            # update self.max_deflection
-            max_node_idx, self.max_deflection = self.curr_fea_graph.get_max_deflection()
-            
+            self.update_displacement() # updates self.max_deflection, self.max_deflection_node_idx
+            self.update_utilization() # updates self.max_utilization
+        
         self.frames.append(new_frame)
 
         self.update_target_loads_met_bidirectional() # updates self.target_loads_met and self.is_connected_fraction
