@@ -1425,26 +1425,6 @@ class CantileverEnv_2(gym.Env):
                 transform=self.ax.transAxes  # Use axis coordinates
             )
 
-            # High Utilization
-            # self.ax.text(
-            #     0.6, -0.075,
-            #     f'Highly Utilized Elements (>{self.high_util_percentage}%) :',
-            #     color='black',
-            #     fontsize=caption_fontsize_small,
-            #     ha='left',
-            #     transform=self.ax.transAxes  # Use axis coordinates
-            # )
-
-            # self.ax.text(
-            #     0.85, -0.075,
-            #     f'{self.high_util_count} / {len(self.curr_fea_graph.edges_dict)}',
-            #     color='black',
-            #     weight='bold',
-            #     fontsize=caption_fontsize_small,
-            #     ha='left',
-            #     transform=self.ax.transAxes  # Use axis coordinates
-            # )
-
             # Failed Elements
             self.ax.text(
                 0.475, -0.075,
