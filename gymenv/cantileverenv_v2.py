@@ -288,6 +288,7 @@ class CantileverEnv_2(gym.Env):
         # self.support_frames = [] # 2D list of [x_frame, y_frame]
         # self.target_load_frames = [] # 2D list of [x_frame,y_frame, x_forcemag, y_forcemag, z_forcemag] 
         self.max_deflection = None # float max deflection of the structure after completion at FEA
+        self.max_deflection_node_idx = None
         
         # Set current observation based on observation mode
         self.obs_mode = obs_mode  # Set the observation mode
