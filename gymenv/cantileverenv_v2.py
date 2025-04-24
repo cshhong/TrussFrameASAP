@@ -1109,6 +1109,13 @@ class CantileverEnv_2(gym.Env):
         Given that displacement has been updated
         Overlay displaced truss to plot by updating self.fig and self.ax based on self.curr_fea_graph.displacement
         Overlay failed elements in red based on self.curr_fea_graph.failed_elements
+
+        uses 
+            - self.curr_fea_graph.vertices 
+            - self.curr_fea_graph.displacement
+            - self.curr_fea_graph.edges 
+            - self.curr_fea_graph.get_element_utilization()
+            - self.curr_fea_graph.displacement
         '''
         displaced_truss_color = 'gray'
         disp_vis_scale = 2 # scale displacement for visualization 
