@@ -1458,7 +1458,7 @@ class CantileverEnv_2(gym.Env):
             )
 
             self.ax.text(
-                0.75, -0.075,
+                0.80, -0.075,
                 # f'{self.utilization_median:.1f} %, {self.utilization_std:.1f},  {self.utilization_ninety_percentile:.1f} ',
                 f'{self.utilization_ninety_percentile:.1f} ',
                 color='black',
