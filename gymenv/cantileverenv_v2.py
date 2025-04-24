@@ -1335,6 +1335,19 @@ class CantileverEnv_2(gym.Env):
     def render_frame(self):
         '''
         initialize and updates self.ax, self.fig object 
+        uses
+            - self.valid_pos
+            - self.curr_fea_graph
+            (draw_fea_graph)
+            - self.curr_fea_graph.vertices to draw nodes
+            - self.curr_fea_graph.edges_dict to draw edges
+            - self.curr_fea_graph.external_loads to draw external loads
+            (draw_truss_analysis)
+            - self.curr_fea_graph.vertices 
+            - self.curr_fea_graph.displacement
+            - self.curr_fea_graph.edges_dict 
+            - self.curr_fea_graph.get_element_utilization()
+            - self.curr_fea_graph.displacement
         '''
         # Create the figure and axes
         self.fig, self.ax = plt.subplots(figsize=self.figsize)
