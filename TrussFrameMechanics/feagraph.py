@@ -32,13 +32,13 @@ class FEAGraph:
             is_free : Boolean that represent whether the structural node is free or pinned
             load : load value on vertex
     supports : list of board coordinates of the nodes in the frame are supports / pinned (as opposed to free)
-    edges : An adjacency list of tuples representing edges, where each tuple contains vertex indices.
-    maximal_edges : A dictionary where keys are directions and values are a list of MaximalEdge objects. (only useful for overlapping frames)
+    (outdated) edges : An adjacency list of tuples representing edges, where each tuple contains vertex indices. 
+    edges_dict : dictionary where keys : (v_1, v_2) Vertex objects, values : (outer diameter, inner wall thickness ratio)
     external_loads : dictionary where key : coordinate in board, value : load magnitude [load.x, load.y, load.z]
     displacement :  2D list of nodal displacement [x,y,z] for each node in node index order. Only non-empty upon fea (eps end)
     failed_elements : list of tuple (node_idx1, node_idx2, compression-0/tension-1)
 
-    # apply stronger elements to diagonals of medium weights
+    # Apply variations of sections
     edge_type_dict : dictionary where key : edge type int (weakest -> strongest), value : (outer diameter, inner wall thickness ratio) 
     edges_dict : dictionary where keys : (v_1, v_2) Vertex objects, values : (outer diameter, inner wall thickness ratio)
     
@@ -56,13 +56,6 @@ class FEAGraph:
         
         self.vertices = vertices if vertices is not None else {}
         self.edges = edges if edges is not None else []
-        self.maximal_edges = maximal_edges if maximal_edges is not None else {
-                                                                                'horizontal': [],
-                                                                                'vertical': [],
-                                                                                'LB_RT': [], 
-                                                                                'LT_RB': []
-                                                                            }
-        self.maximal_edges_merged = False
 
         if displacement is not None:
             self.displacement = displacement
@@ -95,21 +88,31 @@ class FEAGraph:
         externalloads_repr = "\n".join([f"  {coord}: {load_val}" for coord, load_val in self.external_loads.items()])
         vertices_repr = "\n".join([f"  {coord}: {v}" for coord, v in self.vertices.items()])
         edges_repr = "\n".join([f"  {e}" for e in self.edges])
-        maximal_edges_repr = "\n".join([f"  {d}: {edges}" for d, edges in self.maximal_edges.items()])
-        displacement_repr = "\n".join([f"  {node_idx}: {displacement}" for node_idx, displacement in enumerate(self.displacement)])
+        # displacement_repr = "\n".join([f"  {node_idx}: {displacement}" for node_idx, displacement in enumerate(self.displacement)])
+        displacement_repr = "\n".join(
+                            f"  {node_idx}: [{', '.join(f'{x:.2f}' for x in disp)}]"
+                            for node_idx, disp in enumerate(self.displacement)
+                        )
         failed_elements_repr = "\n".join([f"  {e}" for e in self.failed_elements])
+        edge_dict_repr = "\n".join([f"  {edge}: {section}" for edge, section in self.edges_dict.items()])
+        edge_type_dict_repr = "\n".join([f"  {idx}: {section}" for idx, section in self.edge_type_dict.items()])
+        utilization_repr = "\n".join([f"  {idx}: {util}" for idx, util in enumerate(self.utilization)])
 
         return (
             # f"Default Node load : ({self.default_node_load})\n"
             f"Supports ({len(self.supports)}):\n{supports_repr}\n"
             f"External Loads ({len(self.external_loads)}):\n{externalloads_repr}\n"
-            # f"Vertices ({len(self.vertices)}):\n{vertices_repr}\n"
-            f"Vertices ({len(self.vertices)})\n"
+            f"Vertices ({len(self.vertices)}):\n{vertices_repr}\n"
+            # f"Vertices ({len(self.vertices)})\n"
             # f"Edges ({len(self.edges)}):\n{edges_repr}\n"
-            f"Edges ({len(self.edges)})\n"
+            # f"Edges ({len(self.edges)})\n"
             # f"Maximal Edges ({len(self.maximal_edges)}):\n{maximal_edges_repr}\n"
             f"Displacement ({len(self.displacement)}):\n{displacement_repr}\n)"
-            f"Failed Elements ({len(self.failed_elements)}):\n{failed_elements_repr}\n)"
+            # f"Failed Elements ({len(self.failed_elements)}):\n{failed_elements_repr}\n)"
+            # f"Edge Dictionary ({len(self.edges_dict)}):\n{edge_dict_repr}\n"
+            # f"Edge Type Dictionary ({len(self.edge_type_dict)}):\n{edge_type_dict_repr}\n"
+            # f"Utilization ({len(self.utilization)}):\n{utilization_repr}\n"
+
         )
 
     def get_all_node_ids(self):
@@ -148,27 +151,11 @@ class FEAGraph:
                     'LT_RB': [d2]
                 }
         
-        # update edges using maximal edge
-        # for direction, segs in segments.items():
-        #     self._combine_segments(segs, direction)
-
-        # # Update edge list with new line segments
-        # # get minimal edge list from each maximal edge
-        # maximal_edges = self.maximal_edges
-        # all_edges = []
-        # for dir in maximal_edges:
-        #     self._merge_maximal_edges() # update maximal edges that are merged from new frame 
-        #     for me in maximal_edges[dir]:
-        #         # print(f'extracting edge from maximal edge : {me}')
-        #         all_edges.extend(me.get_edge_list()) # get list of tuples of vertex indices
-        # self.edges = all_edges
-
         # update edges without maximal edge, edge with section geometry
         for dir, segs in segments.items():
             for e in segs:
-                self._update_edges_dict(e, dir, frame_structure_type)
-
-        # print(f"Edges ({len(self.edges_dict)}):\n{self.edges_dict}\n")
+                if e != None:
+                    self._update_edges_dict(e, dir, frame_structure_type)
 
     
     def _update_edges_dict(self, edge, direction, frame_structure_type):
@@ -182,19 +169,13 @@ class FEAGraph:
         # Set geometry for each edge
         outer_diameter, inward_thickness = self.edge_light_d, self.edge_light_thickness # default
         if frame_structure_type == FrameStructureType.SUPPORT_FRAME: # support frame
-            # set diagonals strong
-            # if direction == 'LB_RT' or direction == 'LT_RB':
-            #     outer_diameter, inward_thickness = self.edge_support_d, self.edge_support_thickness
             # set all edges strong
             outer_diameter, inward_thickness = self.edge_support_d, self.edge_support_thickness
         if frame_structure_type == FrameStructureType.MEDIUM_FREE_FRAME: # thick diagonal for medium frame
             if direction == 'LB_RT' or direction == 'LT_RB':
                 outer_diameter, inward_thickness = self.edge_medium_d, self.edge_medium_thickness
 
-        # add to edge dict with replacement 
-        # self.edges_dict[edge] = outer_diameter, inward_thickness
-
-        # add to edge dict overwriting only when outer_diameter, inward_thickness is larger
+        # Add to edge dict overwriting only when outer_diameter, inward_thickness is larger
         if edge in self.edges_dict:
             existing_diameter, existing_thickness = self.edges_dict[edge]
             if outer_diameter > existing_diameter or inward_thickness > existing_thickness:
@@ -202,56 +183,6 @@ class FEAGraph:
         else:
             self.edges_dict[edge] = outer_diameter, inward_thickness
 
-
-    # def _combine_segments(self, segments, direction):
-    #     '''
-    #     Combine segments with existing maximal edges in the specified direction.
-    #     Updates self.maximal_edges[direction] in place.
-    #     '''
-    #     # Check if the list of maximal edges is not empty
-    #     if len(self.maximal_edges[direction]) != 0:
-    #         for seg in segments:
-    #             if seg == None:
-    #                 continue # skip if segment is None
-    #             merged = False  # Track if merging occurs for this pair
-    #             # Try to merge with existing maximal edges
-    #             for me in self.maximal_edges[direction]:
-    #                 if me.merge_segment(*seg):  # Try to merge
-    #                     merged = True
-    #                     break  # Stop after the first successful merge
-    #             # If not merged, create a new maximal edge
-    #             if not merged:
-    #                 new_me = MaximalEdge(direction)  # Create new maximal edge object
-    #                 new_me.vertices += list(seg)
-    #                 self.maximal_edges[direction].append(new_me)
-
-    #     else: # If the list is empty, create new maximal edges for all segments
-    #         for seg in segments:
-    #             if seg == None:
-    #                 continue # skip if segment is None
-    #             new_me = MaximalEdge(direction)  # Create new maximal edge object
-    #             new_me.vertices += list(seg)
-    #             self.maximal_edges[direction].append(new_me)
-
-    #     self.maximal_edges_merged = False
-    
-    # def _merge_maximal_edges(self):
-    #     '''
-    #     After combining segment, merge maximal edges that are connected from new frame 
-    #     '''
-    #     for dir in self.maximal_edges:
-    #         # check for pairs of maximal edges in the same direction
-    #         for i in range(len(self.maximal_edges[dir])-2):
-    #             for j in range(i + 1, len(self.maximal_edges[dir])-1):
-    #                 me1 = self.maximal_edges[dir][i]
-    #                 me2 = self.maximal_edges[dir][j]
-    #                 if me1.is_connected(me2):
-    #                     # Merge the two maximal edges
-    #                     me1.vertices += me2.vertices 
-    #                     me1.vertices = sorted(set(me1.vertices))
-    #                     self.maximal_edges[dir].remove(me2)
-
-    #     self.maximal_edges_merged = True
 
     def _add_external_load(self, vertex):
         '''
@@ -275,13 +206,10 @@ class FEAGraph:
             return max displacement node index and magnitude
         '''
         
-        # if not hasattr(self, 'displacement') or not self.displacement:
-        #     raise ValueError("Displacement data is not available")
+        if not hasattr(self, 'displacement') or not self.displacement:
+            raise ValueError("Displacement data is not available")
 
         # Calculate the magnitude of displacement for each node
-        # displacement_scale = 50 # scale displacement for visualization 
-        
-        # magnitudes = [np.linalg.norm(node_disp[:2]) * displacement_scale for node_disp in self.displacement]
         magnitudes = [np.linalg.norm(node_disp[:2]) for node_disp in self.displacement]
 
         # Find the index of the node with the maximum displacement
@@ -304,23 +232,6 @@ class FEAGraph:
                 return coordinates
         return None  # Return None if no vertex with the given id is found
     
-    def get_strong_element_pos(self):
-        '''
-        Output 
-            list of [(x_1,y_1), (x_2,y_2), outer_diameter, inward thickness ratio] coordinates of edges that have type !=0
-        '''
-        strong_elements = []
-        for v_pairs, section in self.edges_dict.items():
-            if section == (self.edge_medium_d, self.edge_medium_thickness):
-                v1_coords = v_pairs[0].coordinates
-                v2_coords = v_pairs[1].coordinates
-                outer_diameter, inward_thickness = section
-                strong_elements.append((v1_coords, v2_coords, outer_diameter, inward_thickness))
-        # print(f"Strong elements : {strong_elements}")
-        
-        return strong_elements
-    
-
     def get_element_list_with_type(self):
         '''
         Used in pythonASAP-> create_and_solve_model_julia
