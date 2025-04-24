@@ -1250,17 +1250,6 @@ class CantileverEnv_2(gym.Env):
         #         line2 = mlines.Line2D([x0, x1], [y1, y0], color='black', lw=1)
         #         self.ax.add_line(line2)
 
-        # # add edge thickness for stronger elements
-        # strong_elements = self.curr_fea_graph.get_strong_element_pos() # list of [(x_1,y_1), (x_2,y_2), outer_diameter, inward thickness ratio]
-        # for edge in strong_elements:
-        #     start_coord, end_coord, outer_d, inward_thickness_ratio = edge
-        #     start_x, start_y = start_coord
-        #     end_x, end_y = end_coord
-        #     # Draw the line connecting the start and end vertices
-        #     strong_line = mlines.Line2D([start_x, end_x], [start_y, end_y], color='black', linewidth=10*outer_d+10* inward_thickness_ratio)
-        #     self.ax.add_line(strong_line)
-        #     # self.ax.plot([start_x, end_x], [start_y, end_y], color='black', linestyle='-', linewidth=1+5* inward_thickness_ratio)
-
         # Draw edges (alternative to frame)
         for v_pair, e_section in self.curr_fea_graph.edges_dict.items():
             start_v, end_v = v_pair
