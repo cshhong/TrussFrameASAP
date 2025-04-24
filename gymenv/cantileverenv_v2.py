@@ -336,8 +336,13 @@ class CantileverEnv_2(gym.Env):
         self.target_support_board = []
 
         # Element utilization
+        self.edge_utilization = None # list of (center_x, center_y, utilization) for each edge, at termination
         self.vis_utilization = vis_utilization # visualizes edges > P90 utilization
         self.utilization_ninety_percentile = 0 # determined at termination
+        self.utilization_min = 0
+        self.utilization_max = 0
+        self.utilization_median = 0 # determined at termination
+        self.utilization_std = 0 # determined at termination
 
 
         # Human Playable mode 
