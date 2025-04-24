@@ -50,6 +50,9 @@ import copy
 import random
 
 from collections import deque # for path finding
+import itertools
+import gc
+import csv # baseline mode
 
 class CantileverEnv_2(gym.Env):
     '''
@@ -1838,3 +1841,248 @@ class CantileverEnv_2(gym.Env):
         obs = np.hstack([self.curr_frame_grid, light_frame_row, med_frame_row])  # confusing bc obs array is frame transpose!
 
         return obs
+    
+    # Functions to create baseline random samples
+    def generate_random_designs(self, n_expand, n_permute):
+        '''
+        Used in baseline mode to generate random designs
+        Create n random frame grids by 
+            Generate random framegrids by 
+            - create separate manhattan paths connecting support with all target loads
+            - merge paths together
+            - stochastically add adjacent frames * n times (at each round if not added, decrease probability)
+            - randomly permute frame types and add framegrid to random framegrids
+            Save to csv file (leaving fea data None)
+        '''
+        print(f'Generating random designs with n_expand : {n_expand} and n_permute : {n_permute}')
+        # Create 2 manhattan paths connecting support with all target loads
+        all_paths = []
+        support_board = [coord for tup in self.support_board for coord in tup] # unpack support_board list and tuple
+        support_frame_coord = self.board_to_frame(*support_board) # convert board coords to frame coords
+        for target_support_board_coord in self.target_support_board:
+            target_support_frame_coord = self.board_to_frame(*target_support_board_coord) # convert board coords to frame coords
+            # generate manhattan path between support and external load
+            manhattan_path = self.find_manhattan_path(support_frame_coord, target_support_frame_coord)
+            # add to list of manhattan paths
+            all_paths.append(manhattan_path)
+        # merge paths to get all light frames
+        all_light_frames = self.merge_manhattan_paths(all_paths)
+        # add light frames to frame grid
+        for frame_x, frame_y in all_light_frames:
+            self.curr_frame_grid[frame_x, frame_y] = 2
+        
+        # Stochastically add adjacent frames * n_expand times
+        frame_grid_prob = np.zeros(self.curr_frame_grid.shape, dtype=np.float32)
+        for i in range(n_expand):
+            valid_pos = self.get_valid_pos_design() # get all valid positions 
+            # if valid_pos probability value is 0, set to 0.25
+            valid_x_frame, valid_y_frame = zip(*valid_pos) # unpack valid_pos list of tuples
+            frame_grid_prob[valid_x_frame, valid_y_frame] = 0.25
+            # independently decide if each valid position is added
+            random_values = np.random.rand(*self.curr_frame_grid.shape) # create array with self.curr_frame_grid.shape with random variables [0,1] for each cell
+
+            add_mask = random_values < frame_grid_prob 
+            self.curr_frame_grid[add_mask] = 2 # add light frames to frame grid
+            frame_grid_prob[add_mask] = 0.0 # set probability to 0 for added frames
+
+        print(f'number of frames after expand : {np.sum(self.curr_frame_grid == 2)}')
+        # Create permuted versions where some light frames are switched to medium frames
+        path_frame_grid = np.array(copy.deepcopy(self.curr_frame_grid))
+        med_inv = self.bc_inventory[FrameStructureType.MEDIUM_FREE_FRAME]
+        for j in range(n_permute):
+            new_frame_grid = copy.deepcopy(path_frame_grid)
+            state_2_positions = np.column_stack(np.where(path_frame_grid == 2))
+            rand_med_count = np.random.randint(0, med_inv+1) # random number of medium frames to add
+            selected_indices = state_2_positions[np.random.choice(state_2_positions.shape[0], size=rand_med_count, replace=False)]
+            new_frame_grid[selected_indices[:, 0], selected_indices[:, 1]] = 3 # change state 2 to state 3)
+
+            # get deflection of permuted frame grid
+            self.curr_frame_grid = new_frame_grid
+            self.update_feagraph_from_framegrid() # update self.curr_fea_graph with new frame grid
+            # perform fea
+            self.update_displacement() # updates max deflection
+            self.update_utilization()
+            # print(f'###### Permutation {j} fea graph ######: \n{self.curr_fea_graph}')
+            # why is the displacement all the same? 
+            self.render()
+            print(f'max deflection : {self.max_deflection} at {self.max_deflection_node_idx}')
+            # print(f'fea graph displacement : \n{self.curr_fea_graph.displacement}')
+            # max_deflection_node_idx, self.max_deflection = self.curr_fea_graph.get_max_deflection()
+            # store in csv file 
+            self.save_random_design()
+            self.baseline_eps_count += 1
+
+        gc.collect()
+
+    def save_random_design(self):
+        
+        boundary_condition = self.csv_bc # left height, left length, left magnitude, right height, right length, right magnitude
+        inventory = self.csv_inventory # light, medium
+        allowable_deflection = self.allowable_deflection
+        episode_reward = self.episode_return
+        terminated = True
+        # Calculate or retrieve values for the current episode
+        max_deflection = self.max_deflection
+        utilization_min = self.utilization_min
+        utilization_max = self.utilization_max
+        utilization_median = self.utilization_median
+        utilization_std = self.utilization_std
+        utilization_percentile = self.utilization_ninety_percentile
+        num_frames = len(self.frames)
+        num_failed = len(self.curr_fea_graph.failed_elements)
+        frame_grid = self.curr_frame_grid
+
+        with open(self.baseline_csv_path , mode='a', newline='') as csv_file:
+            csv_writer = csv.writer(csv_file)    
+            # Write the row for the current episode
+            csv_writer.writerow([
+                self.baseline_eps_count,
+                terminated,
+                boundary_condition,
+                inventory,
+                allowable_deflection,
+                max_deflection,
+                num_failed,
+                utilization_min,
+                utilization_max,
+                utilization_median,
+                utilization_std,
+                utilization_percentile,
+                num_frames,
+                frame_grid,
+                episode_reward,
+            ])
+
+    def get_valid_pos_design(self):
+        '''
+        used when self.valid_pos has not been updated at each step but only self.curr_frame_grid is updated
+        get all valid positions based on current self.frame_grid
+        '''
+        # for all frames, 
+        # get adjacent 4 cells
+        # add if
+        # within frame grid bounds
+        # does not go beyond target cell x value
+        # not existing frame 
+        # does not go below support 
+        valid_positions = []
+        rows, cols = len(self.curr_frame_grid), len(self.curr_frame_grid[0])
+        for i in range(rows):
+            for j in range(cols):
+                if self.curr_frame_grid[i][j] == FrameStructureType.SUPPORT_FRAME.idx or \
+                   self.curr_frame_grid[i][j] == FrameStructureType.LIGHT_FREE_FRAME.idx:
+
+                    # Check adjacent cells (up, down, left, right)
+                    adjacent_cells = [
+                        (i - 1, j),  # Up
+                        (i + 1, j),  # Down
+                        (i, j - 1),  # Left
+                        (i, j + 1)   # Right
+                    ]
+                    for x_adj, y_adj in adjacent_cells:
+                        # Check if the adjacent cell is within the frame grid bounds
+                        if 0 <= x_adj < self.frame_grid_size_x and 0 <= y_adj < self.frame_grid_size_y:
+                            # check if adjacent cell is in target x bounds
+                            if self.target_x_bounds[0] <= x_adj and x_adj <= self.target_x_bounds[1]:
+                                if self.curr_frame_grid[x_adj, y_adj] != FrameStructureType.LIGHT_FREE_FRAME.idx and \
+                                self.curr_frame_grid[x_adj, y_adj] != FrameStructureType.MEDIUM_FREE_FRAME.idx and \
+                                self.curr_frame_grid[x_adj, y_adj] != FrameStructureType.SUPPORT_FRAME.idx :
+                                    # Add the valid position
+                                    valid_positions.append((x_adj, y_adj))
+
+        return valid_positions
+    
+    def merge_manhattan_paths(self, manhattan_paths):
+        '''
+        Merge multiple manhattan paths so there are no overlaps
+        Returns single list of frame coordinates
+        '''
+        # Initialize an empty set to store unique coordinates
+        merged_path = set()
+        for path in manhattan_paths:
+            for coord in path:
+                # Add the coordinate to the set
+                merged_path.add(coord)
+        # Convert the set back to a list
+        merged_path = list(merged_path)
+        return merged_path
+
+    def find_manhattan_path(self, start_frame_coords, end_frame_coords):
+        '''
+        Generate random manhattan path between start and end frame coordinates
+        Return list of frame (x,y) coordinates excluding start and end
+        '''
+        x_s, y_s = start_frame_coords
+        x_e, y_e = end_frame_coords
+
+        # Determine the steps in x and y directions
+        steps = []
+        if x_e > x_s:
+            steps += ["R"] * (x_e - x_s)  # Right steps
+        elif x_e < x_s:
+            steps += ["L"] * (x_s - x_e)  # Left steps
+
+        if y_e > y_s:
+            steps += ["U"] * (y_e - y_s)  # Up steps
+        elif y_e < y_s:
+            steps += ["D"] * (y_s - y_e)  # Down steps
+
+        # Shuffle the steps to create a random path
+        random.shuffle(steps)
+
+        # Generate the path coordinates
+        path = []
+        current_x, current_y = x_s, y_s
+        for step in steps:
+            if step == "R":
+                current_x += 1
+            elif step == "L":
+                current_x -= 1
+            elif step == "U":
+                current_y += 1
+            elif step == "D":
+                current_y -= 1
+            path.append((current_x, current_y))
+
+        # Exclude the start and end coordinates
+        return path[:-1] if path[-1] == end_frame_coords else path
+
+    # Functions to handle predetermined frame grids
+    def update_feagraph_from_framegrid(self):
+        '''
+        update self.feagraph with self.curr_frame_grid from predetermined frame grids 
+        * at reset self.curr_fea_graph is initialized with edge_type_dict
+        '''
+        # Reset the Vertex ID counter
+        Vertex._id_counter = 1
+
+        self.curr_fea_graph = FEAGraph(edge_type_dict=self.element_type_dict) # init new graph
+        # add frame with update_fea_graph(TrussFrameRL object, frametype)
+        self.initBoundaryConditions()
+
+        # print(f'###### update feagraph from framegrid after init ######: \n{self.curr_fea_graph}')
+        
+        # Add light frame
+        light_frame_coord = np.argwhere(self.curr_frame_grid == 2)
+        # sort in order of x ; order does not matter no stepwise reward anyways
+        # convert to board coordinates
+        light_frame_board_coords = [(self.frame_to_board(x, y)) for x, y in light_frame_coord]
+        for board_coord in light_frame_board_coords:
+            # add frame to fea graph
+            new_light_frame = TrussFrameRL(board_coord, type_structure=FrameStructureType.LIGHT_FREE_FRAME)
+            self.update_fea_graph(new_light_frame)
+        
+        # Add medium frame
+        medium_frame_coord = np.argwhere(self.curr_frame_grid == 3)
+        medium_frame_board_coords = [(self.frame_to_board(x, y)) for x, y in medium_frame_coord]
+        for board_coord in medium_frame_board_coords:
+            # add frame to fea graph
+            new_medium_frame = TrussFrameRL(board_coord, type_structure=FrameStructureType.MEDIUM_FREE_FRAME)
+            self.update_fea_graph(new_medium_frame)
+
+        # update light frame, medium frame count
+        self.med_frame_count = np.count_nonzero(self.curr_frame_grid == 3)
+        self.light_frame_count = np.count_nonzero(self.curr_frame_grid == 2)
+
+    
+
