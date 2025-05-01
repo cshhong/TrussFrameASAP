@@ -1454,7 +1454,7 @@ class CantileverEnv_2(gym.Env):
             # Frame count text
             self.ax.text(
                 0.4, -0.125, 
-                f'light ({self.light_frame_count} / {self.bc_inventory[FrameStructureType.LIGHT_FREE_FRAME]})      medium ({self.med_frame_count} / {self.bc_inventory[FrameStructureType.MEDIUM_FREE_FRAME]})      total ({self.episode_length} / {self.bc_inventory[FrameStructureType.LIGHT_FREE_FRAME] + self.bc_inventory[FrameStructureType.MEDIUM_FREE_FRAME]})',
+                f'light ({self.light_frame_count} / {self.bc_inventory[FrameStructureType.LIGHT_FREE_FRAME]})      medium ({self.med_frame_count} / {self.bc_inventory[FrameStructureType.MEDIUM_FREE_FRAME]})      total ({self.light_frame_count + self.med_frame_count} / {self.bc_inventory[FrameStructureType.LIGHT_FREE_FRAME] + self.bc_inventory[FrameStructureType.MEDIUM_FREE_FRAME]})',
                 color='gray',
                 fontsize=caption_fontsize_small,
                 ha='left',   
