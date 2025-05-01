@@ -1832,6 +1832,37 @@ class CantileverEnv_2(gym.Env):
 
         return obs
     
+    # Render CSV mode
+    def render_fixed_framegrid(self, fixed_framegrid):
+        '''
+        Used in render from csv mode to render unique designs 
+        Input
+            fixed_framegrid : fixed frame grid to render
+        save rendered image to render_dir
+        '''
+        # get deflection of permuted frame grid
+        self.curr_frame_grid = fixed_framegrid
+        self.update_feagraph_from_framegrid() # update self.curr_fea_graph with new frame grid
+        # perform fea
+        self.update_displacement() # updates max deflection
+        self.update_utilization()
+        # print(f'###### Permutation {j} fea graph ######: \n{self.curr_fea_graph}')
+        self.eps_terminate_valid = True
+        self.render()
+        # print(f'max deflection : {self.max_deflection} at {self.max_deflection_node_idx}')
+        # print(f'fea graph displacement : \n{self.curr_fea_graph.displacement}')
+        # max_deflection_node_idx, self.max_deflection = self.curr_fea_graph.get_max_deflection()
+        # store in csv file 
+        # self.save_random_design_csv()
+        self.global_terminated_episodes += 1
+
+        # reset self.curr_frame_grid for next iteration
+        self.curr_frame_grid = np.zeros((self.frame_grid_size_x, self.frame_grid_size_y), dtype=np.int64) # reset curr_frame_grid 
+        self.frames = []
+        self.initBoundaryConditions()
+
+        gc.collect()
+
     # Functions to create baseline random samples
     def generate_random_designs(self, n_expand, n_permute):
         '''
