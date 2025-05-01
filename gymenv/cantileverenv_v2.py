@@ -1251,27 +1251,28 @@ class CantileverEnv_2(gym.Env):
         for coord, load in loads_vis:
             force_magnitude = (load[0]**2 + load[1]**2 + load[2]**2)**0.5
             if force_magnitude >= 0:
-                if force_magnitude == 0: # no force but indicate target location
-                    arrow_dx = 0
-                    arrow_dy = -1.0
-                    linestyle =':'
-                    linewidth = 1.0
-                else:
+                if force_magnitude !=0:
                     arrow_dx = (load[0]) * 0.01 
                     # arrow_dy = (load[1]) * 0.01
                     arrow_dy = - 1.25
                     linestyle = '-'
                     linewidth = 2.0
-                arrow_tail_x = coord[0] - arrow_dx
-                arrow_tail_y = coord[1] - arrow_dy
-                # arrow_head_x = arrow_tail_x - arrow_dx
-                # arrow_head_y = arrow_tail_y - arrow_dy
 
-                if force_magnitude > 0:
-                    self.ax.text(arrow_tail_x, arrow_tail_y + 0.1, f"{force_magnitude:.0f} kN", color='black', fontsize=12)
+                    arrow_tail_x = coord[0] - arrow_dx
+                    arrow_tail_y = coord[1] - arrow_dy
+                    # arrow_head_x = arrow_tail_x - arrow_dx
+                    # arrow_head_y = arrow_tail_y - arrow_dy
 
-                self.ax.arrow(arrow_tail_x, arrow_tail_y, arrow_dx, arrow_dy+0.2, head_width=0.3, head_length=0.2, fc='black', ec='black', linewidth=linewidth, linestyle = linestyle)
+                    if force_magnitude > 0:
+                        self.ax.text(arrow_tail_x, arrow_tail_y + 0.1, f"{force_magnitude:.0f} kN", color='black', fontsize=12)
+
+                    self.ax.arrow(arrow_tail_x, arrow_tail_y, arrow_dx, arrow_dy+0.2, head_width=0.3, head_length=0.2, fc='black', ec='black', linewidth=linewidth, linestyle = linestyle)
     
+                else: # no force but indicate target location (don't draw arrow)
+                    arrow_dx = 0
+                    arrow_dy = -1.0
+                    linestyle =':'
+                    linewidth = 1.0
     # Render 
     def render_frame(self):
         '''
