@@ -1176,8 +1176,8 @@ class CantileverEnv_2(gym.Env):
                 # Create a triangle with the top point at the vertex coordinate
                 triangle_vertices = [
                     (coord[0], coord[1]),  # Top point
-                    (coord[0] - 0.15, coord[1] - 0.2),  # Bottom-left point
-                    (coord[0] + 0.15, coord[1] - 0.2)   # Bottom-right point
+                    (coord[0] - 0.25, coord[1] - 0.3),  # Bottom-left point
+                    (coord[0] + 0.25, coord[1] - 0.3)   # Bottom-right point
                 ]
                 self.ax.add_patch(patches.Polygon(triangle_vertices, color='black', lw=1.5, fill=True))
             else:
