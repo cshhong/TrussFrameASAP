@@ -423,6 +423,36 @@ class CantileverEnv_2(gym.Env):
             for i in range(self.baseline_eps_count):
                 self.generate_random_designs(self.baseline_n_expand, self.baseline_n_permute)
 
+        # Render from csv mode
+        if self.render_from_csv_mode:
+            try: # Open the CSV file
+                with open(self.render_from_csv_path, mode='r') as csv_file:
+                    csv_reader = csv.DictReader(csv_file)  # Use DictReader to access columns by name
+                    
+                    # Iterate through each row in the CSV file
+                    for row in csv_reader:
+                        # Dynamically find the "Frame Grid" value
+                        if "Frame Grid" in row:
+                            frame_grid_string = row["Frame Grid"]
+                            # convert the string representation of the frame grid to a numpy array
+                            # Remove all brackets
+                            frame_grid_string = frame_grid_string.replace('[', '').replace(']', '')
+                            # Split and parse
+                            frame_grid_array = np.fromstring(frame_grid_string, sep=' ').reshape(-1, 6)
+                        else:
+                            print("Error: 'Frame Grid' column not found in the CSV file.")
+                            break
+                        # set return value from Episode Reward column
+                        if "Episode Reward" in row:
+                            self.episode_return = float(row["Episode Reward"])
+                        # Render the fixed frame grid using the extracted value
+                        self.render_fixed_framegrid(frame_grid_array)
+            # Handle file not found error
+            except FileNotFoundError:
+                print(f"Error: CSV file not found at {self.render_from_csv_path}")
+            except Exception as e:
+                print(f"An error occurred while rendering from CSV: {e}")
+
         return obs, info
     
     def initBoundaryConditions(self):
