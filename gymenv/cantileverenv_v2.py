@@ -1518,7 +1518,11 @@ class CantileverEnv_2(gym.Env):
                 render_path = os.path.join(self.render_dir, render_name)
                 # Save the render
                 self.render_frame()
-                plt.savefig(render_path, bbox_inches='tight')
+                # plt.savefig(render_path, bbox_inches='tight')
+                try:
+                    plt.savefig(render_path, bbox_inches='tight')
+                except Exception as e:
+                    print(f"Error saving the plot to {render_path}: {e}")
                 plt.close(self.fig)
                 # Increment the counter for the next file
                 self.render_counter += 1
@@ -1530,7 +1534,11 @@ class CantileverEnv_2(gym.Env):
                 render_path = os.path.join(render_path, render_name)
                 # Save the render
                 self.render_frame()
-                plt.savefig(render_path, bbox_inches='tight')
+                # plt.savefig(render_path, bbox_inches='tight')
+                try:
+                    plt.savefig(render_path, bbox_inches='tight')
+                except Exception as e:
+                    print(f"Error saving the plot to {render_path}: {e}")
                 plt.close(self.fig)
                 # Increment the counter for the next file
                 self.render_counter += 1
