@@ -663,7 +663,8 @@ class CantileverEnv_2(gym.Env):
         self.apply_action(action_tuple) # if end updates displacement and failed elements in curr_fea_graph
         
         # interim target REWARD to encourage connecting to target loads
-        reward += self.is_connected_fraction * 0.025 # for each step once one/two target is connected
+        # reward += self.is_connected_fraction * 0.025 # for each step once one/two target is connected
+        reward += self.is_connected_fraction * 0.0025 # for each step once one/two target is connected
         # Using masked actions : all actions taken are valid actions 
         # if inventory is used up, episode is truncated
         if all(value <= 0 for value in self.inventory_dict.values()):
