@@ -1940,7 +1940,7 @@ class CantileverEnv_2(gym.Env):
 
         gc.collect()
 
-    def save_random_design(self):
+    def save_random_design_csv(self):
         
         boundary_condition = self.csv_bc # left height, left length, left magnitude, right height, right length, right magnitude
         inventory = self.csv_inventory # light, medium
