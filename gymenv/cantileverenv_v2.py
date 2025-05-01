@@ -1924,7 +1924,7 @@ class CantileverEnv_2(gym.Env):
             self.update_displacement() # updates max deflection
             self.update_utilization()
             # print(f'###### Permutation {j} fea graph ######: \n{self.curr_fea_graph}')
-            # why is the displacement all the same? 
+            self.eps_terminate_valid = True
             self.render()
             print(f'max deflection : {self.max_deflection} at {self.max_deflection_node_idx}')
             # print(f'fea graph displacement : \n{self.curr_fea_graph.displacement}')
