@@ -1962,7 +1962,7 @@ class CantileverEnv_2(gym.Env):
             csv_writer = csv.writer(csv_file)    
             # Write the row for the current episode
             csv_writer.writerow([
-                self.baseline_eps_count,
+                self.global_terminated_episodes,
                 terminated,
                 boundary_condition,
                 inventory,
