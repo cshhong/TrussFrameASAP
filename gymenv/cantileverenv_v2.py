@@ -193,7 +193,6 @@ class CantileverEnv_2(gym.Env):
                  frame_count_penalty = False,
                  reward_utilization_scheme = False,
                  add_max_deflection_reward = False,
-                 predetermined_framegrids = None, 
                  baseline_mode=False,
                  baseline_csv_path = None,
                  baseline_eps_count = 10,
@@ -332,7 +331,6 @@ class CantileverEnv_2(gym.Env):
         self.utilization_median = 0 # determined at termination
         self.utilization_std = 0 # determined at termination
 
-
         # Human Playable mode 
         if self.render_mode == "human_playable":
             self.click_event_id = None # created in render_frame
@@ -348,7 +346,6 @@ class CantileverEnv_2(gym.Env):
             self.human_action_frame_coords = None # coordinates of frame selected by human through click (frame_x, frame_y)
 
         print("Initialized Cantilever Env!")
-        # self.render()
 
         self.frame_count_penalty = frame_count_penalty # boolean to indicate if frame count penalty is used
         print(f"Frame count penalty : {self.frame_count_penalty}")
@@ -363,6 +360,10 @@ class CantileverEnv_2(gym.Env):
         self.baseline_eps_count = baseline_eps_count
         self.baseline_n_expand = baseline_n_expand
         self.baseline_n_permute = baseline_n_permute
+
+        # Render CSV mode
+        self.render_from_csv_mode = render_from_csv_mode # boolean to indicate if render csv mode is used
+        self.render_from_csv_path = render_from_csv_path # path to csv file to load designs from
 
 
     def reset(self, seed=None, **kwargs):
