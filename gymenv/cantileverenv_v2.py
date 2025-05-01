@@ -1930,8 +1930,10 @@ class CantileverEnv_2(gym.Env):
             # print(f'fea graph displacement : \n{self.curr_fea_graph.displacement}')
             # max_deflection_node_idx, self.max_deflection = self.curr_fea_graph.get_max_deflection()
             # store in csv file 
-            self.save_random_design()
-            self.baseline_eps_count += 1
+            # reset self.curr_frame_grid for next iteration
+            self.curr_frame_grid = np.zeros((self.frame_grid_size_x, self.frame_grid_size_y), dtype=np.int64) # reset curr_frame_grid 
+            self.frames = []
+            self.initBoundaryConditions()
 
         gc.collect()
 
