@@ -1078,7 +1078,7 @@ class CantileverEnv_2(gym.Env):
             - self.curr_fea_graph.displacement
         '''
         displaced_truss_color = 'gray'
-        disp_vis_scale = 2 # scale displacement for visualization 
+        disp_vis_scale = 1 # scale displacement for visualization 
         
         # Get Displaced vertices
         displaced_vertices = {} # node id : (x, y)
