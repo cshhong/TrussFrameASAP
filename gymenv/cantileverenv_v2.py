@@ -16,7 +16,7 @@ import os
 
 # Get the absolute path of the current file (cantileverenv_v0.py)
 PARENT_DIR = os.path.dirname(os.path.abspath(__file__))
-print(f'Parent Directory of cantilever env v0 added to sys.path : {PARENT_DIR}')
+print(f'Parent Directory of cantilever env v2 added to sys.path : {PARENT_DIR}')
 
 # Add the TrussFrameMechanics directory to sys.path
 TRUSS_FRAME_ASAP_PATH = os.path.abspath(os.path.join(PARENT_DIR, '..'))
@@ -420,6 +420,7 @@ class CantileverEnv_2(gym.Env):
         # Baseline mode
         if self.baseline_mode:
             # generate one set of random designs and save in baseline csv
+            print(f'Generating random designs with n_expand : {self.baseline_n_expand} and n_permute : {self.baseline_n_permute}')
             for i in range(self.baseline_eps_count):
                 self.generate_random_designs(self.baseline_n_expand, self.baseline_n_permute)
 
@@ -677,6 +678,7 @@ class CantileverEnv_2(gym.Env):
             # print(f'    External Load : {self.extr_load_mag}')
             self.eps_terminate_valid = True # used in render_frame to trigger displacement vis, in render to save final img
             self.global_terminated_episodes += 1
+
             self.med_frame_count = np.count_nonzero(self.curr_frame_grid == 3)
             self.light_frame_count = np.count_nonzero(self.curr_frame_grid == 2)
             
@@ -684,7 +686,7 @@ class CantileverEnv_2(gym.Env):
                 med_inventory = self.bc_inventory[FrameStructureType.MEDIUM_FREE_FRAME]
                 light_inventory = self.bc_inventory[FrameStructureType.LIGHT_FREE_FRAME]
 
-                # Inventory penalty capped at 1
+                # Inventory penalty capped 
                 reward -= 2*(self.med_frame_count+self.light_frame_count)/(med_inventory + light_inventory)
                 # (optional) separate inventory panalty for frame types
                 # if med_inventory > 0:
@@ -741,6 +743,7 @@ class CantileverEnv_2(gym.Env):
                 print(f'Action : {action_tuple} \n Frame Grid : \n{self.curr_frame_grid}')
         self.episode_return += reward
         self.render()
+
         # Add `final_info` for terminated or truncated episodes
         info = {}
         if terminated or truncated:
@@ -752,6 +755,7 @@ class CantileverEnv_2(gym.Env):
                 }
             }
         # print(f'Action : {action_tuple} \n Reward : {reward} \n Terminated : {terminated} \n Truncated : {truncated} \n Info : {info}')
+        # print(f'reward : {reward} \n Terminated : {terminated} \n Truncated : {truncated} \n Info : {info}')
         return obs, reward, terminated, truncated, info
         
     
@@ -1875,7 +1879,6 @@ class CantileverEnv_2(gym.Env):
             - randomly permute frame types and add framegrid to random framegrids
             Save to csv file (leaving fea data None)
         '''
-        print(f'Generating random designs with n_expand : {n_expand} and n_permute : {n_permute}')
         # Create 2 manhattan paths connecting support with all target loads
         all_paths = []
         support_board = [coord for tup in self.support_board for coord in tup] # unpack support_board list and tuple
@@ -1888,6 +1891,7 @@ class CantileverEnv_2(gym.Env):
             all_paths.append(manhattan_path)
         # merge paths to get all light frames
         all_light_frames = self.merge_manhattan_paths(all_paths)
+        
         # add light frames to frame grid
         for frame_x, frame_y in all_light_frames:
             self.curr_frame_grid[frame_x, frame_y] = 2
@@ -1907,6 +1911,7 @@ class CantileverEnv_2(gym.Env):
             frame_grid_prob[add_mask] = 0.0 # set probability to 0 for added frames
 
         print(f'number of frames after expand : {np.sum(self.curr_frame_grid == 2)}')
+
         # Create permuted versions where some light frames are switched to medium frames
         path_frame_grid = np.array(copy.deepcopy(self.curr_frame_grid))
         med_inv = self.bc_inventory[FrameStructureType.MEDIUM_FREE_FRAME]
@@ -1926,7 +1931,7 @@ class CantileverEnv_2(gym.Env):
             # print(f'###### Permutation {j} fea graph ######: \n{self.curr_fea_graph}')
             self.eps_terminate_valid = True
             self.render()
-            print(f'max deflection : {self.max_deflection} at {self.max_deflection_node_idx}')
+            # print(f'max deflection : {self.max_deflection} at {self.max_deflection_node_idx}')
             # print(f'fea graph displacement : \n{self.curr_fea_graph.displacement}')
             # max_deflection_node_idx, self.max_deflection = self.curr_fea_graph.get_max_deflection()
             # store in csv file 
