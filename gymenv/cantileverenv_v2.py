@@ -1217,7 +1217,7 @@ class CantileverEnv_2(gym.Env):
             start_coord = start_v.coordinates
             end_coord = end_v.coordinates
             # Draw the line connecting the start and end vertices
-            linewidth=5*outer_d+50*(inward_thickness_ratio**1.5)
+            linewidth= 7 * outer_d + 30 * (inward_thickness_ratio**1.5)
             self.ax.plot([start_coord[0], end_coord[0]], [start_coord[1], end_coord[1]], color='black', linestyle='-', linewidth=linewidth)
 
 
