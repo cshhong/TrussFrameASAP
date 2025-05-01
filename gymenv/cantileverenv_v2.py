@@ -199,6 +199,8 @@ class CantileverEnv_2(gym.Env):
                  baseline_eps_count = 10,
                  baseline_n_expand = 3,
                  baseline_n_permute = None,
+                 render_from_csv_mode = False,
+                 render_from_csv_path = None,
                  ):
         # super().__init__()
 
