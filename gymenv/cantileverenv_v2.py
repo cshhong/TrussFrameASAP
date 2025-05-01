@@ -1235,13 +1235,17 @@ class CantileverEnv_2(gym.Env):
         # self.curr_fea_graph.external_loads.items() are list of (coord, loads)
         # loads are distributed along bottom left and right nodes of target load frame
         # should give list of (mid coords, sum of loads) for all pairs in order
-        loads_vis = [
-                    (tuple((c1 + c2) / 2 for c1, c2 in zip(coord1, coord2)), tuple(l1 + l2 for l1, l2 in zip(load1, load2)))
-                    for (coord1, load1), (coord2, load2) in zip(
-                        list(self.curr_fea_graph.external_loads.items())[::2],
-                        list(self.curr_fea_graph.external_loads.items())[1::2]
-                    )
-                    ]
+        # visualize load at halfway between two nodes
+        # loads_vis = [
+        #             (tuple((c1 + c2) / 2 for c1, c2 in zip(coord1, coord2)), tuple(l1 + l2 for l1, l2 in zip(load1, load2)))
+        #             for (coord1, load1), (coord2, load2) in zip(
+        #                 list(self.curr_fea_graph.external_loads.items())[::2], # even index
+        #                 list(self.curr_fea_graph.external_loads.items())[1::2] # odd index
+        #             )
+        #             ]
+
+        # Load arrows on node
+        loads_vis = self.curr_fea_graph.external_loads.items()
 
         # for coord, loads in self.curr_fea_graph.external_loads.items():
         for coord, load in loads_vis:
