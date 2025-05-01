@@ -2097,6 +2097,7 @@ class CantileverEnv_2(gym.Env):
             # add frame to fea graph
             new_light_frame = TrussFrameRL(board_coord, type_structure=FrameStructureType.LIGHT_FREE_FRAME)
             self.update_fea_graph(new_light_frame)
+            self.frames.append(new_light_frame)
         
         # Add medium frame
         medium_frame_coord = np.argwhere(self.curr_frame_grid == 3)
@@ -2105,6 +2106,7 @@ class CantileverEnv_2(gym.Env):
             # add frame to fea graph
             new_medium_frame = TrussFrameRL(board_coord, type_structure=FrameStructureType.MEDIUM_FREE_FRAME)
             self.update_fea_graph(new_medium_frame)
+            self.frames.append(new_medium_frame)
 
         # update light frame, medium frame count
         self.med_frame_count = np.count_nonzero(self.curr_frame_grid == 3)
