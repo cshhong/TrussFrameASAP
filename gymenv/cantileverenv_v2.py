@@ -397,10 +397,6 @@ class CantileverEnv_2(gym.Env):
 
         self.eps_terminate_valid = False
 
-        self.render_valid_action = True # temporarily turn on to trigger render
-        self.render()
-        self.render_valid_action = False
-        # print(f"valid pos : {self.valid_pos}")
 
         self.rand_init_actions = [] # reset random init actions
         self.reset_env_bool = True # set to True to initialize random actions in training function
@@ -414,6 +410,11 @@ class CantileverEnv_2(gym.Env):
         # print(f'Reset obs : {self.curr_frame_grid} \n {inventory_array} \n Encoded obs : {obs}')
         info = {} # no info to return
 
+        self.render_valid_action = True # temporarily turn on to trigger render
+        self.render()
+        self.render_valid_action = False
+        # print(f"valid pos : {self.valid_pos}")
+        
         gc.collect() # garbage collection to prevent memory leak
 
         # Baseline mode
