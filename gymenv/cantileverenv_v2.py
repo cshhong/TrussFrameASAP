@@ -2043,6 +2043,8 @@ class CantileverEnv_2(gym.Env):
         Generate random manhattan path between start and end frame coordinates
         Return list of frame (x,y) coordinates excluding start and end
         '''
+        if start_frame_coords == end_frame_coords:
+            return None
         x_s, y_s = start_frame_coords
         x_e, y_e = end_frame_coords
 
