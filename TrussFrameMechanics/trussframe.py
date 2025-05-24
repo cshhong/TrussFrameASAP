@@ -62,6 +62,9 @@ class FrameStructureType(Enum):
     FST_10_10 = (2, [0.0, -4.0, 0.0], True, ((0.1, 0.1),(0.1, 0.1)))  # 0.01m tube with 10% thickness
     FST_20_20 = (3, [0.0, -6.0, 0.0], True,  ((0.1, 0.1),(0.2, 0.2)),)  # 0.01m tube with 20% thickness
 
+    # set class variable
+    default_type = FST_10_10
+
     def __init__(self, idx, node_load, is_free_frame, element_section):
         self.idx = idx
         self._node_load = node_load

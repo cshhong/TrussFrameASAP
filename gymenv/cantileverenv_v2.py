@@ -510,7 +510,7 @@ class CantileverEnv_2(gym.Env):
             
             # init light frame under target
             t_support_center_board = (t_center_board[0], t_center_board[1] - 2)
-            new_t_frame_support = TrussFrameRL(t_support_center_board, type_structure=FrameStructureType.FST_10_10)
+            new_t_frame_support = TrussFrameRL(t_support_center_board, type_structure=FrameStructureType.default_type)
             self.target_support_board.append(t_support_center_board)
             if t_support_center_board not in self.support_board:
                 self.frames.append(new_t_frame_support)
