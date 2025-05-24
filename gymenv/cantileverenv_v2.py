@@ -516,9 +516,10 @@ class CantileverEnv_2(gym.Env):
             t_support_center_board = (t_center_board[0], t_center_board[1] - 2)
             new_t_frame_support = TrussFrameRL(t_support_center_board, type_structure=FrameStructureType.LIGHT_FREE_FRAME)
             self.target_support_board.append(t_support_center_board)
-            self.frames.append(new_t_frame_support)
-            self.update_frame_grid(new_t_frame_support)
-            self.update_fea_graph(new_t_frame_support)
+            if t_support_center_board not in self.support_board:
+                self.frames.append(new_t_frame_support)
+                self.update_frame_grid(new_t_frame_support)
+                self.update_fea_graph(new_t_frame_support)
 
     def set_action_converter(self, inventory_dict):
         '''
