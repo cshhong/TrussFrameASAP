@@ -1455,10 +1455,13 @@ class CantileverEnv_2(gym.Env):
                 ha='left',   
                 transform=self.ax.transAxes  # Use axis coordinates
             )
+            
+            total_frame_count = (self.light_frame_count or 0) + (self.med_frame_count or 0)
+
             # Frame count text
             self.ax.text(
                 0.4, -0.125, 
-                f'light ({self.light_frame_count} / {self.bc_inventory[FrameStructureType.LIGHT_FREE_FRAME]})      medium ({self.med_frame_count} / {self.bc_inventory[FrameStructureType.MEDIUM_FREE_FRAME]})      total ({self.light_frame_count + self.med_frame_count} / {self.bc_inventory[FrameStructureType.LIGHT_FREE_FRAME] + self.bc_inventory[FrameStructureType.MEDIUM_FREE_FRAME]})',
+                f'light ({self.light_frame_count} / {self.bc_inventory[FrameStructureType.LIGHT_FREE_FRAME]})      medium ({self.med_frame_count} / {self.bc_inventory[FrameStructureType.MEDIUM_FREE_FRAME]})      total ({total_frame_count} / {self.bc_inventory[FrameStructureType.LIGHT_FREE_FRAME] + self.bc_inventory[FrameStructureType.MEDIUM_FREE_FRAME]})',
                 color='gray',
                 fontsize=caption_fontsize_small,
                 ha='left',   
@@ -1850,7 +1853,7 @@ class CantileverEnv_2(gym.Env):
         # perform fea
         self.update_displacement() # updates max deflection
         self.update_utilization()
-        # print(f'###### Permutation {j} fea graph ######: \n{self.curr_fea_graph}')
+        # print(f'###### rendering fixed framegrid fea graph ######: \n{self.curr_fea_graph}')
         self.eps_terminate_valid = True
         self.render()
         # print(f'max deflection : {self.max_deflection} at {self.max_deflection_node_idx}')
