@@ -122,7 +122,6 @@ class CantileverEnv_2(gym.Env):
                      •----•----•----•----•----•----•
                           0         1         2         
             
-            (obs_mode)'frame_grid_singleint' : single int encoding of frame_grid with inventory values
             (obs_mode)'frame_grid' : frame_grid representation + added row with inventory values at end of row
 
             fea_graph
@@ -166,7 +165,6 @@ class CantileverEnv_2(gym.Env):
     '''
     metadata = {"render_modes": [None, "debug_all", "debug_valid", "rgb_list", "debug_end", "rgb_end", "rgb_end_interval", "rgb_end_interval_nofail", "human_playable"], 
                 "render_fps": 1,
-                "obs_modes" : ['frame_grid_singleint', 'frame_grid', 'fea_graph'],
                 }
 
 
@@ -179,7 +177,6 @@ class CantileverEnv_2(gym.Env):
                  render_interval_consecutive=5,
                  render_dir = 'render',
                  max_episode_length = 40,
-                 obs_mode='frame_grid_singleint',
                  env_idx = 0,
                  rand_init_seed = None,
                  bc_height_options=[1,2],
@@ -249,16 +246,16 @@ class CantileverEnv_2(gym.Env):
         self.allowable_deflection = 0 # decided in generate_bc
 
         # element type - adjust diagonal geometry for different frame types, feagraph->pythonAsap.solve_fea->truss_analysis.jl
-        self.element_type_dict = dict() # key: element type int, value : (outer diameter (m), inwards thickness ratio) 
-        self.element_type_dict[0] = elem_sections[0] # support tube
-        self.element_type_dict[1] = elem_sections[1] # default tube
-        self.element_type_dict[2] = elem_sections[2] # stronger (thicker) tube
+        # self.element_type_dict = dict() # key: element type int, value : (outer diameter (m), inwards thickness ratio) 
+        # self.element_type_dict[0] = elem_sections[0] # support tube
+        # self.element_type_dict[1] = elem_sections[1] # default tube
+        # self.element_type_dict[2] = elem_sections[2] # stronger (thicker) tube
 
         # Initialize current state
         self.curr_frame_grid = np.zeros((self.frame_grid_size_x, self.frame_grid_size_y), dtype=np.int64)
 
         # create dictionary frame values 
-        self.curr_fea_graph = FEAGraph(edge_type_dict=self.element_type_dict) #FEAGraph object
+        self.curr_fea_graph = FEAGraph() #FEAGraph object
 
         # if actions are taken outside of valid_pos, large negative reward is given.  
         self.valid_pos = set() # set of frame_grid coordinates (frame_x, frame_y) in which new frame can be placed 
@@ -364,7 +361,7 @@ class CantileverEnv_2(gym.Env):
         # Reset the current state
         self.frames = []
         self.curr_frame_grid = np.zeros((self.frame_grid_size_x, self.frame_grid_size_y), dtype=np.int64)
-        self.curr_fea_graph = FEAGraph(edge_type_dict=self.element_type_dict) #FEAGraph object
+        self.curr_fea_graph = FEAGraph() #FEAGraph object
         self.valid_pos = set()
 
         self.target_loads_met = {}
@@ -2051,7 +2048,7 @@ class CantileverEnv_2(gym.Env):
         # Reset the Vertex ID counter
         Vertex._id_counter = 1
 
-        self.curr_fea_graph = FEAGraph(edge_type_dict=self.element_type_dict) # init new graph
+        self.curr_fea_graph = FEAGraph() # init new graph 
         # add frame with update_fea_graph(TrussFrameRL object, frametype)
         self.initBoundaryConditions()
 

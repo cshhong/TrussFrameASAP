@@ -40,11 +40,12 @@ class FEAGraph:
 
     # Apply variations of sections
     edge_type_dict : dictionary where key : edge type int (weakest -> strongest), value : (outer diameter, inner wall thickness ratio) 
+    
     edges_dict : dictionary where keys : (v_1, v_2) Vertex objects, values : (outer diameter, inner wall thickness ratio)
     
     """
     
-    def __init__(self, vertices=None, supports=None, edges=None, maximal_edges=None, external_loads=None, displacement=None, failed_elements=None, edge_type_dict=None, edges_dict=None, utilization=None):
+    def __init__(self, vertices=None, supports=None, edges=None, external_loads=None, displacement=None, failed_elements=None, edges_dict=None, utilization=None):
         """
         Initializes the graph with dictionaries of vertices, edges, and maximal edges.
         """
@@ -67,11 +68,6 @@ class FEAGraph:
         else:
             self.failed_elements = []
 
-        self.edge_type_dict = edge_type_dict
-        self.edge_support_d, self.edge_support_thickness = edge_type_dict[0]
-        self.edge_light_d, self.edge_light_thickness = edge_type_dict[1]
-        self.edge_medium_d, self.edge_medium_thickness = edge_type_dict[2]
-        
         if edges_dict is not None:
             self.edges_dict = edges_dict
         else:
@@ -162,20 +158,20 @@ class FEAGraph:
         '''
         Update self.edges_dict with new segments in the specified direction.
         self.edges_dict : dictionary where keys : (v_1, v_2) Vertex objects, values : (outer diameter, inner wall thickness ratio)
+
         edge: a tuple of Vertex objects
         direction : 'horizontal', 'vertical', 'LB_RT', 'LT_RB'
         frame_structure_type : FrameStructureType object
         '''
-        # Set geometry for each edge
-        outer_diameter, inward_thickness = self.edge_light_d, self.edge_light_thickness # default
-        if frame_structure_type == FrameStructureType.SUPPORT_FRAME: # support frame
-            # set all edges strong
-            outer_diameter, inward_thickness = self.edge_support_d, self.edge_support_thickness
-        if frame_structure_type == FrameStructureType.MEDIUM_FREE_FRAME: # thick diagonal for medium frame
-            if direction == 'LB_RT' or direction == 'LT_RB':
-                outer_diameter, inward_thickness = self.edge_medium_d, self.edge_medium_thickness
 
-        # Add to edge dict overwriting only when outer_diameter, inward_thickness is larger
+        # Set edge section corresponding to each frame type and direction
+        if direction == 'horizontal' or direction == 'vertical': # chord
+            outer_diameter, inward_thickness = frame_structure_type.chord_element_section
+        elif direction == 'LB_RT' or direction == 'LT_RB': # brace
+            outer_diameter, inward_thickness = frame_structure_type.brace_element_section
+
+
+        # Add (edge, section tuple) to edge dict overwriting only when outer_diameter, inward_thickness is larger
         if edge in self.edges_dict:
             existing_diameter, existing_thickness = self.edges_dict[edge]
             if outer_diameter > existing_diameter or inward_thickness > existing_thickness:
@@ -232,28 +228,18 @@ class FEAGraph:
                 return coordinates
         return None  # Return None if no vertex with the given id is found
     
-    def get_element_list_with_type(self):
+    def get_element_list_with_section(self):
         '''
         Used in pythonASAP-> create_and_solve_model_julia
         Output
-            list of (v1_idx, v2_idx, element_type_idx) for each edge in the graph
-            where edge_type_idx is in order of weakest -> strongest
-
+            list of (v1_idx, v2_idx, section_outer_diameter, section_inner_wall_thickness_ratio) for each edge in the graph
         '''
-        # edges_dict : dictionary where keys : (v_1, v_2) Vertex objects, values : (outer diameter, inner wall thickness ratio)
-        elem_list = []
+        # self.edges_dict : dictionary where keys : (v_1, v_2) Vertex objects, values : (outer diameter, inner wall thickness ratio)
+        elem_list_w_section = []
         for v_pairs, section in self.edges_dict.items():
-            if section == (self.edge_support_d, self.edge_support_thickness):
-                elem_type = 0
-            elif section == (self.edge_light_d, self.edge_light_thickness):
-                elem_type = 1
-            elif section == (self.edge_medium_d, self.edge_medium_thickness):
-                elem_type = 2
-            else: 
-                raise ValueError(f"Unknown edge type: {section}")
-            elem_list.append((v_pairs[0].id, v_pairs[1].id, elem_type)) # (v1_idx, v2_idx, element_type_idx)
-        
-        return elem_list
+            elem_list_w_section.append((v_pairs[0].id, v_pairs[1].id, section[0], section[1]))
+
+        return elem_list_w_section
     
     def get_element_utilization(self):
         '''

@@ -212,11 +212,10 @@ export get_element_forces
     """
 
     function create_and_solve_model_julia(node_coords, 
-                                            element_id_type, 
+                                            element_list_w_section, 
                                             fixed_idx, 
                                             loads, 
                                             frame_length_m, 
-                                            element_types,
                                             )
 
         # Define Nodes using the custom Node structure
@@ -224,22 +223,24 @@ export get_element_forces
         node_coords_scaled = (node_coords ./ 2) .* frame_length_m
         nodes = [Node(Vector{Float64}(coord), i in fixed_idx ? :pinned : :free) for (i, coord) in enumerate(node_coords_scaled)]
         
-        # Define material properties  (from 2D frame Asap test)
-        sections = [] # list of Section items in order of weak->strong
-        # for item in element_types, use outer diameter and thickness percent to calculate A and I
-        for item in element_types
-            outer_d, thickness_percent = item[2], item[3]
-            E = 200e6 # Pa (Kn/m^2) young's modulus (steel)
-            G = 80e6 # Shear modulus, also related to stiffness (steel)
+        # Create list of elements (Element(node1, node2, section, release)) 
+        # element_list is a list of tuples (node1, node2, section_outer_d, section_inner_thickness)
+        # Constants
+        E = 200e6  # Pa (Kn/m^2) young's modulus (steel)
+        G = 80e6   # Pa Shear modulus, also related to stiffness (steel)
+        # Function to compute a Section from outer diameter and thickness
+        make_section(outer_d, thickness_percent) = begin
             A = (π * (outer_d^2 - (outer_d * (1 - thickness_percent))^2)) / 4 # m^2 Cross-sectional area of the element
             I = (π * (outer_d^4 - (outer_d * (1 - thickness_percent))^4)) / 64 # m^4 Moment of inertia, used for bending capacity
-            sec = Section(A, E, G, I, I, 1.) #area, young's modulus, shear mod, strong axis I, weak axis I, torsional constant, density=1
-            push!(sections, sec)
+            Section(A, E, G, I, I, 1.0) #area, young's modulus, shear mod, strong axis I, weak axis I, torsional constant, density=1
         end
         
-        # Create Elements using the connections and custom Element structure
-        elements = [Element(nodes[elem[1]], nodes[elem[2]], sections[elem[3]+1], release=:fixedfixed) for elem in element_id_type] #default is fixedfixed
-        # println("elements : ", elements )
+        # Map over the element list to create Element structs
+        elements = map(elem -> begin
+            v1_idx, v2_idx, outer_d, thickness_percent = elem
+            sec = make_section(outer_d, thickness_percent)
+            Element(nodes[v1_idx], nodes[v2_idx], sec, release = :fixedfixed)
+        end, element_list_w_section)
 
         # Create Load objects based on the custom AbstractLoad structure
         loads = [NodeForce(nodes[load[1]], Vector{Float64}(load[2])) for load in loads]
@@ -262,7 +263,7 @@ export get_element_forces
 
         # P_cap_KN is a list of allowable axial forces in order or element idx 
         # Calculate allowable axial force based on yield strength (2/3 of axial capacity)
-        areas = [sections[elem[3]+1].A for elem in element_id_type]
+        areas = [elements[i].section.A for i in 1:length(elements)] # list of areas for each element
         P_cap_kN = [(a * fy * 2 / 3) for a in areas] # kN
 
         # return model

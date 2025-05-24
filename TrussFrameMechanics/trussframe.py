@@ -54,10 +54,12 @@ class FrameStructureType(Enum):
     LIGHT_FREE_FRAME = (2, [0.0, -4.0, 0.0], True)  # 0.01m tube with 10% thickness
     MEDIUM_FREE_FRAME = (3, [0.0, -6.0, 0.0], True)  # 0.01m tube with 20% thickness
 
-    def __init__(self, idx, node_load, is_free_frame):
+    def __init__(self, idx, node_load, is_free_frame, element_section):
         self.idx = idx
         self._node_load = node_load
         self.is_free_frame = is_free_frame
+        self.chord_element_section = element_section[0] if element_section!=None else None # (outer_diameter, inner_wall_thickness_ratio)
+        self.brace_element_section = element_section[1] if element_section!=None else None# (outer_diameter, inner_wall_thickness_ratio)
 
     @property
     def node_load(self):
