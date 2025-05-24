@@ -147,8 +147,8 @@ def set_cantilever_env_framegrid(
     # med_inv = 10
 
     inventory = {
-        FrameStructureType.LIGHT_FREE_FRAME : light_inv, # -1 indicate no limits
-        FrameStructureType.MEDIUM_FREE_FRAME : med_inv,
+        FrameStructureType.FST_10_10 : light_inv, # -1 indicate no limits
+        FrameStructureType.FST_20_20 : med_inv,
         # FrameStructureType.HEAVY_FREE_FRAME : *,
     }
 
@@ -251,8 +251,8 @@ def set_multiple_cantilever_env_framegrid(
     light_inv, med_inv = random.choice(inventory_options)
 
     inventory = {
-        FrameStructureType.LIGHT_FREE_FRAME : light_inv, # -1 indicate no limits
-        FrameStructureType.MEDIUM_FREE_FRAME : med_inv,
+        FrameStructureType.FST_10_10 : light_inv, # -1 indicate no limits
+        FrameStructureType.FST_20_20 : med_inv,
         # FrameStructureType.HEAVY_FREE_FRAME : *,
     }
 

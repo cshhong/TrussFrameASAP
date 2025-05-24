@@ -45,14 +45,22 @@ class FrameStructureType(Enum):
     # EXTERNAL_FORCE = (-1, [0.0, -80.0, 0.0], False)  # Node load in kN
     # UNOCCUPIED = (0, None, False)  # Not used
     # SUPPORT_FRAME = (1, [0.0, -0.4, 0.0], False)  # Node load in kN
-    # LIGHT_FREE_FRAME = (2, [0.0, -0.4, 0.0], True)  # Node load in kN
-    # MEDIUM_FREE_FRAME = (3, [0.0, -4.0, 0.0], True)  # Node weight in kN
+    # FST_10_10 = (2, [0.0, -0.4, 0.0], True)  # Node load in kN
+    # FST_20_20 = (3, [0.0, -4.0, 0.0], True)  # Node weight in kN
     # Node load in kN
-    EXTERNAL_FORCE = (-1, [0.0, -120.0, 0.0], False)  # Set in generate_bc.py
-    UNOCCUPIED = (0, None, False)  # index used
-    SUPPORT_FRAME = (1, [0.0, -4.0, 0.0], False)  # 0.01m tube with 10% thickness
-    LIGHT_FREE_FRAME = (2, [0.0, -4.0, 0.0], True)  # 0.01m tube with 10% thickness
-    MEDIUM_FREE_FRAME = (3, [0.0, -6.0, 0.0], True)  # 0.01m tube with 20% thickness
+
+    # EXTERNAL_FORCE = (-1, [0.0, -120.0, 0.0], False)  # Set in generate_bc.py
+    # UNOCCUPIED = (0, None, False)  # index used
+    # SUPPORT_FRAME = (1, [0.0, -4.0, 0.0], False)  # 0.01m tube with 10% thickness
+    # FST_10_10 = (2, [0.0, -4.0, 0.0], True)  # 0.01m tube with 10% thickness
+    # FST_20_20 = (3, [0.0, -6.0, 0.0], True)  # 0.01m tube with 20% thickness
+
+    # Define frame types (frame grid idx, node_load, is_free_frame, (outer_diameter, inner_wall_thickness_ratio))
+    EXTERNAL_FORCE = (-1, [0.0, -120.0, 0.0], False, None)  # Set in generate_bc.py
+    UNOCCUPIED = (0, None, False, None)  # index used
+    SUPPORT_FRAME = (1, [0.0, -4.0, 0.0], False, ((0.2, 0.4),(0.2, 0.4)))  # 0.01m tube with 10% thickness
+    FST_10_10 = (2, [0.0, -4.0, 0.0], True, ((0.1, 0.1),(0.1, 0.1)))  # 0.01m tube with 10% thickness
+    FST_20_20 = (3, [0.0, -6.0, 0.0], True,  ((0.1, 0.1),(0.2, 0.2)),)  # 0.01m tube with 20% thickness
 
     def __init__(self, idx, node_load, is_free_frame, element_section):
         self.idx = idx
@@ -155,7 +163,7 @@ class TrussFrameRL:
     '''
     _id_counter = 0  # Class-level counter for automatically assigning unique IDs
 
-    def __init__(self, pos, type_shape=FrameShapeType.DOUBLE_DIAGONAL, frame_size=2, type_structure=FrameStructureType.LIGHT_FREE_FRAME):
+    def __init__(self, pos, type_shape=FrameShapeType.DOUBLE_DIAGONAL, frame_size=2, type_structure=FrameStructureType.FST_10_10):
         self.type_shape = type_shape  # FrameShapeType
         # Frame centroid coordinate on board
         self.x = pos[0] 

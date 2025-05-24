@@ -277,8 +277,8 @@ class CantileverEnv_2(gym.Env):
         self.bc_inventory = None # dictionary of inventory in order of free frame types this does not change after reset
         self.inventory_dict = None # dictionary of inventory in order of free frame types
         #     inventory = {
-        #     FrameStructureType.LIGHT_FREE_FRAME : light_inv, # -1 indicate no limits
-        #     FrameStructureType.MEDIUM_FREE_FRAME : med_inv,
+        #     FrameStructureType.FST_10_10 : light_inv, # -1 indicate no limits
+        #     FrameStructureType.FST_20_20 : med_inv,
         #     # FrameStructureType.HEAVY_FREE_FRAME : *,
         # }
         self.n_all_inventory = None # total number of inventory
@@ -378,7 +378,6 @@ class CantileverEnv_2(gym.Env):
 
         self.rand_init_actions = [] # reset random init actions
         self.reset_env_bool = True # set to True to initialize random actions in training function
-
 
         inventory_array = np.array(list(self.inventory_dict.values()), dtype=np.int64)
         obs = self.get_frame_grid_observation()
@@ -511,7 +510,7 @@ class CantileverEnv_2(gym.Env):
             
             # init light frame under target
             t_support_center_board = (t_center_board[0], t_center_board[1] - 2)
-            new_t_frame_support = TrussFrameRL(t_support_center_board, type_structure=FrameStructureType.LIGHT_FREE_FRAME)
+            new_t_frame_support = TrussFrameRL(t_support_center_board, type_structure=FrameStructureType.FST_10_10)
             self.target_support_board.append(t_support_center_board)
             if t_support_center_board not in self.support_board:
                 self.frames.append(new_t_frame_support)
@@ -625,8 +624,8 @@ class CantileverEnv_2(gym.Env):
             self.light_frame_count = np.count_nonzero(self.curr_frame_grid == 2)
             
             if self.frame_count_penalty:
-                med_inventory = self.bc_inventory[FrameStructureType.MEDIUM_FREE_FRAME]
-                light_inventory = self.bc_inventory[FrameStructureType.LIGHT_FREE_FRAME]
+                med_inventory = self.bc_inventory[FrameStructureType.FST_20_20]
+                light_inventory = self.bc_inventory[FrameStructureType.FST_10_10]
 
                 # Inventory penalty capped 
                 reward -= 2*(self.med_frame_count+self.light_frame_count)/(med_inventory + light_inventory)
@@ -640,8 +639,8 @@ class CantileverEnv_2(gym.Env):
                 # count frame types used in current frame grid
                 med_frame_count = np.count_nonzero(self.curr_frame_grid == 3)
                 light_frame_count = np.count_nonzero(self.curr_frame_grid == 2)
-                med_inventory = self.bc_inventory[FrameStructureType.MEDIUM_FREE_FRAME]
-                light_inventory = self.bc_inventory[FrameStructureType.LIGHT_FREE_FRAME]
+                med_inventory = self.bc_inventory[FrameStructureType.FST_20_20]
+                light_inventory = self.bc_inventory[FrameStructureType.FST_10_10]
                 # reward for using less frames
                 if med_inventory > 0:
                     reward += med_inventory/med_frame_count * 0.5
@@ -874,8 +873,8 @@ class CantileverEnv_2(gym.Env):
                     # check if adjacent cell is in target x bounds
                     if self.target_x_bounds[0] <= x_adj and x_adj <= self.target_x_bounds[1]:
                         # check if adjacent cell is not occupied
-                        if self.curr_frame_grid[x_adj, y_adj] != FrameStructureType.LIGHT_FREE_FRAME.idx and \
-                            self.curr_frame_grid[x_adj, y_adj] != FrameStructureType.MEDIUM_FREE_FRAME.idx and \
+                        if self.curr_frame_grid[x_adj, y_adj] != FrameStructureType.FST_10_10.idx and \
+                            self.curr_frame_grid[x_adj, y_adj] != FrameStructureType.FST_20_20.idx and \
                             self.curr_frame_grid[x_adj, y_adj] != FrameStructureType.SUPPORT_FRAME.idx :
                             self.valid_pos.add((x_adj, y_adj)) 
 
@@ -916,7 +915,7 @@ class CantileverEnv_2(gym.Env):
             for pos in target_load_pos:
                 self.curr_fea_graph.external_loads[pos] = [l / 2 for l in t_load_mag] # distribute load to two nodes
             # print(f'added external load to fea graph : {target_load_pos}')
-        else: # SUPPORT_FRAME, LIGHT_FREE_FRAME, MEDIUM_FREE_FRAME
+        else: # SUPPORT_FRAME, FST_10_10, FST_20_20
             new_vertices = [] # Vertex object in order of bottom-left, bottom-right, top-right, top-left
             for i, pos in enumerate(vert_pos):
                 # If new node overlaps with existing node, merge (preserve existing node attributes - id, is_free)
@@ -927,7 +926,7 @@ class CantileverEnv_2(gym.Env):
                         new_v.is_free = False
                 else: # If node does not overlap with existing node, create new node 
                     is_free = None
-                    if new_frame.type_structure == FrameStructureType.LIGHT_FREE_FRAME or new_frame.type_structure == FrameStructureType.MEDIUM_FREE_FRAME: # Free 
+                    if new_frame.type_structure == FrameStructureType.FST_10_10 or new_frame.type_structure == FrameStructureType.FST_20_20: # Free 
                         is_free = True
                     elif new_frame.type_structure == FrameStructureType.SUPPORT_FRAME: # Support
                         if i==0 or i==1: # Bottom left, Bottom right are fixed 
@@ -1142,9 +1141,9 @@ class CantileverEnv_2(gym.Env):
         # Draw frames (fill frames)
         # for trussframe in self.frames:
         #     # outer frame
-        #     if trussframe.type_structure == FrameStructureType.SUPPORT_FRAME or trussframe.type_structure == FrameStructureType.LIGHT_FREE_FRAME:
+        #     if trussframe.type_structure == FrameStructureType.SUPPORT_FRAME or trussframe.type_structure == FrameStructureType.FST_10_10:
         #         self.ax.add_patch(patches.Rectangle((trussframe.x - self.frame_size//2, trussframe.y - self.frame_size//2), self.frame_size, self.frame_size, color='black', lw=1.5, fill=False))
-        #     elif trussframe.type_structure == FrameStructureType.MEDIUM_FREE_FRAME:
+        #     elif trussframe.type_structure == FrameStructureType.FST_20_20:
         #         self.ax.add_patch(patches.Rectangle((trussframe.x - self.frame_size//2, trussframe.y - self.frame_size//2), self.frame_size, self.frame_size, facecolor=((0.7, 0.7, 0.7, 0.6)), edgecolor = 'black', lw=1.5, fill=False))
 
         #     # brace
@@ -1255,20 +1254,19 @@ class CantileverEnv_2(gym.Env):
 
 
         # Draw grid lines
-        # self.ax.grid(True, which='both', color='lightblue', linestyle='-', linewidth=0.5,  zorder=0)
         # for i in range(0, self.board_size_x + 1, 2):
         #     self.ax.axvline(x=i, color='lightblue', linestyle='-', linewidth=2, zorder=0)
         # for j in range(0, self.board_size_y + 1, 2):
         #     self.ax.axhline(y=j, color='lightblue', linestyle='-', linewidth=2, zorder=0)
 
         # Highlight valid position cells (except for final frame if terminated)
-        if self.eps_terminate_valid == False:
-            for frame_x, frame_y in self.valid_pos:
-                x , y = self.frame_to_board(frame_x, frame_y)
-                rect = patches.Rectangle((x - self.frame_size//2, y - self.frame_size//2), 
-                                        self.frame_size, self.frame_size, 
-                                        linewidth=0, edgecolor='lightblue', facecolor='lightblue')
-                self.ax.add_patch(rect)
+        # if self.eps_terminate_valid == False:
+        #     for frame_x, frame_y in self.valid_pos:
+        #         x , y = self.frame_to_board(frame_x, frame_y)
+        #         rect = patches.Rectangle((x - self.frame_size//2, y - self.frame_size//2), 
+        #                                 self.frame_size, self.frame_size, 
+        #                                 linewidth=0, edgecolor='lightblue', facecolor='lightblue')
+        #         self.ax.add_patch(rect)
             
         # Draw current fea graph
         self.draw_fea_graph() # update self.fig, self.ax with current fea graph 
@@ -1409,7 +1407,7 @@ class CantileverEnv_2(gym.Env):
             # Frame count text
             self.ax.text(
                 0.4, -0.125, 
-                f'light ({self.light_frame_count} / {self.bc_inventory[FrameStructureType.LIGHT_FREE_FRAME]})      medium ({self.med_frame_count} / {self.bc_inventory[FrameStructureType.MEDIUM_FREE_FRAME]})      total ({total_frame_count} / {self.bc_inventory[FrameStructureType.LIGHT_FREE_FRAME] + self.bc_inventory[FrameStructureType.MEDIUM_FREE_FRAME]})',
+                f'light ({self.light_frame_count} / {self.bc_inventory[FrameStructureType.FST_10_10]})      medium ({self.med_frame_count} / {self.bc_inventory[FrameStructureType.FST_20_20]})      total ({total_frame_count} / {self.bc_inventory[FrameStructureType.FST_10_10] + self.bc_inventory[FrameStructureType.FST_20_20]})',
                 color='gray',
                 fontsize=caption_fontsize_small,
                 ha='left',   
@@ -1427,7 +1425,7 @@ class CantileverEnv_2(gym.Env):
             # # Inventory value
             # self.ax.text(
             #     0.7, -0.125,
-            #     f'light ({self.bc_inventory[FrameStructureType.LIGHT_FREE_FRAME]})     medium ({self.bc_inventory[FrameStructureType.MEDIUM_FREE_FRAME]})',
+            #     f'light ({self.bc_inventory[FrameStructureType.FST_10_10]})     medium ({self.bc_inventory[FrameStructureType.FST_20_20]})',
             #     color='gray',
             #     fontsize=caption_fontsize_small,
             #     ha='left',   
@@ -1648,9 +1646,9 @@ class CantileverEnv_2(gym.Env):
         Change current human action frame type based on key press.
         '''
         if event.key == '1':
-            self.human_action_frame_type = FrameStructureType.LIGHT_FREE_FRAME
+            self.human_action_frame_type = FrameStructureType.FST_10_10
         if event.key == '2':
-            self.human_action_frame_type = FrameStructureType.MEDIUM_FREE_FRAME
+            self.human_action_frame_type = FrameStructureType.FST_20_20
         if event.key == 'e':
             self.human_action_end = True
         if event.key == 'c':
@@ -1866,7 +1864,7 @@ class CantileverEnv_2(gym.Env):
 
         # Create permuted versions where some light frames are switched to medium frames
         path_frame_grid = np.array(copy.deepcopy(self.curr_frame_grid))
-        med_inv = self.bc_inventory[FrameStructureType.MEDIUM_FREE_FRAME]
+        med_inv = self.bc_inventory[FrameStructureType.FST_20_20]
         for j in range(n_permute):
             new_frame_grid = copy.deepcopy(path_frame_grid)
             state_2_positions = np.column_stack(np.where(path_frame_grid == 2))
@@ -1960,7 +1958,7 @@ class CantileverEnv_2(gym.Env):
         for i in range(rows):
             for j in range(cols):
                 if self.curr_frame_grid[i][j] == FrameStructureType.SUPPORT_FRAME.idx or \
-                   self.curr_frame_grid[i][j] == FrameStructureType.LIGHT_FREE_FRAME.idx:
+                   self.curr_frame_grid[i][j] == FrameStructureType.FST_10_10.idx:
 
                     # Check adjacent cells (up, down, left, right)
                     adjacent_cells = [
@@ -1974,8 +1972,8 @@ class CantileverEnv_2(gym.Env):
                         if 0 <= x_adj < self.frame_grid_size_x and 0 <= y_adj < self.frame_grid_size_y:
                             # check if adjacent cell is in target x bounds
                             if self.target_x_bounds[0] <= x_adj and x_adj <= self.target_x_bounds[1]:
-                                if self.curr_frame_grid[x_adj, y_adj] != FrameStructureType.LIGHT_FREE_FRAME.idx and \
-                                self.curr_frame_grid[x_adj, y_adj] != FrameStructureType.MEDIUM_FREE_FRAME.idx and \
+                                if self.curr_frame_grid[x_adj, y_adj] != FrameStructureType.FST_10_10.idx and \
+                                self.curr_frame_grid[x_adj, y_adj] != FrameStructureType.FST_20_20.idx and \
                                 self.curr_frame_grid[x_adj, y_adj] != FrameStructureType.SUPPORT_FRAME.idx :
                                     # Add the valid position
                                     valid_positions.append((x_adj, y_adj))
@@ -2061,7 +2059,7 @@ class CantileverEnv_2(gym.Env):
         light_frame_board_coords = [(self.frame_to_board(x, y)) for x, y in light_frame_coord]
         for board_coord in light_frame_board_coords:
             # add frame to fea graph
-            new_light_frame = TrussFrameRL(board_coord, type_structure=FrameStructureType.LIGHT_FREE_FRAME)
+            new_light_frame = TrussFrameRL(board_coord, type_structure=FrameStructureType.FST_10_10)
             self.update_fea_graph(new_light_frame)
             self.frames.append(new_light_frame)
         
@@ -2070,7 +2068,7 @@ class CantileverEnv_2(gym.Env):
         medium_frame_board_coords = [(self.frame_to_board(x, y)) for x, y in medium_frame_coord]
         for board_coord in medium_frame_board_coords:
             # add frame to fea graph
-            new_medium_frame = TrussFrameRL(board_coord, type_structure=FrameStructureType.MEDIUM_FREE_FRAME)
+            new_medium_frame = TrussFrameRL(board_coord, type_structure=FrameStructureType.FST_20_20)
             self.update_fea_graph(new_medium_frame)
             self.frames.append(new_medium_frame)
 
