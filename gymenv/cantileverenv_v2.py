@@ -1926,7 +1926,11 @@ class CantileverEnv_2(gym.Env):
             self.curr_frame_grid = new_frame_grid
             self.update_feagraph_from_framegrid() # update self.curr_fea_graph with new frame grid
             # perform fea
-            self.update_displacement() # updates max deflection
+            try:
+                self.update_displacement() # updates max deflection
+            except:
+                print(f'update_displacement failed!')
+                continue
             self.update_utilization()
             # print(f'###### Permutation {j} fea graph ######: \n{self.curr_fea_graph}')
             self.eps_terminate_valid = True
