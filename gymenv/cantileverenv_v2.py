@@ -892,11 +892,18 @@ class CantileverEnv_2(gym.Env):
         - self.valid_pos : A set of valid (x, y) frame positions on the frame grid where a new frame can be placed.
         '''
         # Update the current frame grid with the new frame's type
-        self.curr_frame_grid[new_frame.x_frame, new_frame.y_frame] = new_frame.type_structure.idx
+        if new_frame.type_structure.idx == FrameStructureType.SUPPORT_FRAME.idx:
+            self.curr_frame_grid[new_frame.x_frame, new_frame.y_frame] = new_frame.type_structure.idx
+        else:
+            if self.curr_frame_grid[new_frame.x_frame, new_frame.y_frame] != FrameStructureType.SUPPORT_FRAME.idx:
+                self.curr_frame_grid[new_frame.x_frame, new_frame.y_frame] = new_frame.type_structure.idx
+            else:
+                raise ValueError(f"Trying to add a frame at a support position")
 
         # Remove the position of the new frame from valid_pos if it exists
-        if (new_frame.x_frame, new_frame.y_frame) in self.valid_pos:
-            self.valid_pos.remove((new_frame.x_frame, new_frame.y_frame))
+        if new_frame.type_structure.idx != FrameStructureType.SUPPORT_FRAME.idx and new_frame.type_structure.idx != FrameStructureType.EXTERNAL_FORCE.idx:
+            if (new_frame.x_frame, new_frame.y_frame) in self.valid_pos:
+                self.valid_pos.remove((new_frame.x_frame, new_frame.y_frame))
         # else:
         #     raise ValueError(f"Position ({new_frame.x_frame}, {new_frame.y_frame}) is not a valid position for placing a frame.")
         
