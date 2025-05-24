@@ -1138,29 +1138,6 @@ class CantileverEnv_2(gym.Env):
             #              str(vertex.id), 
             #              fontsize=10, ha='right', color='black')
             
-        # Draw frames (fill frames)
-        # for trussframe in self.frames:
-        #     # outer frame
-        #     if trussframe.type_structure == FrameStructureType.SUPPORT_FRAME or trussframe.type_structure == FrameStructureType.FST_10_10:
-        #         self.ax.add_patch(patches.Rectangle((trussframe.x - self.frame_size//2, trussframe.y - self.frame_size//2), self.frame_size, self.frame_size, color='black', lw=1.5, fill=False))
-        #     elif trussframe.type_structure == FrameStructureType.FST_20_20:
-        #         self.ax.add_patch(patches.Rectangle((trussframe.x - self.frame_size//2, trussframe.y - self.frame_size//2), self.frame_size, self.frame_size, facecolor=((0.7, 0.7, 0.7, 0.6)), edgecolor = 'black', lw=1.5, fill=False))
-
-        #     # brace
-        #     if trussframe.type_shape == FrameShapeType.DOUBLE_DIAGONAL:
-        #         # Add diagonal lines from left bottom to right top, right bottom to left top
-        #         # Coordinates of the rectangle corners
-        #         x0 = trussframe.x - self.frame_size / 2
-        #         y0 = trussframe.y - self.frame_size / 2
-        #         x1 = trussframe.x + self.frame_size / 2
-        #         y1 = trussframe.y + self.frame_size / 2
-        #         # Diagonal from bottom-left to top-right
-        #         line1 = mlines.Line2D([x0, x1], [y0, y1], color='black', lw=1)
-        #         self.ax.add_line(line1)
-        #         # Diagonal from top-left to bottom-right
-        #         line2 = mlines.Line2D([x0, x1], [y1, y0], color='black', lw=1)
-        #         self.ax.add_line(line2)
-            
         # Draw edges (alternative to frame)
         for v_pair, e_section in self.curr_fea_graph.edges_dict.items():
             start_v, end_v = v_pair
