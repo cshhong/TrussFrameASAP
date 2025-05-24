@@ -326,20 +326,6 @@ class CantileverEnv_2(gym.Env):
         self.utilization_median = 0 # determined at termination
         self.utilization_std = 0 # determined at termination
 
-        # Human Playable mode 
-        if self.render_mode == "human_playable":
-            self.click_event_id = None # created in render_frame
-            self.key_event_id = None # created in render_frame
-            
-            # # Connect the button press event (add frame)
-            # self.click_event_id = self.fig.canvas.mpl_connect('button_press_event', self.on_click)
-            # # Connect the keypress event (select frame type)
-            # self.key_event_id = self.fig.canvas.mpl_connect('key_press_event', self.on_keypress)
-            
-            self.human_action_frame_type = None # type of frame type selected by human through key press : 1 for FreeFrameType.LIGHT_FREE_FRAME, 2 for FreeFrameType.MEDIUM_FREE_FRAME
-            self.human_action_end = False # boolean to end episode selected by human through key press of 'e' : end episode, 'c' : continue episode
-            self.human_action_frame_coords = None # coordinates of frame selected by human through click (frame_x, frame_y)
-
         print("Initialized Cantilever Env!")
 
         self.frame_count_penalty = frame_count_penalty # boolean to indicate if frame count penalty is used
