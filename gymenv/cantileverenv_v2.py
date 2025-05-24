@@ -1959,6 +1959,8 @@ class CantileverEnv_2(gym.Env):
         utilization_median = self.utilization_median
         utilization_std = self.utilization_std
         utilization_percentile = self.utilization_ninety_percentile
+        utilization_all_signed = [utilization for center_x, center_y, utilization, dir in self.edge_utilization]
+        utilization_all = np.abs(utilization_all_signed) 
         num_frames = len(self.frames)
         num_failed = len(self.curr_fea_graph.failed_elements)
         frame_grid = self.curr_frame_grid
@@ -1979,6 +1981,7 @@ class CantileverEnv_2(gym.Env):
                 utilization_median,
                 utilization_std,
                 utilization_percentile,
+                utilization_all,
                 num_frames,
                 frame_grid,
                 episode_reward,
