@@ -276,11 +276,6 @@ class CantileverEnv_2(gym.Env):
         self.max_deflection = None # float max deflection of the structure after completion at FEA
         self.max_deflection_node_idx = None
         
-        # Set current observation based on observation mode
-        self.obs_mode = obs_mode  # Set the observation mode
-        if self.obs_mode not in self.metadata["obs_modes"]:
-            raise ValueError(f"Invalid observation mode: {self.obs_mode}. Valid modes are: {self.metadata['obs_modes']}")
-        
         # Set in reset() when boundary conditions are set 
         self.bc_inventory = None # dictionary of inventory in order of free frame types this does not change after reset
         self.inventory_dict = None # dictionary of inventory in order of free frame types
@@ -293,7 +288,7 @@ class CantileverEnv_2(gym.Env):
         self.med_frame_count = None # At end of episode, populate number of medium frames used
         self.light_frame_count = None # At end of episode, populate number of light frames used
 
-        self.obs_converter = None # ObservationBijectiveMapping object, used to encode and decode observations
+        # self.obs_converter = None # ObservationBijectiveMapping object, used to encode and decode observations
         self.action_converter = None # ActionBijectiveMapping object, used to encode and decode actions
         self.observation_space = None
         self.single_observation_space = None
@@ -312,8 +307,8 @@ class CantileverEnv_2(gym.Env):
         self.target_x_bounds = None # (left, right) set at initBoundaryCondition to prevent going beyond target x
 
         self.initBoundaryConditions() # set self.allowable_deflection, self.inventory_dict, self.frames, self.curr_frame_grid, self.target_loads_met, FrameStructureType.EXTERNAL_FORCE.node_load
-        self.set_space_converters(self.inventory_dict) # set self.obs_converter, self.action_converter
-        self.set_gym_spaces(self.obs_converter, self.action_converter) # set self.observation_space, self.action_space
+        self.set_action_converter(self.inventory_dict) # set self.action_converter
+        self.set_gym_spaces(self.action_converter) # set self.observation_space, self.action_space
 
         self.bc_condition = None # condition of boundary conditions (height, length, loadmag, inventory_light, inventory_med) used to condition actor, critic network
 
@@ -403,10 +398,7 @@ class CantileverEnv_2(gym.Env):
 
 
         inventory_array = np.array(list(self.inventory_dict.values()), dtype=np.int64)
-        if self.obs_mode == 'frame_grid_singleint':
-            obs = self.obs_converter.encode(self.curr_frame_grid, inventory_array) # encoded int value obs
-        elif self.obs_mode == 'frame_grid':
-            obs = self.get_frame_grid_observation()
+        obs = self.get_frame_grid_observation()
         # print(f'Reset obs : {self.curr_frame_grid} \n {inventory_array} \n Encoded obs : {obs}')
         info = {} # no info to return
 
@@ -542,21 +534,15 @@ class CantileverEnv_2(gym.Env):
             self.update_frame_grid(new_t_frame_support)
             self.update_fea_graph(new_t_frame_support)
 
-    def set_space_converters(self, inventory_dict):
+    def set_action_converter(self, inventory_dict):
         '''
-        set self.obs_converter, self.action_converter 
+        set self.action_converter 
         Assume that self.inventory_dict is set
         '''
         assert isinstance(inventory_dict, dict), "inventory_dict must be a dictionary"
         # Set observation converter
         freeframe_inv_cap = [value for value in inventory_dict.values()] # get sequence of inventory level for freeframe types
         print(f'Freeframe inventory array: {freeframe_inv_cap}')  # Output: [1, 2, 3]
-        if self.obs_mode == "frame_grid_singleint":
-            self.obs_converter = convert_gymspaces.ObservationDownSamplingMapping(self.frame_grid_size_x, 
-                                                                                self.frame_grid_size_y, 
-                                                                                freeframe_inv_cap,
-                                                                                kernel_size=3,
-                                                                                stride=2)
 
         # Set action converter
         freeframe_idx_min, freeframe_idx_max = FrameStructureType.get_freeframe_idx_bounds()
@@ -565,54 +551,26 @@ class CantileverEnv_2(gym.Env):
                                                                         freeframe_idx_min, 
                                                                         freeframe_idx_max)
         
-    def set_gym_spaces(self, obs_converter=None, action_converter=None):
+    def set_gym_spaces(self, action_converter=None):
         '''
         set self.observation_space, self.action_space according to obs mode
         Assumes that observation and action converters are provided as input
         observation space is continuous (Box) and action space is discrete (Discrete)
 
         Input
-            "frame_grid_singleint" mode 
-                obs_converter : ObservationDownsamplingMapping object
-                action_converter : ActionBijectiveMapping object
+            action_converter : ActionBijectiveMapping object
         '''
-        # Set observation_space and action_space (following Gymnasium)
-        if self.obs_mode == 'frame_grid_singleint':
-            assert obs_converter is not None, "obs_converter must be an instance of ObservationBijectiveMapping"
-            assert action_converter is not None, "action_converter must be an instance of ActionBijectiveMapping"
-            
-            # Define Observations : frame grid 
-            n_max = obs_converter.encoded_reduced_framegrid_max
-            # Bounds for the inventory values
-            inventory_low = np.zeros(len(self.inventory_dict), dtype=np.float64)  # All inventory values >= 0
-            inventory_high = np.array(list(self.inventory_dict.values()), dtype=np.float64)  # Upper bounds for inventory
-            # Combine grid and inventory bounds
-            low = np.concatenate([np.array([0], dtype=np.float64), inventory_low])
-            high = np.concatenate([np.array([n_max], dtype=np.float64), inventory_high])
-            # Create the Box observation space
-            self.observation_space=Box(low=low, high=high, dtype=np.float64)
-            print(f'Observation Space : {self.observation_space}')
-            self.single_observation_space = self.observation_space
-            
-            # Define Actions : end boolean, freeframe_type, frame_x, frame_y
-            n_actions = action_converter._calculate_total_space_size()
-            self.action_space = Discrete(n=n_actions, seed=self.rand_init_seed)
-            print(f'Action Space : {self.action_space} sampling seed : {self.rand_init_seed}')
-            self.single_action_space = self.action_space
+        # # Set observation_space and action_space (following Gymnasium)
+        # Define Observations : frame grid with extra row with medium inventory values
+        self.observation_space = Box(low=-1, high=4, shape=(self.frame_grid_size_x, self.frame_grid_size_y+2), dtype=np.int64)
+        self.single_observation_space = self.observation_space
+        print(f'Obs Space : {self.observation_space} | Single obs space : {self.single_observation_space}')
 
-            # Relative Coordinates? (end_bool, frame_idx, left/right/top/bottom) ---> Doesn't save much from absolute coordinates, still have to check valid action!
-        
-        elif self.obs_mode == 'frame_grid':
-            # Define Observations : frame grid with extra row with medium inventory values
-            self.observation_space = Box(low=-1, high=4, shape=(self.frame_grid_size_x, self.frame_grid_size_y+2), dtype=np.int64)
-            self.single_observation_space = self.observation_space
-            print(f'Obs Mode : "{self.obs_mode}" | Obs Space : {self.observation_space} | Single obs space : {self.single_observation_space}')
-
-            # Define Actions : end boolean, freeframe_type, frame_x, frame_y
-            n_actions = action_converter._calculate_total_space_size()
-            self.action_space = Discrete(n=n_actions, seed=self.rand_init_seed)
-            print(f'Action Space : {self.action_space} sampling seed : {self.rand_init_seed}')
-            self.single_action_space = self.action_space
+        # Define Actions : end boolean, freeframe_type, frame_x, frame_y
+        n_actions = action_converter._calculate_total_space_size()
+        self.action_space = Discrete(n=n_actions, seed=self.rand_init_seed)
+        print(f'Action Space : {self.action_space} sampling seed : {self.rand_init_seed}')
+        self.single_action_space = self.action_space
 
 
     def step(self, action):
@@ -734,13 +692,12 @@ class CantileverEnv_2(gym.Env):
 
         # Store trajectory
         inventory_array = np.array(list(self.inventory_dict.values())) # convert inventory dictionary to array in order of free frame types
-        if self.obs_mode == 'frame_grid_singleint':
-            obs = self.obs_converter.encode(self.curr_frame_grid, inventory_array)
-        elif self.obs_mode == 'frame_grid':
-            obs = self.get_frame_grid_observation()
-            # if all values in obs is 0, then print action and frame grid
-            if all(value == 0 for value in obs.flatten()):
-                print(f'Action : {action_tuple} \n Frame Grid : \n{self.curr_frame_grid}')
+        
+        obs = self.get_frame_grid_observation()
+        # if all values in obs is 0, then print action and frame grid
+        if all(value == 0 for value in obs.flatten()):
+            print(f'Action : {action_tuple} \n Frame Grid : \n{self.curr_frame_grid}')
+
         self.episode_return += reward
         self.render()
 
