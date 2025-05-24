@@ -1007,7 +1007,7 @@ class CantileverEnv_2(gym.Env):
         Updates self.utilization_median, self.utilization_std, self.utilization_ninety_percentile
         '''
         # Get utlization value from edge_utilization
-        self.edge_utilization = self.curr_fea_graph.get_element_utilization() # list of (center_x, center_y, utilization) for each edge 
+        self.edge_utilization = self.curr_fea_graph.get_element_utilization() # list of (center_x, center_y, utilization, dir) for each edge 
         util_val = [abs(edge[2])*100 for edge in self.edge_utilization]
         self.utilization_min = np.min(util_val)
         self.utilization_max = np.max(util_val)
