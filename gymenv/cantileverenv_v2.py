@@ -1918,7 +1918,7 @@ class CantileverEnv_2(gym.Env):
         for j in range(n_permute):
             new_frame_grid = copy.deepcopy(path_frame_grid)
             state_2_positions = np.column_stack(np.where(path_frame_grid == 2))
-            rand_med_count = np.random.randint(0, med_inv+1) # random number of medium frames to add
+            rand_med_count = min(np.random.randint(0, med_inv), state_2_positions.shape[0]) # random number of medium frames to add
             selected_indices = state_2_positions[np.random.choice(state_2_positions.shape[0], size=rand_med_count, replace=False)]
             new_frame_grid[selected_indices[:, 0], selected_indices[:, 1]] = 3 # change state 2 to state 3)
 
