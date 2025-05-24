@@ -1160,7 +1160,7 @@ class CantileverEnv_2(gym.Env):
         #         # Diagonal from top-left to bottom-right
         #         line2 = mlines.Line2D([x0, x1], [y1, y0], color='black', lw=1)
         #         self.ax.add_line(line2)
-
+            
         # Draw edges (alternative to frame)
         for v_pair, e_section in self.curr_fea_graph.edges_dict.items():
             start_v, end_v = v_pair
