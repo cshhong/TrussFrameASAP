@@ -1888,7 +1888,8 @@ class CantileverEnv_2(gym.Env):
             # generate manhattan path between support and external load
             manhattan_path = self.find_manhattan_path(support_frame_coord, target_support_frame_coord)
             # add to list of manhattan paths
-            all_paths.append(manhattan_path)
+            if manhattan_path is not None:
+                all_paths.append(manhattan_path)
         # merge paths to get all light frames
         all_light_frames = self.merge_manhattan_paths(all_paths)
         
