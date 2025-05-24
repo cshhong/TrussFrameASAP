@@ -873,10 +873,9 @@ class CantileverEnv_2(gym.Env):
                     # check if adjacent cell is in target x bounds
                     if self.target_x_bounds[0] <= x_adj and x_adj <= self.target_x_bounds[1]:
                         # check if adjacent cell is not occupied
-                        if self.curr_frame_grid[x_adj, y_adj] != FrameStructureType.FST_10_10.idx and \
-                            self.curr_frame_grid[x_adj, y_adj] != FrameStructureType.FST_20_20.idx and \
-                            self.curr_frame_grid[x_adj, y_adj] != FrameStructureType.SUPPORT_FRAME.idx :
-                            self.valid_pos.add((x_adj, y_adj)) 
+                        if self.curr_frame_grid[x_adj, y_adj] == FrameStructureType.UNOCCUPIED.idx or \
+                            self.curr_frame_grid[x_adj, y_adj] == FrameStructureType.EXTERNAL_FORCE.idx:
+                            self.valid_pos.add((x_adj, y_adj))
 
     def update_fea_graph(self, new_frame, t_load_mag=[0.0, 0.0, 0.0]):
         '''
