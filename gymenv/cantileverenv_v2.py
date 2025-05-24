@@ -490,7 +490,7 @@ class CantileverEnv_2(gym.Env):
         self.target_x_bounds = (min([coord[0] for coord in targetload_frames.keys()]), max([coord[0] for coord in targetload_frames.keys()]))
 
         # Init supports and targets in curr_frame_grid according to bc
-        for s_frame_coords in support_frames:
+        for s_frame_coords in support_frames: # * update_frame_grid requires support to be updated first
             s_board_coords = self.frame_to_board(*s_frame_coords) # convert from frame grid coords to board coords
             new_s_frame = TrussFrameRL(s_board_coords, type_structure=FrameStructureType.SUPPORT_FRAME)
             self.support_board.append(s_board_coords)
