@@ -877,21 +877,85 @@ class CantileverEnv_2(gym.Env):
                             self.curr_frame_grid[x_adj, y_adj] == FrameStructureType.EXTERNAL_FORCE.idx:
                             self.valid_pos.add((x_adj, y_adj))
 
+    # def update_fea_graph(self, new_frame, t_load_mag=[0.0, 0.0, 0.0]):
+    #     '''
+    #     Input 
+    #         new_frame : TrussFrameRL object (centroid, frame type)
+
+    #     Given new TrussFrameRL object, update self.curr_feagraph (FEAgraph object) where 
+    #         self.vertices : dictionary of vertices with coordinate as key and Vertex object as value
+    #         self.edges : adjacency list of tuples of vertex indices pairs
+    #         self.maximal_edges : dictionary where key is direction and value is list of MaximalEdge objects 
+    #         {
+    #             'horizontal': [],
+    #             'vertical': [],
+    #             'LB_RT': [],
+    #             'LT_RB': []
+    #         }
+    #         self.load : A list of tuples (node.id, [load.x, load.y, load.z]) 
+
+    #     Update current FEAgraph with added truss frame so that existing node indices are preserved
+    #     1. merge overlapping new nodes with existing nodes
+    #     2. check line overlap with existing edge using maximal edge representation 
+    #     3. update edge list with new line segments
+
+    #     '''
+    #     # Calculate the positions of the four vertices
+    #     half_size = self.frame_size // 2
+    #     vert_pos = [
+    #         (new_frame.x - half_size, new_frame.y - half_size),  # Bottom-left
+    #         (new_frame.x + half_size, new_frame.y - half_size),  # Bottom-right
+    #         (new_frame.x + half_size, new_frame.y + half_size),  # Top-right
+    #         (new_frame.x - half_size, new_frame.y + half_size)   # Top-left
+    #     ]
+
+    #     if new_frame.type_structure == FrameStructureType.EXTERNAL_FORCE: # target frame
+    #         target_load_pos = vert_pos[0], vert_pos[1] # bottom right, top right vertices of target frame
+    #         for pos in target_load_pos:
+    #             self.curr_fea_graph.external_loads[pos] = [l / 2 for l in t_load_mag] # distribute load to two nodes
+    #         # print(f'added external load to fea graph : {target_load_pos}')
+    #     else: # SUPPORT_FRAME, FST_10_10, FST_20_20
+    #         new_vertices = [] # Vertex object in order of bottom-left, bottom-right, top-right, top-left
+    #         for i, pos in enumerate(vert_pos):
+    #             # If new node overlaps with existing node, merge (preserve existing node attributes - id, is_free)
+    #             if pos in self.curr_fea_graph.vertices:
+    #                 new_v = self.curr_fea_graph.vertices[pos] # get overlapping existing node
+    #                 # allow change free->fixed but not fixed->free
+    #                 if new_frame.type_structure == FrameStructureType.SUPPORT_FRAME:
+    #                     new_v.is_free = False
+    #             else: # If node does not overlap with existing node, create new node 
+    #                 is_free = None
+    #                 if new_frame.type_structure == FrameStructureType.FST_10_10 or new_frame.type_structure == FrameStructureType.FST_20_20: # Free 
+    #                     is_free = True
+    #                 elif new_frame.type_structure == FrameStructureType.SUPPORT_FRAME: # Support
+    #                     if i==0 or i==1: # Bottom left, Bottom right are fixed 
+    #                         is_free = False
+    #                         self.curr_fea_graph.supports.append(pos) # add to list of supports
+    #                     else: # Top left, Top right are free
+    #                         is_free = True
+    #                 new_v = Vertex(pos, is_free=is_free, load=new_frame.type_structure.node_load)
+                    
+    #                 # additionally check if meets with external load, and if so, combine load
+    #                 if pos in self.curr_fea_graph.external_loads:
+    #                     new_v.load = [x + y for x, y in zip(new_v.load, self.curr_fea_graph.external_loads[pos])]
+
+    #                 # add new node to fea graph
+    #                 self.curr_fea_graph.vertices[pos] = new_v 
+    #             # add to new vertices to combine edges                    
+    #             new_vertices.append(new_v) 
+
+    #         # Check line overlap with existing edge  
+    #         self.curr_fea_graph.combine_and_merge_edges(frame_type_shape=new_frame.type_shape,new_vertices=new_vertices, frame_structure_type=new_frame.type_structure)
+
     def update_fea_graph(self, new_frame, t_load_mag=[0.0, 0.0, 0.0]):
         '''
+        DEBUG to use FrameStructureType.is_free_nodes that boolean values for (bottom_left, bottom_right, top_left, top_right) nodes in frame
         Input 
             new_frame : TrussFrameRL object (centroid, frame type)
 
         Given new TrussFrameRL object, update self.curr_feagraph (FEAgraph object) where 
             self.vertices : dictionary of vertices with coordinate as key and Vertex object as value
             self.edges : adjacency list of tuples of vertex indices pairs
-            self.maximal_edges : dictionary where key is direction and value is list of MaximalEdge objects 
-            {
-                'horizontal': [],
-                'vertical': [],
-                'LB_RT': [],
-                'LT_RB': []
-            }
             self.load : A list of tuples (node.id, [load.x, load.y, load.z]) 
 
         Update current FEAgraph with added truss frame so that existing node indices are preserved
@@ -900,49 +964,55 @@ class CantileverEnv_2(gym.Env):
         3. update edge list with new line segments
 
         '''
-        # Calculate the positions of the four vertices
-        half_size = self.frame_size // 2
-        vert_pos = [
-            (new_frame.x - half_size, new_frame.y - half_size),  # Bottom-left
-            (new_frame.x + half_size, new_frame.y - half_size),  # Bottom-right
-            (new_frame.x + half_size, new_frame.y + half_size),  # Top-right
-            (new_frame.x - half_size, new_frame.y + half_size)   # Top-left
-        ]
-
+        # Non physical Frames
+        # update external load position and magnitude separately
         if new_frame.type_structure == FrameStructureType.EXTERNAL_FORCE: # target frame
-            target_load_pos = vert_pos[0], vert_pos[1] # bottom right, top right vertices of target frame
+            # target_load_pos = vert_pos[0], vert_pos[1] # bottom right, top right vertices of target frame
+            target_load_pos = new_frame.bottom_left, new_frame.bottom_right 
             for pos in target_load_pos:
-                self.curr_fea_graph.external_loads[pos] = [l / 2 for l in t_load_mag] # distribute load to two nodes
-            # print(f'added external load to fea graph : {target_load_pos}')
-        else: # SUPPORT_FRAME, FST_10_10, FST_20_20
-            new_vertices = [] # Vertex object in order of bottom-left, bottom-right, top-right, top-left
-            for i, pos in enumerate(vert_pos):
-                # If new node overlaps with existing node, merge (preserve existing node attributes - id, is_free)
-                if pos in self.curr_fea_graph.vertices:
-                    new_v = self.curr_fea_graph.vertices[pos] # get overlapping existing node
-                    # allow change free->fixed but not fixed->free
-                    if new_frame.type_structure == FrameStructureType.SUPPORT_FRAME:
-                        new_v.is_free = False
-                else: # If node does not overlap with existing node, create new node 
-                    is_free = None
-                    if new_frame.type_structure == FrameStructureType.FST_10_10 or new_frame.type_structure == FrameStructureType.FST_20_20: # Free 
-                        is_free = True
-                    elif new_frame.type_structure == FrameStructureType.SUPPORT_FRAME: # Support
-                        if i==0 or i==1: # Bottom left, Bottom right are fixed 
-                            is_free = False
-                            self.curr_fea_graph.supports.append(pos) # add to list of supports
-                        else: # Top left, Top right are free
-                            is_free = True
-                    new_v = Vertex(pos, is_free=is_free, load=new_frame.type_structure.node_load)
-                    
-                    # additionally check if meets with external load, and if so, combine load
-                    if pos in self.curr_fea_graph.external_loads:
-                        new_v.load = [x + y for x, y in zip(new_v.load, self.curr_fea_graph.external_loads[pos])]
+                half_load = [l / 2 for l in t_load_mag]
+                # print(f'added external load to fea graph : {pos} with load {half_load}')
+                self.curr_fea_graph.external_loads[pos] = half_load # distribute load to two nodes
+                new_v = Vertex(pos, is_free=True, load=half_load)
+                self.curr_fea_graph.vertices[pos] = new_v # add to vertices
+        
+        # Physical Frames
+        else:
+            # update support positions separately
+            if new_frame.type_structure == FrameStructureType.SUPPORT_FRAME: # support frame
+                self.curr_fea_graph.supports.append(new_frame.bottom_left) # add to list of supports
+                self.curr_fea_graph.supports.append(new_frame.bottom_right) # add to list of supports
 
+            # create Vertex objects for 4 vertices in frame with check with overlap with existing 
+            # get vertex position, is_free, load from frame object
+            all_vert_pos = new_frame.get_vertex_positions() # get vertex positions of frame
+            # print(f'all_vert_pos : {all_vert_pos}')
+            all_vert_is_free = new_frame.type_structure.is_free_nodes # get is_free boolean values of frame
+            # print(f'all_vert_is_free : {all_vert_is_free}')
+            # list with new_frame.type_structure.node_load (x,y,z) tuple 4 times for each node
+            all_vert_load = [new_frame.type_structure.node_load for _ in range(4)]
+            # print(f'all_vert_load : {all_vert_load}')
+
+            new_vertices = [] # Vertex object in order of bottom-left, bottom-right, top-right, top-left used to update edges
+            for i in range(4):
+                # handle existing node overlap case ; 
+                    # fixed > free
+                    # load sum 
+                # If new node overlaps with existing node, merge (preserve existing node attributes - id, is_free)
+                if all_vert_pos[i] in self.curr_fea_graph.vertices:
+                    old_v = self.curr_fea_graph.vertices[all_vert_pos[i]] # get overlapping existing Vertex object and update
+                    # allow change free->fixed but not fixed->free (if at least one of the existing nodes is fixed, then set new node to fixed)
+                    if old_v.is_free == False or all_vert_is_free[i] == False: # if either node is fixed, set to fixed
+                        old_v.is_free = False
+                    # compare l2 norm of load vectors and use the larger one
+                    old_v.load = old_v.load if sum(a**2 for a in old_v.load) >= sum(b**2 for b in all_vert_load[i]) else all_vert_load[i]
+                    new_v = old_v # use existing node
+                else:
+                    new_v = Vertex(all_vert_pos[i], is_free=all_vert_is_free[i], load=all_vert_load[i]) 
                     # add new node to fea graph
-                    self.curr_fea_graph.vertices[pos] = new_v 
-                # add to new vertices to combine edges                    
-                new_vertices.append(new_v) 
+                    self.curr_fea_graph.vertices[all_vert_pos[i]] = new_v 
+
+                new_vertices.append(new_v) # add to new vertices to combine edges
 
             # Check line overlap with existing edge  
             self.curr_fea_graph.combine_and_merge_edges(frame_type_shape=new_frame.type_shape,new_vertices=new_vertices, frame_structure_type=new_frame.type_structure)
