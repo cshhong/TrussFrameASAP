@@ -877,7 +877,7 @@ class CantileverEnv_2(gym.Env):
                             self.curr_frame_grid[x_adj, y_adj] == FrameStructureType.EXTERNAL_FORCE.idx:
                             self.valid_pos.add((x_adj, y_adj))
 
-    # def update_fea_graph(self, new_frame, t_load_mag=[0.0, 0.0, 0.0]):
+    # def _update_fea_graph(self, new_frame, t_load_mag=[0.0, 0.0, 0.0]):
     #     '''
     #     Input 
     #         new_frame : TrussFrameRL object (centroid, frame type)
