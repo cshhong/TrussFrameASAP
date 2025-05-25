@@ -128,19 +128,19 @@ class FEAGraph:
         '''
         # check horizontal edges 
         h1 = (new_vertices[0], new_vertices[1]) # Vertex objects 
-        h2 = (new_vertices[3], new_vertices[2])
+        h2 = (new_vertices[2], new_vertices[3])
         # check vertical edges
-        v1 = (new_vertices[1], new_vertices[2])
-        v2 = (new_vertices[0], new_vertices[3])
+        v1 = (new_vertices[1], new_vertices[3])
+        v2 = (new_vertices[0], new_vertices[2])
         # check diagonal lines
         d1, d2 = None, None
         if frame_type_shape == FrameShapeType.DIAGONAL_LB_RT:
-            d1 = (new_vertices[0], new_vertices[2])
+            d1 = (new_vertices[0], new_vertices[3])
         elif frame_type_shape == FrameShapeType.DIAGONAL_LT_RB:
-            d2 = (new_vertices[1], new_vertices[3])
+            d2 = (new_vertices[1], new_vertices[2])
         elif frame_type_shape == FrameShapeType.DOUBLE_DIAGONAL: # we only use this type for now
-            d1 = (new_vertices[0], new_vertices[2])
-            d2 = (new_vertices[1], new_vertices[3])
+            d1 = (new_vertices[0], new_vertices[3])
+            d2 = (new_vertices[1], new_vertices[2])
         segments = {
                     'horizontal': [h1, h2],
                     'vertical': [v1, v2],
