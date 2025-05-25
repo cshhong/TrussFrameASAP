@@ -203,8 +203,8 @@ class FEAGraph:
             return max displacement node index and magnitude
         '''
         
-        if not hasattr(self, 'displacement') or not self.displacement:
-            raise ValueError("Displacement data is not available")
+        # if not hasattr(self, 'displacement') or not self.displacement:
+        #     raise ValueError("Displacement data is not available")
 
         # Calculate the magnitude of displacement for each node
         magnitudes = [np.linalg.norm(node_disp[:2]) for node_disp in self.displacement]
