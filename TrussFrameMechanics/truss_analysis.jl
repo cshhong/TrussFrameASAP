@@ -143,7 +143,7 @@ export get_element_forces
     The model can be used to query results such as nodal displacements or reactions.
     """
 
-    # function create_and_solve_model_julia(node_coords, element_conns, fixed_idx, loads, frame_length_m)
+    # function _create_and_solve_model_julia(node_coords, element_conns, fixed_idx, loads, frame_length_m)
 
     #     # Define Nodes using the custom Node structure
     #     # nodes = [Node(Vector{Float64}(coord), :fixed) for coord in node_coords]
