@@ -173,6 +173,11 @@ class TrussFrameRL:
         # Frame centroid coordinate on board
         self.x = pos[0] 
         self.y = pos[1] 
+        self.bottom_left = (self.x - frame_size/2, self.y - frame_size/2) # bottom left corner of the frame
+        self.bottom_right = (self.x + frame_size/2, self.y - frame_size/2) # bottom right corner of the frame
+        self.top_left = (self.x - frame_size/2, self.y + frame_size/2) # top left corner of the frame   
+        self.top_right = (self.x + frame_size/2, self.y + frame_size/2) # top right corner of the frame
+
         # Frame cell position on frame grid
         self.x_frame = int(self.x // frame_size)
         self.y_frame = int(self.y // frame_size)
@@ -181,6 +186,15 @@ class TrussFrameRL:
         # Automatically count and assign a unique ID - support, target load, following frames
         self.id = TrussFrameRL._id_counter
         TrussFrameRL._id_counter += 1  # Increment the class-level counter
+
+    def get_vertex_positions(self):
+        """
+        Get the positions of the vertices of the frame in order of bottom_left, bottom_right, top_left, top_right.
+        Returns:
+            list: A list of (board_x, board_y) tuples representing the positions of the vertices.
+        """
+        return [self.bottom_left, self.bottom_right, self.top_left, self.top_right]
+    
 
     # def get_relative_pos(self, ref_pos):
     #     '''
