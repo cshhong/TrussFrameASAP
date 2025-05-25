@@ -57,16 +57,17 @@ class FrameStructureType(Enum):
 
     # Define frame types (frame grid idx, node_load, is_free_frame, is_free_nodes, (outer_diameter, inner_wall_thickness_ratio))
     # is_free_nodes are in order of [bottom_left, bottom_right, top_left, top_right] nodes where free nodes are True and fixed nodes (bottom of support frame) are False 
-    EXTERNAL_FORCE = (-1, [0.0, -120.0, 0.0], False, None, None)  # Set in generate_bc.py
-    UNOCCUPIED = (0, None, False, None, None)  # index used
-    SUPPORT_FRAME = (1, [0.0, -4.0, 0.0], False, (False, False, True, True), ((0.2, 0.4),(0.2, 0.4)))  # 0.01m tube with 10% thickness
-    FST_10_10 = (2, [0.0, -4.0, 0.0], True, (True, True, True, True), ((0.1, 0.1),(0.1, 0.1)))  # 0.01m tube with 10% thickness
-    FST_20_20 = (3, [0.0, -6.0, 0.0], True, (True, True, True, True),  ((0.1, 0.1),(0.2, 0.2)),)  # 0.01m tube with 20% thickness
+    EXTERNAL_FORCE = ('EXTERNAL_FORCE', -1, [0.0, -120.0, 0.0], False, None, None)  # Set in generate_bc.py
+    UNOCCUPIED = ('UNOCCUPIED', 0, None, False, None, None)  # index used
+    SUPPORT_FRAME = ('SUPPORT_FRAME', 1, [0.0, -10.0, 0.0], False, (False, False, True, True), ((0.2, 0.4),(0.2, 0.4)))  # 0.01m tube with 10% thickness
+    FST_10_10 = ('FST_10_10', 2, [0.0, -4.0, 0.0], True, (True, True, True, True), ((0.1, 0.1),(0.1, 0.1)))  # 0.01m tube with 10% thickness
+    FST_20_20 = ('FST_20_20', 3, [0.0, -6.0, 0.0], True, (True, True, True, True),  ((0.1, 0.1),(0.2, 0.2)),)  # 0.01m tube with 20% thickness
 
     # set class variable
     default_type = FST_10_10
 
-    def __init__(self, idx, node_load, is_free_frame, is_free_nodes, element_section):
+    def __init__(self, name_str, idx, node_load, is_free_frame, is_free_nodes, element_section):
+        self.name_str = name_str
         self.idx = idx
         self._node_load = node_load # tuple of 4 (x, y, z) loads in kN for (bottom_left, bottom_right, top_left, top_right)
         self.is_free_frame = is_free_frame # boolean value for free frame
