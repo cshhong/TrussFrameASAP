@@ -1948,9 +1948,8 @@ class CantileverEnv_2(gym.Env):
                         if 0 <= x_adj < self.frame_grid_size_x and 0 <= y_adj < self.frame_grid_size_y:
                             # check if adjacent cell is in target x bounds
                             if self.target_x_bounds[0] <= x_adj and x_adj <= self.target_x_bounds[1]:
-                                if self.curr_frame_grid[x_adj, y_adj] != FrameStructureType.FST_10_10.idx and \
-                                self.curr_frame_grid[x_adj, y_adj] != FrameStructureType.FST_20_20.idx and \
-                                self.curr_frame_grid[x_adj, y_adj] != FrameStructureType.SUPPORT_FRAME.idx :
+                                if self.curr_frame_grid[x_adj, y_adj] == FrameStructureType.UNOCCUPIED.idx or \
+                                    self.curr_frame_grid[x_adj, y_adj] == FrameStructureType.EXTERNAL_FORCE.idx:
                                     # Add the valid position
                                     valid_positions.append((x_adj, y_adj))
 
