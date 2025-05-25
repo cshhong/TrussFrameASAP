@@ -55,20 +55,22 @@ class FrameStructureType(Enum):
     # FST_10_10 = (2, [0.0, -4.0, 0.0], True)  # 0.01m tube with 10% thickness
     # FST_20_20 = (3, [0.0, -6.0, 0.0], True)  # 0.01m tube with 20% thickness
 
-    # Define frame types (frame grid idx, node_load, is_free_frame, (outer_diameter, inner_wall_thickness_ratio))
-    EXTERNAL_FORCE = (-1, [0.0, -120.0, 0.0], False, None)  # Set in generate_bc.py
-    UNOCCUPIED = (0, None, False, None)  # index used
-    SUPPORT_FRAME = (1, [0.0, -4.0, 0.0], False, ((0.2, 0.4),(0.2, 0.4)))  # 0.01m tube with 10% thickness
-    FST_10_10 = (2, [0.0, -4.0, 0.0], True, ((0.1, 0.1),(0.1, 0.1)))  # 0.01m tube with 10% thickness
-    FST_20_20 = (3, [0.0, -6.0, 0.0], True,  ((0.1, 0.1),(0.2, 0.2)),)  # 0.01m tube with 20% thickness
+    # Define frame types (frame grid idx, node_load, is_free_frame, is_free_nodes, (outer_diameter, inner_wall_thickness_ratio))
+    # is_free_nodes are in order of [bottom_left, bottom_right, top_left, top_right] nodes where free nodes are True and fixed nodes (bottom of support frame) are False 
+    EXTERNAL_FORCE = (-1, [0.0, -120.0, 0.0], False, None, None)  # Set in generate_bc.py
+    UNOCCUPIED = (0, None, False, None, None)  # index used
+    SUPPORT_FRAME = (1, [0.0, -4.0, 0.0], False, (False, False, True, True), ((0.2, 0.4),(0.2, 0.4)))  # 0.01m tube with 10% thickness
+    FST_10_10 = (2, [0.0, -4.0, 0.0], True, (True, True, True, True), ((0.1, 0.1),(0.1, 0.1)))  # 0.01m tube with 10% thickness
+    FST_20_20 = (3, [0.0, -6.0, 0.0], True, (True, True, True, True),  ((0.1, 0.1),(0.2, 0.2)),)  # 0.01m tube with 20% thickness
 
     # set class variable
     default_type = FST_10_10
 
-    def __init__(self, idx, node_load, is_free_frame, element_section):
+    def __init__(self, idx, node_load, is_free_frame, is_free_nodes, element_section):
         self.idx = idx
-        self._node_load = node_load
-        self.is_free_frame = is_free_frame
+        self._node_load = node_load # tuple of 4 (x, y, z) loads in kN for (bottom_left, bottom_right, top_left, top_right)
+        self.is_free_frame = is_free_frame # boolean value for free frame
+        self.is_free_nodes = is_free_nodes # boolean values for (bottom_left, bottom_right, top_left, top_right)
         self.chord_element_section = element_section[0] if element_section!=None else None # (outer_diameter, inner_wall_thickness_ratio)
         self.brace_element_section = element_section[1] if element_section!=None else None# (outer_diameter, inner_wall_thickness_ratio)
 
