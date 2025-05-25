@@ -276,14 +276,12 @@ class CantileverEnv_2(gym.Env):
         # Set in reset() when boundary conditions are set 
         self.bc_inventory = None # dictionary of inventory in order of free frame types this does not change after reset
         self.inventory_dict = None # dictionary of inventory in order of free frame types
+        # e.g.
         #     inventory = {
-        #     FrameStructureType.FST_10_10 : light_inv, # -1 indicate no limits
-        #     FrameStructureType.FST_20_20 : med_inv,
-        #     # FrameStructureType.HEAVY_FREE_FRAME : *,
-        # }
+        #     FrameStructureType.FST_10_10 : inventory value, # -1 indicate no limits
+        #     FrameStructureType.FST_20_20 : inventory value,
+        # }s
         self.n_all_inventory = None # total number of inventory
-        self.med_frame_count = None # At end of episode, populate number of medium frames used
-        self.light_frame_count = None # At end of episode, populate number of light frames used
 
         # self.obs_converter = None # ObservationBijectiveMapping object, used to encode and decode observations
         self.action_converter = None # ActionBijectiveMapping object, used to encode and decode actions
@@ -326,11 +324,11 @@ class CantileverEnv_2(gym.Env):
         print("Initialized Cantilever Env!")
 
         self.frame_count_penalty = frame_count_penalty # boolean to indicate if frame count penalty is used
-        print(f"Frame count penalty : {self.frame_count_penalty}")
+        # print(f"Frame count penalty : {self.frame_count_penalty}")
         self.reward_utilization_scheme = reward_utilization_scheme # boolean to indicate if utilization reward scheme is used
-        print(f'Reward utilization scheme : {self.reward_utilization_scheme}')
+        # print(f'Reward utilization scheme : {self.reward_utilization_scheme}')
         self.add_max_deflection_reward = add_max_deflection_reward # boolean to indicate if max deflection reward is used
-        print(f'Add max deflection reward : {self.add_max_deflection_reward}')
+        # print(f'Add max deflection reward : {self.add_max_deflection_reward}')
 
         # Baseline mode
         self.baseline_mode = baseline_mode
@@ -379,9 +377,7 @@ class CantileverEnv_2(gym.Env):
         self.rand_init_actions = [] # reset random init actions
         self.reset_env_bool = True # set to True to initialize random actions in training function
 
-        inventory_array = np.array(list(self.inventory_dict.values()), dtype=np.int64)
         obs = self.get_frame_grid_observation()
-        # print(f'Reset obs : {self.curr_frame_grid} \n {inventory_array} \n Encoded obs : {obs}')
         info = {} # no info to return
 
         self.render_valid_action = True # temporarily turn on to trigger render
@@ -470,8 +466,6 @@ class CantileverEnv_2(gym.Env):
         self.inventory_dict = inventory_dict
         self.bc_inventory = copy.deepcopy(inventory_dict) # does not change after reset
         self.n_all_inventory = sum(inventory_dict.values())
-        self.med_frame_count = None # At end of episode, populate number of medium frames used
-        self.light_frame_count = None # At end of episode, populate number of light frames used
 
         # set FrameStructureType.EXTERNAL_FORCE magnitude values TODO where is this used? 
         FrameStructureType.EXTERNAL_FORCE.node_load = list(targetload_frames.values())[0]
@@ -517,6 +511,7 @@ class CantileverEnv_2(gym.Env):
             self.target_support_board.append(t_support_center_board)
             if t_support_center_board not in self.support_board:
                 self.frames.append(new_t_frame_support)
+                self.update_inventory_dict(new_t_frame_support)
                 self.update_frame_grid(new_t_frame_support)
                 self.update_fea_graph(new_t_frame_support)
 
@@ -548,7 +543,7 @@ class CantileverEnv_2(gym.Env):
         '''
         # # Set observation_space and action_space (following Gymnasium)
         # Define Observations : frame grid with extra row with medium inventory values
-        self.observation_space = Box(low=-1, high=4, shape=(self.frame_grid_size_x, self.frame_grid_size_y+2), dtype=np.int64)
+        self.observation_space = Box(low=-1, high=4, shape=(self.frame_grid_size_x, self.frame_grid_size_y+len(FrameStructureType.get_free_frame_types())), dtype=np.int64)
         self.single_observation_space = self.observation_space
         print(f'Obs Space : {self.observation_space} | Single obs space : {self.single_observation_space}')
 
@@ -623,15 +618,18 @@ class CantileverEnv_2(gym.Env):
             self.eps_terminate_valid = True # used in render_frame to trigger displacement vis, in render to save final img
             self.global_terminated_episodes += 1
 
-            self.med_frame_count = np.count_nonzero(self.curr_frame_grid == 3)
-            self.light_frame_count = np.count_nonzero(self.curr_frame_grid == 2)
+            # from self.bc_inventory and self.inventory_dict for each matching frame type get used frame count dictionary
+            used_frame_count = {
+                frame_type: self.bc_inventory[frame_type] - self.inventory_dict[frame_type]
+                for frame_type in self.bc_inventory
+            }
+            # print(f'Used frame count : {used_frame_count}')
+
             
             if self.frame_count_penalty:
-                med_inventory = self.bc_inventory[FrameStructureType.FST_20_20]
-                light_inventory = self.bc_inventory[FrameStructureType.FST_10_10]
-
                 # Inventory penalty capped 
-                reward -= 2*(self.med_frame_count+self.light_frame_count)/(med_inventory + light_inventory)
+                # from used_frame_count dictionary get sum of values and from self.bc_inventory get sum of values
+                reward -= 2*(sum(used_frame_count.values())/sum(self.bc_inventory.values())) # penalty for using more frames
                 # (optional) separate inventory panalty for frame types
                 # if med_inventory > 0:
                 #     reward -= med_frame_count/med_inventory * 0.5 # penalty for using medium frames
@@ -639,15 +637,8 @@ class CantileverEnv_2(gym.Env):
                 #     reward -= light_frame_count/light_inventory * 0.5 # penalty for using light frames
 
             if self.reward_utilization_scheme:
-                # count frame types used in current frame grid
-                med_frame_count = np.count_nonzero(self.curr_frame_grid == 3)
-                light_frame_count = np.count_nonzero(self.curr_frame_grid == 2)
-                med_inventory = self.bc_inventory[FrameStructureType.FST_20_20]
-                light_inventory = self.bc_inventory[FrameStructureType.FST_10_10]
-                # reward for using less frames
-                if med_inventory > 0:
-                    reward += med_inventory/med_frame_count * 0.5
-                reward += light_inventory/light_frame_count * 0.5 
+                # frame count penalty
+                reward -= 2*(sum(used_frame_count.values())/sum(self.bc_inventory.values()))
                 
                 # Large failed element penalty
                 reward -= len(self.curr_fea_graph.failed_elements) # large penalty by number of failed elements
@@ -677,7 +668,7 @@ class CantileverEnv_2(gym.Env):
         self.render_valid_action = True
 
         # Store trajectory
-        inventory_array = np.array(list(self.inventory_dict.values())) # convert inventory dictionary to array in order of free frame types
+        # inventory_array = np.array(list(self.inventory_dict.values())) # convert inventory dictionary to array in order of free frame types
         
         obs = self.get_frame_grid_observation()
         # if all values in obs is 0, then print action and frame grid
@@ -1102,6 +1093,7 @@ class CantileverEnv_2(gym.Env):
         '''
         displaced_truss_color = 'gray'
         disp_vis_scale = 1 # scale displacement for visualization 
+        disp_vis_scale = 5 # scale displacement for visualization 
         
         # Get Displaced vertices
         displaced_vertices = {} # node id : (x, y)
@@ -1309,13 +1301,13 @@ class CantileverEnv_2(gym.Env):
         #     self.ax.axhline(y=j, color='lightblue', linestyle='-', linewidth=2, zorder=0)
 
         # Highlight valid position cells (except for final frame if terminated)
-        # if self.eps_terminate_valid == False:
-        #     for frame_x, frame_y in self.valid_pos:
-        #         x , y = self.frame_to_board(frame_x, frame_y)
-        #         rect = patches.Rectangle((x - self.frame_size//2, y - self.frame_size//2), 
-        #                                 self.frame_size, self.frame_size, 
-        #                                 linewidth=0, edgecolor='lightblue', facecolor='lightblue')
-        #         self.ax.add_patch(rect)
+        if self.eps_terminate_valid == False:
+            for frame_x, frame_y in self.valid_pos:
+                x , y = self.frame_to_board(frame_x, frame_y)
+                rect = patches.Rectangle((x - self.frame_size//2, y - self.frame_size//2), 
+                                        self.frame_size, self.frame_size, 
+                                        linewidth=0, edgecolor='lightblue', facecolor='lightblue')
+                self.ax.add_patch(rect)
             
         # Draw current fea graph
         self.draw_fea_graph() # update self.fig, self.ax with current fea graph 
@@ -1451,12 +1443,22 @@ class CantileverEnv_2(gym.Env):
                 transform=self.ax.transAxes  # Use axis coordinates
             )
             
-            total_frame_count = (self.light_frame_count or 0) + (self.med_frame_count or 0)
+            used_frame_count = {
+                frame_type: self.bc_inventory[frame_type] - self.inventory_dict[frame_type]
+                for frame_type in self.bc_inventory
+            }
+
+            total_frame_count = sum(used_frame_count.values())
+            # create string with FrameStructureType names and their corresponding used frame count / total frame count
+            frame_count_str = ',   '.join(
+                f'{frame_type.name} ({used_frame_count[frame_type]} / {self.bc_inventory[frame_type]})'
+                for frame_type in FrameStructureType.get_free_frame_types()
+            )
 
             # Frame count text
             self.ax.text(
                 0.4, -0.125, 
-                f'light ({self.light_frame_count} / {self.bc_inventory[FrameStructureType.FST_10_10]})      medium ({self.med_frame_count} / {self.bc_inventory[FrameStructureType.FST_20_20]})      total ({total_frame_count} / {self.bc_inventory[FrameStructureType.FST_10_10] + self.bc_inventory[FrameStructureType.FST_20_20]})',
+                f'{frame_count_str}      total ({total_frame_count} / {sum(self.bc_inventory.values())})',
                 color='gray',
                 fontsize=caption_fontsize_small,
                 ha='left',   
@@ -1808,29 +1810,25 @@ class CantileverEnv_2(gym.Env):
         # Get the number of columns in curr_frame_grid
         num_cols = self.curr_frame_grid.shape[0]
 
-        # Create a new row with zeros
-        # new_frame_row = np.zeros(num_cols, dtype=np.int64)
-        light_frame_row = np.zeros(num_cols, dtype=np.int64)
-        med_frame_row = np.zeros(num_cols, dtype=np.int64)
-        
-        # Get inventory value of medium frame 
-        light_inventory = list(self.inventory_dict.values())[0]
-        med_inventory = list(self.inventory_dict.values())[1]
-        
-        # Copy inventory_array values into the new rows
-        # new_frame_row[:med_inventory] = 4 # fixed value for inventory of medium frame
-        light_frame_row[:light_inventory] = 4  # fixed value for inventory of light frame
-        med_frame_row[:med_inventory] = 5  # fixed value for inventory of medium frame
+        inv_rows = []
 
-        # Expand dimensions to match the shape for stacking
-        # new_frame_row = np.expand_dims(new_frame_row, axis=-1)
-        light_frame_row = np.expand_dims(light_frame_row, axis=-1)
-        med_frame_row = np.expand_dims(med_frame_row, axis=-1)
+        # Iterate over all frame types in the inventory dictionary
+        num_free_frames = len(FrameStructureType.get_free_frame_types())
+        for frame_type, inventory_value in self.inventory_dict.items():
+            # Create a new row with zeros
+            frame_row = np.zeros(num_cols, dtype=np.int64)
+            # Fill the row with the inventory value for the current frame type
+            frame_row[:inventory_value] = frame_type.idx + num_free_frames  # Assign unique values starting from last frame_type.idx
+            # Expand dimensions to match the shape for stacking
+            frame_row = np.expand_dims(frame_row, axis=-1)
+            # Append the row to the list
+            inv_rows.append(frame_row)
 
+        # Stack all the rows with curr_frame_grid
+        obs = np.hstack([self.curr_frame_grid] + inv_rows)  # Stack curr_frame_grid with all frame rows
 
-        # Append the new row to curr_frame_grid
-        # obs = np.hstack([self.curr_frame_grid, new_frame_row]) # confusing bc obs array is frame transpose!
-        obs = np.hstack([self.curr_frame_grid, light_frame_row, med_frame_row])  # confusing bc obs array is frame transpose!
+        # print(f'stacked obs : {obs}')
+
 
         return obs
     
@@ -1889,11 +1887,11 @@ class CantileverEnv_2(gym.Env):
             if manhattan_path is not None:
                 all_paths.append(manhattan_path)
         # merge paths to get all light frames
-        all_light_frames = self.merge_manhattan_paths(all_paths)
+        all_frames = self.merge_manhattan_paths(all_paths)
         
         # add light frames to frame grid
-        for frame_x, frame_y in all_light_frames:
-            self.curr_frame_grid[frame_x, frame_y] = 2
+        for frame_x, frame_y in all_frames:
+            self.curr_frame_grid[frame_x, frame_y] = FrameStructureType.default_type.idx
         
         # Stochastically add adjacent frames * n_expand times
         frame_grid_prob = np.zeros(self.curr_frame_grid.shape, dtype=np.float32)
@@ -2099,30 +2097,37 @@ class CantileverEnv_2(gym.Env):
         self.initBoundaryConditions()
 
         # print(f'###### update feagraph from framegrid after init ######: \n{self.curr_fea_graph}')
-        
-        # Add light frame
-        light_frame_coord = np.argwhere(self.curr_frame_grid == 2)
-        # sort in order of x ; order does not matter no stepwise reward anyways
-        # convert to board coordinates
-        light_frame_board_coords = [(self.frame_to_board(x, y)) for x, y in light_frame_coord]
-        for board_coord in light_frame_board_coords:
-            # add frame to fea graph
-            new_light_frame = TrussFrameRL(board_coord, type_structure=FrameStructureType.FST_10_10)
-            self.update_fea_graph(new_light_frame)
-            self.frames.append(new_light_frame)
-        
-        # Add medium frame
-        medium_frame_coord = np.argwhere(self.curr_frame_grid == 3)
-        medium_frame_board_coords = [(self.frame_to_board(x, y)) for x, y in medium_frame_coord]
-        for board_coord in medium_frame_board_coords:
-            # add frame to fea graph
-            new_medium_frame = TrussFrameRL(board_coord, type_structure=FrameStructureType.FST_20_20)
-            self.update_fea_graph(new_medium_frame)
-            self.frames.append(new_medium_frame)
 
-        # update light frame, medium frame count
-        self.med_frame_count = np.count_nonzero(self.curr_frame_grid == 3)
-        self.light_frame_count = np.count_nonzero(self.curr_frame_grid == 2)
-
-    
+        # Add frames by their index DEBUG
+        # Generalize for all frame types in FrameStructureType
+        for frame_type in FrameStructureType.get_free_frame_types():
+            # Find coordinates in the grid corresponding to the current frame type
+            frame_coords = np.argwhere(self.curr_frame_grid == frame_type.idx)
+            # Convert to board coordinates
+            frame_board_coords = [(self.frame_to_board(x, y)) for x, y in frame_coords]
+            for board_coord in frame_board_coords:
+                # Add frame to FEA graph
+                new_frame = TrussFrameRL(board_coord, type_structure=frame_type)
+                self.update_fea_graph(new_frame)
+                self.frames.append(new_frame)
+        
+        # # Add light frame
+        # light_frame_coord = np.argwhere(self.curr_frame_grid == 2)
+        # # sort in order of x ; order does not matter no stepwise reward anyways
+        # # convert to board coordinates
+        # light_frame_board_coords = [(self.frame_to_board(x, y)) for x, y in light_frame_coord]
+        # for board_coord in light_frame_board_coords:
+        #     # add frame to fea graph
+        #     new_light_frame = TrussFrameRL(board_coord, type_structure=FrameStructureType.FST_10_10)
+        #     self.update_fea_graph(new_light_frame)
+        #     self.frames.append(new_light_frame)
+        
+        # # Add medium frame
+        # medium_frame_coord = np.argwhere(self.curr_frame_grid == 3)
+        # medium_frame_board_coords = [(self.frame_to_board(x, y)) for x, y in medium_frame_coord]
+        # for board_coord in medium_frame_board_coords:
+        #     # add frame to fea graph
+        #     new_medium_frame = TrussFrameRL(board_coord, type_structure=FrameStructureType.FST_20_20)
+        #     self.update_fea_graph(new_medium_frame)
+        #     self.frames.append(new_medium_frame)
 
