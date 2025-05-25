@@ -402,10 +402,13 @@ class CantileverEnv_2(gym.Env):
         if self.render_from_csv_mode:
             try: # Open the CSV file
                 with open(self.render_from_csv_path, mode='r') as csv_file:
+                    print(f"RESET Rendering from CSV file: {self.render_from_csv_path}")
                     csv_reader = csv.DictReader(csv_file)  # Use DictReader to access columns by name
                     
                     # Iterate through each row in the CSV file
                     for row in csv_reader:
+                        # debug print Episode and Number of Failed Elements value
+                        # print(f"Episode: {row['Episode']}, Number of Failed Elements: {row['Number of Failed Elements']} Utilization Max : {row['Utilization Max']}")
                         # Dynamically find the "Frame Grid" value
                         if "Frame Grid" in row:
                             frame_grid_string = row["Frame Grid"]
