@@ -120,7 +120,8 @@ class FEAGraph:
         (overlapping vertices are merged already)
         Input
             frame_type : FrameShapeType object to indicate which vertices should be connected
-            new_vertices : List of Vertex objects in order of bottom-left, bottom-right, top-right, top-left
+            # new_vertices : List of Vertex objects in order of bottom-left, bottom-right, top-right, top-left
+            new_vertices : List of Vertex objects in order of bottom-left, bottom-right, top-left, top-right
         Check overlapping edge segments with self.curr_fea_graph.edges_dict
         Update self.curr_fea_graph.edges_dict, in place
         used within update_curr_fea_graph
