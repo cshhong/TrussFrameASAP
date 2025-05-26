@@ -392,6 +392,7 @@ class CantileverEnv_2(gym.Env):
             # generate one set of random designs and save in baseline csv
             print(f'Generating random designs with n_expand : {self.baseline_n_expand} and n_permute : {self.baseline_n_permute}')
             for i in range(self.baseline_eps_count):
+                print(f'Generating baseline design {i+1}/{self.baseline_eps_count}')
                 self.generate_random_designs(self.baseline_n_expand, self.baseline_n_permute)
 
         # Render from csv mode
@@ -623,7 +624,6 @@ class CantileverEnv_2(gym.Env):
                 frame_type: self.bc_inventory[frame_type] - self.inventory_dict[frame_type]
                 for frame_type in self.bc_inventory
             }
-            # print(f'Used frame count : {used_frame_count}')
 
             
             if self.frame_count_penalty:
@@ -810,7 +810,6 @@ class CantileverEnv_2(gym.Env):
             pass
         else :
             self.inventory_dict[new_frame.type_structure] -= 1
-            # print(f'(update_inventory_dict) used {new_frame.type_structure} : {self.inventory_dict[new_frame.type_structure]}')
 
     def update_frame_grid(self, new_frame, t_load_mag=None):
         '''
@@ -967,8 +966,13 @@ class CantileverEnv_2(gym.Env):
                 half_load = [l / 2 for l in t_load_mag]
                 # print(f'added external load to fea graph : {pos} with load {half_load}')
                 self.curr_fea_graph.external_loads[pos] = half_load # distribute load to two nodes
-                new_v = Vertex(pos, is_free=True, load=half_load)
-                self.curr_fea_graph.vertices[pos] = new_v # add to vertices
+                # check existing nodes before adding new Vertex
+                if pos in self.curr_fea_graph.vertices: # if node already exists, merge load
+                    existing_v = self.curr_fea_graph.vertices[pos]
+                    existing_v.load = [x + y for x, y in zip(existing_v.load, half_load)] # merge load
+                else:
+                    new_v = Vertex(pos, is_free=True, load=half_load)
+                    self.curr_fea_graph.vertices[pos] = new_v # add to vertices
         
         # Physical Frames
         else:
@@ -993,8 +997,12 @@ class CantileverEnv_2(gym.Env):
                     # fixed > free
                     # load sum 
                 # If new node overlaps with existing node, merge (preserve existing node attributes - id, is_free)
-                if all_vert_pos[i] in self.curr_fea_graph.vertices:
+                if tuple(all_vert_pos[i]) in self.curr_fea_graph.vertices:
+                    # print(f'    checking overlapping node at {self.curr_fea_graph.vertices[all_vert_pos[i]]}')
+                    # print(f'get old v : { self.curr_fea_graph.vertices[all_vert_pos[i]]}')
+                    # print(f'    all vertices : {[v.id for v in self.curr_fea_graph.vertices.values()]}')
                     old_v = self.curr_fea_graph.vertices[all_vert_pos[i]] # get overlapping existing Vertex object and update
+                    # print(f'    overlapping node {old_v}')
                     # allow change free->fixed but not fixed->free (if at least one of the existing nodes is fixed, then set new node to fixed)
                     if old_v.is_free == False or all_vert_is_free[i] == False: # if either node is fixed, set to fixed
                         old_v.is_free = False
@@ -1005,11 +1013,18 @@ class CantileverEnv_2(gym.Env):
                     new_v = Vertex(all_vert_pos[i], is_free=all_vert_is_free[i], load=all_vert_load[i]) 
                     # add new node to fea graph
                     self.curr_fea_graph.vertices[all_vert_pos[i]] = new_v 
+                    # print(f'    creating new vertice {new_v}')
 
                 new_vertices.append(new_v) # add to new vertices to combine edges
+                
+            # print(f'    all new vertices : {[v.id for v in new_vertices]}')
+
 
             # Check line overlap with existing edge  
             self.curr_fea_graph.combine_and_merge_edges(frame_type_shape=new_frame.type_shape,new_vertices=new_vertices, frame_structure_type=new_frame.type_structure)
+
+            # print(f'updating fea graph with new frame {new_frame}')
+            # print(f'{self.curr_fea_graph.vertices=}')
 
     def update_utilization(self):
         '''
@@ -1123,7 +1138,10 @@ class CantileverEnv_2(gym.Env):
             edges = self.curr_fea_graph.edges
         for edge in edges:
             start_id, end_id = edge  # node ids
-            start_coord = displaced_vertices[start_id]
+            try:
+                start_coord = displaced_vertices[start_id]
+            except KeyError:
+                print(f"KeyError: {start_id} not in displaced_vertices \n {displaced_vertices}")
             end_coord = displaced_vertices[end_id]
             # Plot the deflected truss member
             self.ax.plot([start_coord[0], end_coord[0]], [start_coord[1], end_coord[1]],
@@ -1909,16 +1927,33 @@ class CantileverEnv_2(gym.Env):
 
         print(f'number of frames after expand : {np.sum(self.curr_frame_grid == 2)}')
 
-        # Create permuted versions where some light frames are switched to medium frames
+        # DEBUG generalize of all frame types
         path_frame_grid = np.array(copy.deepcopy(self.curr_frame_grid))
-        med_inv = self.bc_inventory[FrameStructureType.FST_20_20]
         for j in range(n_permute):
-            new_frame_grid = copy.deepcopy(path_frame_grid)
-            state_2_positions = np.column_stack(np.where(path_frame_grid == 2))
-            rand_med_count = min(np.random.randint(0, med_inv), state_2_positions.shape[0]) # random number of medium frames to add
-            selected_indices = state_2_positions[np.random.choice(state_2_positions.shape[0], size=rand_med_count, replace=False)]
-            new_frame_grid[selected_indices[:, 0], selected_indices[:, 1]] = 3 # change state 2 to state 3)
+            # reset self.curr_frame_grid for next iteration
+            self.curr_frame_grid = np.zeros((self.frame_grid_size_x, self.frame_grid_size_y), dtype=np.int64) # reset curr_frame_grid 
+            # self.curr_fea_graph = FEAGraph()
+            self.frames = []
+            self.initBoundaryConditions()
 
+            new_frame_grid = copy.deepcopy(path_frame_grid)
+            # get positions where grid is filled with default frame
+            def_pos = np.column_stack(np.where(new_frame_grid == FrameStructureType.default_type.idx))
+            # shuffle positions to sample from
+            np.random.shuffle(def_pos)
+            available_pos = def_pos.tolist() # convert to list
+            # for each frame type, take random number of positions to change in order from available_pos
+            for frame_type in FrameStructureType.get_free_frame_types():
+                # get number of frames to change
+                max_replace = min(self.bc_inventory[frame_type], len(available_pos))
+                if max_replace > 0:
+                    # get random number of positions to change
+                    rand_replace = np.random.randint(0, max_replace + 1)
+                    # get random positions to change
+                    for i in range(rand_replace):
+                        row, col = available_pos.pop(0) # pop first element from available_pos
+                        new_frame_grid[row, col] = frame_type.idx # change default frame to new frame type
+            
             # get deflection of permuted frame grid
             self.curr_frame_grid = new_frame_grid
             self.update_feagraph_from_framegrid() # update self.curr_fea_graph with new frame grid
@@ -1939,10 +1974,7 @@ class CantileverEnv_2(gym.Env):
             self.save_random_design_csv()
             self.global_terminated_episodes += 1
 
-            # reset self.curr_frame_grid for next iteration
-            self.curr_frame_grid = np.zeros((self.frame_grid_size_x, self.frame_grid_size_y), dtype=np.int64) # reset curr_frame_grid 
-            self.frames = []
-            self.initBoundaryConditions()
+
 
         gc.collect()
 
@@ -2087,19 +2119,16 @@ class CantileverEnv_2(gym.Env):
     def update_feagraph_from_framegrid(self):
         '''
         update self.feagraph with self.curr_frame_grid from predetermined frame grids 
+        given that self.curr_frame_grid is initialized
         * at reset self.curr_fea_graph is initialized with edge_type_dict
         '''
         # Reset the Vertex ID counter
         Vertex._id_counter = 1
 
         self.curr_fea_graph = FEAGraph() # init new graph 
-        # add frame with update_fea_graph(TrussFrameRL object, frametype)
         self.initBoundaryConditions()
 
-        # print(f'###### update feagraph from framegrid after init ######: \n{self.curr_fea_graph}')
-
-        # Add frames by their index DEBUG
-        # Generalize for all frame types in FrameStructureType
+        # Add frames by their frame type index
         for frame_type in FrameStructureType.get_free_frame_types():
             # Find coordinates in the grid corresponding to the current frame type
             frame_coords = np.argwhere(self.curr_frame_grid == frame_type.idx)
@@ -2110,24 +2139,6 @@ class CantileverEnv_2(gym.Env):
                 new_frame = TrussFrameRL(board_coord, type_structure=frame_type)
                 self.update_fea_graph(new_frame)
                 self.frames.append(new_frame)
+                self.update_inventory_dict(new_frame)
         
-        # # Add light frame
-        # light_frame_coord = np.argwhere(self.curr_frame_grid == 2)
-        # # sort in order of x ; order does not matter no stepwise reward anyways
-        # # convert to board coordinates
-        # light_frame_board_coords = [(self.frame_to_board(x, y)) for x, y in light_frame_coord]
-        # for board_coord in light_frame_board_coords:
-        #     # add frame to fea graph
-        #     new_light_frame = TrussFrameRL(board_coord, type_structure=FrameStructureType.FST_10_10)
-        #     self.update_fea_graph(new_light_frame)
-        #     self.frames.append(new_light_frame)
-        
-        # # Add medium frame
-        # medium_frame_coord = np.argwhere(self.curr_frame_grid == 3)
-        # medium_frame_board_coords = [(self.frame_to_board(x, y)) for x, y in medium_frame_coord]
-        # for board_coord in medium_frame_board_coords:
-        #     # add frame to fea graph
-        #     new_medium_frame = TrussFrameRL(board_coord, type_structure=FrameStructureType.FST_20_20)
-        #     self.update_fea_graph(new_medium_frame)
-        #     self.frames.append(new_medium_frame)
 
