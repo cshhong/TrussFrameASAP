@@ -1152,10 +1152,10 @@ class CantileverEnv_2(gym.Env):
             end_coord = displaced_vertices[end_id]
             if force >= 0.0: # tension
                 self.ax.plot([start_coord[0], end_coord[0]], [start_coord[1], end_coord[1]],
-                    color='red', linestyle='-', linewidth=2)
+                    color='blue', linestyle='-', linewidth=2)
             else:
                 self.ax.plot([start_coord[0], end_coord[0]], [start_coord[1], end_coord[1]],
-                    color='blue', linestyle='-', linewidth=2)
+                    color='red', linestyle='-', linewidth=2)
                 
         # # Highlight max displacement
         # # Add text to highlight the max displacement
