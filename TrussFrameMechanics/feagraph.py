@@ -91,7 +91,6 @@ class FEAGraph:
                         )
         failed_elements_repr = "\n".join([f"  {e}" for e in self.failed_elements])
         edge_dict_repr = "\n".join([f"  {edge}: {section}" for edge, section in self.edges_dict.items()])
-        edge_type_dict_repr = "\n".join([f"  {idx}: {section}" for idx, section in self.edge_type_dict.items()])
         utilization_repr = "\n".join([f"  {idx}: {util}" for idx, util in enumerate(self.utilization)])
 
         return (
