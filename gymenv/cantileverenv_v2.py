@@ -187,9 +187,6 @@ class CantileverEnv_2(gym.Env):
                  bc_fixed = None,
                  elem_sections = [(0.3, 0.2), (0.1, 0.1), (0.1, 0.2)],
                  vis_utilization = False,
-                 frame_count_penalty = False,
-                 reward_utilization_scheme = False,
-                 add_max_deflection_reward = False,
                  baseline_mode=False,
                  baseline_csv_path = None,
                  baseline_eps_count = 10,
@@ -322,13 +319,6 @@ class CantileverEnv_2(gym.Env):
         self.utilization_std = 0 # determined at termination
 
         print("Initialized Cantilever Env!")
-
-        self.frame_count_penalty = frame_count_penalty # boolean to indicate if frame count penalty is used
-        # print(f"Frame count penalty : {self.frame_count_penalty}")
-        self.reward_utilization_scheme = reward_utilization_scheme # boolean to indicate if utilization reward scheme is used
-        # print(f'Reward utilization scheme : {self.reward_utilization_scheme}')
-        self.add_max_deflection_reward = add_max_deflection_reward # boolean to indicate if max deflection reward is used
-        # print(f'Add max deflection reward : {self.add_max_deflection_reward}')
 
         # Baseline mode
         self.baseline_mode = baseline_mode
@@ -625,41 +615,29 @@ class CantileverEnv_2(gym.Env):
                 for frame_type in self.bc_inventory
             }
 
+            # Inventory penalty capped 
+            # from used_frame_count dictionary get sum of values and from self.bc_inventory get sum of values
+            # reward -= 2*(sum(used_frame_count.values())/sum(self.bc_inventory.values())) # penalty for using more frames
+            reward -= 3*(sum(used_frame_count.values())/sum(self.bc_inventory.values())) # penalty for using more frames
+            # separate inventory penalty for frame type
+            # get sum of ratio of used_frame_count / bc_inventory for each frame type
+
+            # Max deflection penalty
+            # if self.max_deflection < self.allowable_deflection:
+            #     reward += np.log(self.allowable_deflection / self.max_deflection)  # large reward for low deflection e.g. 0.5 / 0.01 = 50, scale for allowable displacement considering varying bc 
+            if self.max_deflection >= self.allowable_deflection:
+                reward -= 1 # penalty for exceeding max deflection
+                # reward -= 3 # penalty for exceeding max deflection
+
+            reward -= len(self.curr_fea_graph.failed_elements) # large penalty by number of failed elements 
+            # reward -= 2*len(self.curr_fea_graph.failed_elements) # large penalty by number of failed elements 
+
+            # Explicit 90P Utilization reward - if the frame count is the same, design with higher utilization is superior
+            if len(self.curr_fea_graph.failed_elements) == 0:
+                reward += 2 * round(self.utilization_ninety_percentile/100, 2) # reward for utilization at 90P percentile
             
-            if self.frame_count_penalty:
-                # Inventory penalty capped 
-                # from used_frame_count dictionary get sum of values and from self.bc_inventory get sum of values
-                reward -= 2*(sum(used_frame_count.values())/sum(self.bc_inventory.values())) # penalty for using more frames
-                # (optional) separate inventory panalty for frame types
-                # if med_inventory > 0:
-                #     reward -= med_frame_count/med_inventory * 0.5 # penalty for using medium frames
-                # if light_inventory > 0:f
-                #     reward -= light_frame_count/light_inventory * 0.5 # penalty for using light frames
-
-            if self.reward_utilization_scheme:
-                # frame count penalty
-                reward -= 2*(sum(used_frame_count.values())/sum(self.bc_inventory.values()))
-                
-                # Large failed element penalty
-                reward -= len(self.curr_fea_graph.failed_elements) # large penalty by number of failed elements
-
-                if self.max_deflection > self.allowable_deflection:
-                    reward -= 1 # large penalty for deflection over allowable
-
-                if self.add_max_deflection_reward:
-                    if self.max_deflection < self.allowable_deflection:
-                        reward += np.log(self.allowable_deflection / self.max_deflection)
-
-
-            if self.reward_utilization_scheme == False:
-                # max_deflection reward
-                # if self.max_deflection < self.allowable_deflection:
-                #     reward += np.log(self.allowable_deflection / self.max_deflection)  # large reward for low deflection e.g. 0.5 / 0.01 = 50, scale for allowable displacement considering varying bc 
-                if self.max_deflection >= self.allowable_deflection:
-                    reward -= 1 # penalty for exceeding max deflection
-                reward -= len(self.curr_fea_graph.failed_elements) # large penalty by number of failed elements 
-
-            reward += self.num_target_loads * 2 # completion reward (long horizon)
+            # reward += self.num_target_loads * 2 # completion reward (long horizon)
+            reward += self.num_target_loads * 3 # completion reward (long horizon)
             
         if truncated and not terminated:
             reward = 0 # Fixed value for episodes that truncate
