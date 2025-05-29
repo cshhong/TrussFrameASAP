@@ -114,7 +114,7 @@ class FEAGraph:
         """Get all integer value node ids from FEAGraph object"""
         return [vertex.id for vertex in self.vertices.values()]
     
-    def combine_and_merge_edges(self, frame_type_shape=FrameShapeType.DOUBLE_DIAGONAL, new_vertices=None, frame_structure_type=None):
+    def combine_and_merge_edges(self, new_vertices=None, frame_structure_type=None):
         '''
         (overlapping vertices are merged already)
         Input
@@ -125,6 +125,9 @@ class FEAGraph:
         Update self.curr_fea_graph.edges_dict, in place
         used within update_curr_fea_graph
         '''
+        assert frame_structure_type is not None, "frame_structure_type is None, must be provided"
+        frame_type_shape = frame_structure_type.shape_type if frame_structure_type else frame_type_shape
+        
         # check horizontal edges 
         h1 = (new_vertices[0], new_vertices[1]) # Vertex objects 
         h2 = (new_vertices[2], new_vertices[3])
