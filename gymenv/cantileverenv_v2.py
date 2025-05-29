@@ -997,7 +997,7 @@ class CantileverEnv_2(gym.Env):
 
 
             # Check line overlap with existing edge  
-            self.curr_fea_graph.combine_and_merge_edges(frame_type_shape=new_frame.type_shape,new_vertices=new_vertices, frame_structure_type=new_frame.type_structure)
+            self.curr_fea_graph.combine_and_merge_edges(new_vertices=new_vertices, frame_structure_type=new_frame.type_structure)
 
             # print(f'updating fea graph with new frame {new_frame}')
             # print(f'{self.curr_fea_graph.vertices=}')
