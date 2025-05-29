@@ -241,12 +241,6 @@ class CantileverEnv_2(gym.Env):
         self.bc_inventory_options = bc_inventory_options
         self.allowable_deflection = 0 # decided in generate_bc
 
-        # element type - adjust diagonal geometry for different frame types, feagraph->pythonAsap.solve_fea->truss_analysis.jl
-        # self.element_type_dict = dict() # key: element type int, value : (outer diameter (m), inwards thickness ratio) 
-        # self.element_type_dict[0] = elem_sections[0] # support tube
-        # self.element_type_dict[1] = elem_sections[1] # default tube
-        # self.element_type_dict[2] = elem_sections[2] # stronger (thicker) tube
-
         # Initialize current state
         self.curr_frame_grid = np.zeros((self.frame_grid_size_x, self.frame_grid_size_y), dtype=np.int64)
 
