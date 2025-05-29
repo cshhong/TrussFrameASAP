@@ -156,19 +156,6 @@ class FrameStructureType(Enum):
         return min(idx_values), max(idx_values)
     
     
-
-class TrussFrame:
-    '''
-    used in main.py
-    TrussFrame object with centroid position and frame type
-    By Default is set to type with FrameShapeType.DIAGONAL_LT_RB(diagonal brace from left top to right bottom)
-    
-    '''
-    def __init__(self, pos, type_shape=FrameShapeType.DOUBLE_DIAGONAL):
-        self.x = pos[0] # local (x,y) center grid position of the frame
-        self.y = pos[1] # local (x,y) center grid position of the frame
-        self.type_shape = type_shape  # Type of the frame
-
 class TrussFrameRL:
     '''
     used in cantileverenv_v0.py
