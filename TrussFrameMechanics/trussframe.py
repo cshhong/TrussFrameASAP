@@ -57,11 +57,21 @@ class FrameStructureType(Enum):
 
     # Define frame types (frame grid idx, node_load, is_free_frame, is_free_nodes, (outer_diameter, inner_wall_thickness_ratio))
     # is_free_nodes are in order of [bottom_left, bottom_right, top_left, top_right] nodes where free nodes are True and fixed nodes (bottom of support frame) are False 
-    EXTERNAL_FORCE = ('EXTERNAL_FORCE', -1, [0.0, -120.0, 0.0], False, None, None)  # Set in generate_bc.py
-    UNOCCUPIED = ('UNOCCUPIED', 0, None, False, None, None)  # index used
-    SUPPORT_FRAME = ('SUPPORT_FRAME', 1, [0.0, -10.0, 0.0], False, (False, False, True, True), ((0.2, 0.4),(0.2, 0.4)))  # 0.01m tube with 10% thickness
-    FST_10_10 = ('FST_10_10', 2, [0.0, -4.0, 0.0], True, (True, True, True, True), ((0.1, 0.1),(0.1, 0.1)))  # 0.01m tube with 10% thickness
-    FST_20_20 = ('FST_20_20', 3, [0.0, -6.0, 0.0], True, (True, True, True, True),  ((0.1, 0.1),(0.2, 0.2)),)  # 0.01m tube with 20% thickness
+    EXTERNAL_FORCE = ('EXTERNAL_FORCE', None, 20, [0.0, -120.0, 0.0], False, None, None)  # Set in generate_bc.py
+    UNOCCUPIED = ('UNOCCUPIED',None, 0, None, False, None, None)  # index used
+    # SUPPORT_FRAME = ('SUPPORT_FRAME', 1, [0.0, -10.0, 0.0], False, (False, False, True, True), ((0.2, 0.4),(0.2, 0.4)))  # chord/brace 0.01m tube with 10% thickness
+    SUPPORT_FRAME = ('SUPPORT_FRAME', FrameShapeType.DOUBLE_DIAGONAL, 10, [0.0, -8.0, 0.0], False, (False, False, True, True), ((0.2, 0.2),(0.2, 0.2)))  # chord/brace 0.01m tube with 10% thickness
+    FST_c10_10_b10_10_d = ('FST_c10_10_b10_10_d', FrameShapeType.DOUBLE_DIAGONAL, 2, [0.0, -4.0, 0.0], True, (True, True, True, True), ((0.1, 0.1),(0.1, 0.1)))  # 0.01m tube with 10% thickness
+    # FST_c10_10_b10_10_ltrb = ('FST_c10_10_b10_10_ltrb', FrameShapeType.DIAGONAL_LT_RB, 3, [0.0, -3.5, 0.0], True, (True, True, True, True), ((0.1, 0.1),(0.1, 0.1)))  # 0.01m tube with 10% thickness
+    # FST_c10_10_b10_10_rtlb = ('FST_c10_10_b10_10_rtlb', FrameShapeType.DIAGONAL_LB_RT, 4, [0.0, -3.5, 0.0], True, (True, True, True, True), ((0.1, 0.1),(0.1, 0.1)))  # 0.01m tube with 10% thickness
+
+    # # FST_c10_10_b20_20 = ('FST_c10_10_b20_20', 3, [0.0, -6.0, 0.0], True, (True, True, True, True),  ((0.1, 0.1),(0.2, 0.2)),)  # 0.01m tube with 20% thickness
+    # FST_c10_15_b10_15_d = ('FST_c10_15_b10_15_d', FrameShapeType.DOUBLE_DIAGONAL, 3, [0.0, -5.0, 0.0], True, (True, True, True, True),  ((0.1, 0.15),(0.1, 0.15)),)  # 0.01m tube with 20% thickness
+    FST_c10_25_b10_25_d = ('FST_c10_25_b10_25_d', FrameShapeType.DOUBLE_DIAGONAL, 3, [0.0, -6.0, 0.0], True, (True, True, True, True),  ((0.1, 0.25),(0.1, 0.25)),)  # 0.01m tube with 20% thickness
+    FST_c20_10_b20_10_d = ('FST_c20_10_b20_10_d', FrameShapeType.DOUBLE_DIAGONAL, 4, [0.0, -6.0, 0.0], True, (True, True, True, True),  ((0.2, 0.1),(0.2, 0.1)),)  # 0.01m tube with 20% thickness
+
+    # May26 add
+    # FST_c20_20_b20_20_d = ('FST_c20_20_b20_20_d', FrameShapeType.DOUBLE_DIAGONAL, 4, [0.0, -8.0, 0.0], True, (True, True, True, True),  ((0.2, 0.2),(0.2, 0.2)),) 
 
     # set class variable
     default_type = FST_10_10
