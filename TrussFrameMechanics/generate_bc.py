@@ -248,12 +248,28 @@ def set_multiple_cantilever_env_framegrid(
     if seed is not None:
         random.seed(seed)
 
-    light_inv, med_inv = random.choice(inventory_options)
+    # light_inv, med_inv = random.choice(inventory_options)
 
+    # inventory = {
+    #     FrameStructureType.FST_10_10 : light_inv, # -1 indicate no limits
+    #     FrameStructureType.FST_20_20 : med_inv,
+    #     # FrameStructureType.HEAVY_FREE_FRAME : *,
+    # }
+
+    # Get free frame types
+    free_frame_types = FrameStructureType.get_free_frame_types() # list of FrameStructureType
+    num_free_frame_types = len(free_frame_types)
+
+    assert len(inventory_options[0]) == num_free_frame_types, \
+        f"Inventory options must have {num_free_frame_types} elements for each FrameStructureType, got {len(inventory_options[0])}."
+    
+    # Randomly select inventory counts for each frame type
+    selected_inventory = random.choice(inventory_options)
+    
+    # Create inventory dictionary from inventory options
     inventory = {
-        FrameStructureType.FST_10_10 : light_inv, # -1 indicate no limits
-        FrameStructureType.FST_20_20 : med_inv,
-        # FrameStructureType.HEAVY_FREE_FRAME : *,
+        frame_type: selected_inventory[i]
+        for i, frame_type in enumerate(free_frame_types)
     }
 
     # Set pinned supports within the frame grid
