@@ -76,9 +76,10 @@ class FrameStructureType(Enum):
     # set class variable
     default_type = FST_c10_10_b10_10_d
 
-    def __init__(self, name_str, idx, node_load, is_free_frame, is_free_nodes, element_section):
+    def __init__(self, name_str, shape_type, idx, node_load, is_free_frame, is_free_nodes, element_section):
         self.name_str = name_str
         self.idx = idx
+        self.shape_type = shape_type  # FrameShapeType
         self._node_load = node_load # tuple of 4 (x, y, z) loads in kN for (bottom_left, bottom_right, top_left, top_right)
         self.is_free_frame = is_free_frame # boolean value for free frame
         self.is_free_nodes = is_free_nodes # boolean values for (bottom_left, bottom_right, top_left, top_right)
@@ -179,8 +180,7 @@ class TrussFrameRL:
     '''
     _id_counter = 0  # Class-level counter for automatically assigning unique IDs
 
-    def __init__(self, pos, type_shape=FrameShapeType.DOUBLE_DIAGONAL, frame_size=2, type_structure=FrameStructureType.FST_10_10):
-        self.type_shape = type_shape  # FrameShapeType
+    def __init__(self, pos, frame_size=2, type_structure=FrameStructureType.default_type):
         # Frame centroid coordinate on board
         self.x = pos[0] 
         self.y = pos[1] 
@@ -193,6 +193,7 @@ class TrussFrameRL:
         self.x_frame = int(self.x // frame_size)
         self.y_frame = int(self.y // frame_size)
         self.type_structure = type_structure # FrameStructureType
+        self.type_shape = type_structure.shape_type  # FrameShapeType
         
         # Automatically count and assign a unique ID - support, target load, following frames
         self.id = TrussFrameRL._id_counter
