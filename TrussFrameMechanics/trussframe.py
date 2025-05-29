@@ -74,7 +74,7 @@ class FrameStructureType(Enum):
     # FST_c20_20_b20_20_d = ('FST_c20_20_b20_20_d', FrameShapeType.DOUBLE_DIAGONAL, 4, [0.0, -8.0, 0.0], True, (True, True, True, True),  ((0.2, 0.2),(0.2, 0.2)),) 
 
     # set class variable
-    default_type = FST_10_10
+    default_type = FST_c10_10_b10_10_d
 
     def __init__(self, name_str, idx, node_load, is_free_frame, is_free_nodes, element_section):
         self.name_str = name_str
