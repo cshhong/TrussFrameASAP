@@ -177,8 +177,14 @@ class FEAGraph:
         # Add (edge, section tuple) to edge dict overwriting only when outer_diameter, inward_thickness is larger
         if edge in self.edges_dict:
             existing_diameter, existing_thickness = self.edges_dict[edge]
-            if outer_diameter > existing_diameter or inward_thickness > existing_thickness:
+            # calculate area of section of hollow steel tube and compare
+            area_existing = existing_diameter**2 - (existing_diameter*(1-existing_thickness))**2
+            area_new = outer_diameter**2 - (outer_diameter*(1-inward_thickness))**2
+            # apply dominance rule
+            if area_new > area_existing:
                 self.edges_dict[edge] = outer_diameter, inward_thickness
+            # if outer_diameter > existing_diameter or inward_thickness > existing_thickness:
+            #     self.edges_dict[edge] = outer_diameter, inward_thickness
         else:
             self.edges_dict[edge] = outer_diameter, inward_thickness
 
