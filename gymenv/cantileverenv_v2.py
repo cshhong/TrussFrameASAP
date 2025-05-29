@@ -295,7 +295,7 @@ class CantileverEnv_2(gym.Env):
         self.set_action_converter(self.inventory_dict) # set self.action_converter
         self.set_gym_spaces(self.action_converter) # set self.observation_space, self.action_space
 
-        self.bc_condition = None # condition of boundary conditions (height, length, loadmag, inventory_light, inventory_med) used to condition actor, critic network
+        self.bc_condition = None # target (frame_x, frame_y) concatenated. used to condition actor, critic network
 
         # Used for Path finding
         self.support_board = []
