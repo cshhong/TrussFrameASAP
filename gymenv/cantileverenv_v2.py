@@ -1201,7 +1201,8 @@ class CantileverEnv_2(gym.Env):
             start_coord = start_v.coordinates
             end_coord = end_v.coordinates
             # Draw the line connecting the start and end vertices
-            linewidth= 7 * outer_d + 30 * (inward_thickness_ratio**1.5)
+            # linewidth= 10 * outer_d + 50 * (inward_thickness_ratio**2)
+            linewidth= 10 * outer_d + 50 * (inward_thickness_ratio**2)
             self.ax.plot([start_coord[0], end_coord[0]], [start_coord[1], end_coord[1]], color='black', linestyle='-', linewidth=linewidth)
 
 
@@ -1355,7 +1356,7 @@ class CantileverEnv_2(gym.Env):
             # Reward value
             self.ax.text(
                 0.4, -0.075,  
-                f'{self.episode_return:.1f}',
+                f'{self.episode_return:.3f}',
                 color='black',
                 weight='bold',
                 fontsize=caption_fontsize_small,
@@ -1427,7 +1428,7 @@ class CantileverEnv_2(gym.Env):
             )
             # Frame count text
             self.ax.text(
-                0.275, -0.125,  
+                0.0, -0.175,  
                 'Frame Count :',
                 color='black',
                 fontsize=caption_fontsize_small,
@@ -1449,8 +1450,8 @@ class CantileverEnv_2(gym.Env):
 
             # Frame count text
             self.ax.text(
-                0.4, -0.125, 
-                f'{frame_count_str}      total ({total_frame_count} / {sum(self.bc_inventory.values())})',
+                0.125, -0.175, 
+                f'{frame_count_str}     Total ({total_frame_count} / {sum(self.bc_inventory.values())})',
                 color='gray',
                 fontsize=caption_fontsize_small,
                 ha='left',   
