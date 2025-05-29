@@ -707,10 +707,13 @@ class CantileverEnv_2(gym.Env):
         '''
         Lookahead to check if there is path from support to target load, given hypothetical frame
         '''
+        free_frame_types = FrameStructureType.get_free_frame_types() # get free frame types
+        free_frame_types_idx = [frame_type.idx for frame_type in free_frame_types] # get free frame types indices
+
         # create temporary frame grid with new frame
         temp_frame_grid = copy.deepcopy(self.curr_frame_grid) # Deep copy of the current frame grid
         if frame_x is not None and frame_y is not None:
-            temp_frame_grid[frame_x][frame_y] = 2  # Add the hypothetical light free frame
+            temp_frame_grid[frame_x][frame_y] = free_frame_types_idx[0]  # Add the hypothetical frame (first of free frame types)
 
         # BFS setup
         queue = deque()
@@ -733,7 +736,7 @@ class CantileverEnv_2(gym.Env):
                 nx, ny = x + dx, y + dy
                 if (0 <= nx < self.frame_grid_size_x) and (0 <= ny < self.frame_grid_size_y):
                     if (nx, ny) not in visited:
-                        if temp_frame_grid[nx][ny] in {2, 3} or (nx, ny) == (goal_x, goal_y):
+                        if temp_frame_grid[nx][ny] in free_frame_types_idx or (nx, ny) == (goal_x, goal_y):
                             queue.append((nx, ny))
                             visited.add((nx, ny))
 
@@ -1743,8 +1746,8 @@ class CantileverEnv_2(gym.Env):
         # Get all raw valid action vectors based on current state (end_bool, freeframe_idx, frame_x, frame_y) using self.valid_pos and self.inventory_dict, self.is_connected
         exists_end_action = False
         valid_actions = []
-        for freeframe_idx in [0, 1]:
-            freeframe_type = FrameStructureType.get_framestructuretype_from_idx(freeframe_idx+2) # dictionary key is FrameStructureType
+        for freeframe_type in FrameStructureType.get_free_frame_types():
+            freeframe_idx_zero = freeframe_type.idx - 2 # convert FrameStructureType to start with index 0
             if self.inventory_dict[freeframe_type] > 0:
                 for frame_x, frame_y in self.valid_pos:
                     # look ahead to check if support and target loads are connected
@@ -1754,12 +1757,12 @@ class CantileverEnv_2(gym.Env):
                     if all(temp_is_connected.values()): # check if all values in the dictionary are true
                         # for end_bool in [False, True]:
                             # valid_actions.append((end_bool, freeframe_idx, frame_x, frame_y))
-                        valid_actions.append((True, freeframe_idx, frame_x, frame_y)) # only add action to end if connected
+                        valid_actions.append((True, freeframe_idx_zero, frame_x, frame_y)) # only add action to end if connected
                         exists_end_action = True
                         valid_actions = [action for action in valid_actions if action[0] is True]
                     else:
                         if not exists_end_action: # Add action with end_bool=False only if no end_bool=True action exists
-                            valid_actions.append((False, freeframe_idx, frame_x, frame_y))
+                            valid_actions.append((False, freeframe_idx_zero, frame_x, frame_y))
 
 
         if len(valid_actions) == 0:
@@ -2008,8 +2011,8 @@ class CantileverEnv_2(gym.Env):
         rows, cols = len(self.curr_frame_grid), len(self.curr_frame_grid[0])
         for i in range(rows):
             for j in range(cols):
-                if self.curr_frame_grid[i][j] == FrameStructureType.SUPPORT_FRAME.idx or \
-                   self.curr_frame_grid[i][j] == FrameStructureType.FST_10_10.idx:
+                if self.curr_frame_grid[i][j] != FrameStructureType.UNOCCUPIED.idx and \
+                    self.curr_frame_grid[i][j] != FrameStructureType.EXTERNAL_FORCE.idx:
 
                     # Check adjacent cells (up, down, left, right)
                     adjacent_cells = [
