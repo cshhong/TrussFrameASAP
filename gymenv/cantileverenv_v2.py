@@ -299,7 +299,6 @@ class CantileverEnv_2(gym.Env):
 
         # Used for Path finding
         self.support_board = []
-        print(f'init support board : {self.support_board}')
         self.target_support_board = []
 
         # Element utilization
