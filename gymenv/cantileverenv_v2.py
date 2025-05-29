@@ -359,7 +359,7 @@ class CantileverEnv_2(gym.Env):
         self.rand_init_actions = [] # reset random init actions
         self.reset_env_bool = True # set to True to initialize random actions in training function
 
-        obs = self.get_frame_grid_observation()
+        obs = self.get_frame_grid_observation(condition=False)
         info = {} # no info to return
 
         self.render_valid_action = True # temporarily turn on to trigger render
@@ -640,7 +640,8 @@ class CantileverEnv_2(gym.Env):
         # Store trajectory
         # inventory_array = np.array(list(self.inventory_dict.values())) # convert inventory dictionary to array in order of free frame types
         
-        obs = self.get_frame_grid_observation()
+        obs = self.get_frame_grid_observation(condition=False)
+        # print(f'{obs=}')
         # if all values in obs is 0, then print action and frame grid
         if all(value == 0 for value in obs.flatten()):
             print(f'Action : {action_tuple} \n Frame Grid : \n{self.curr_frame_grid}')
@@ -1790,34 +1791,35 @@ class CantileverEnv_2(gym.Env):
         self.rand_init_actions.append(action_ind)
 
     # Observation Helper
-    def get_frame_grid_observation(self):
+    def get_frame_grid_observation(self, condition=False):
         '''
         Used in step and reset to return frame grid observation
-        stack curr_frame_grid with current inventory
+        condition = True (combine state with inventory condition) stack curr_frame_grid with current inventory
         '''
-        # Get the number of columns in curr_frame_grid
-        num_cols = self.curr_frame_grid.shape[0]
 
-        inv_rows = []
+        if condition == True: # add inventory condition to observation vector
+            # Get the number of columns in curr_frame_grid
+            num_cols = self.curr_frame_grid.shape[0]
+            inv_rows = []
+            # Iterate over all frame types in the inventory dictionary
+            num_free_frames = len(FrameStructureType.get_free_frame_types())
+            for frame_type, inventory_value in self.inventory_dict.items():
+                # Create a new row with zeros
+                frame_row = np.zeros(num_cols, dtype=np.int64)
+                # Fill the row with the inventory value for the current frame type
+                frame_row[:inventory_value] = frame_type.idx + num_free_frames  # Assign unique values starting from last frame_type.idx
+                # Expand dimensions to match the shape for stacking
+                frame_row = np.expand_dims(frame_row, axis=-1)
+                # Append the row to the list
+                inv_rows.append(frame_row)
 
-        # Iterate over all frame types in the inventory dictionary
-        num_free_frames = len(FrameStructureType.get_free_frame_types())
-        for frame_type, inventory_value in self.inventory_dict.items():
-            # Create a new row with zeros
-            frame_row = np.zeros(num_cols, dtype=np.int64)
-            # Fill the row with the inventory value for the current frame type
-            frame_row[:inventory_value] = frame_type.idx + num_free_frames  # Assign unique values starting from last frame_type.idx
-            # Expand dimensions to match the shape for stacking
-            frame_row = np.expand_dims(frame_row, axis=-1)
-            # Append the row to the list
-            inv_rows.append(frame_row)
+            # Stack all the rows with curr_frame_grid
+            obs = np.hstack([self.curr_frame_grid] + inv_rows)  # Stack curr_frame_grid with all frame rows
 
-        # Stack all the rows with curr_frame_grid
-        obs = np.hstack([self.curr_frame_grid] + inv_rows)  # Stack curr_frame_grid with all frame rows
+        else:
+            obs = self.curr_frame_grid.copy()  # Copy the current frame grid
 
         # print(f'stacked obs : {obs}')
-
-
         return obs
     
     # Render CSV mode
