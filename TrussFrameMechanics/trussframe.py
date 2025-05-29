@@ -193,17 +193,3 @@ class TrussFrameRL:
             list: A list of (board_x, board_y) tuples representing the positions of the vertices.
         """
         return [self.bottom_left, self.bottom_right, self.top_left, self.top_right]
-    
-
-    # def get_relative_pos(self, ref_pos):
-    #     '''
-    #     Get position relative to the position of a reference cell (support, external load)
-    #     Used to generate edge values within frame graph 
-
-    #     Input:
-    #         ref_pos : (x,y) position of reference cell (support, external load)
-    #     '''
-    #     rel_x = ref_pos[0] - self.x
-    #     rel_y = ref_pos[1] - self.y
-
-    #     return rel_x, rel_y
