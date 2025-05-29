@@ -464,8 +464,8 @@ class CantileverEnv_2(gym.Env):
         self.csv_inventory = inventory_condition
 
         # used for Path finding
-        self.support_board = []
-        self.target_support_board = []
+        self.support_board = [] # board coordinates of support frames
+        self.target_support_board = [] # list of board coordinates of target support frames
 
         # set target_x_bounds 
         self.target_x_bounds = (min([coord[0] for coord in targetload_frames.keys()]), max([coord[0] for coord in targetload_frames.keys()]))
@@ -528,6 +528,7 @@ class CantileverEnv_2(gym.Env):
         # # Set observation_space and action_space (following Gymnasium)
         # Define Observations : frame grid with extra row with medium inventory values
         self.observation_space = Box(low=-1, high=4, shape=(self.frame_grid_size_x, self.frame_grid_size_y+len(FrameStructureType.get_free_frame_types())), dtype=np.int64)
+        self.observation_space = Box(low=0, high=20, shape=(self.frame_grid_size_x, self.frame_grid_size_y), dtype=np.int64)
         self.single_observation_space = self.observation_space
         print(f'Obs Space : {self.observation_space} | Single obs space : {self.single_observation_space}')
 
