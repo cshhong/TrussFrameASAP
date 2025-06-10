@@ -87,7 +87,7 @@ def set_cantilever_env_framegrid(
         height_options = [1, 2, 3],
         length_options = [3, 4, 5],
         magnitude_options = [300, 400, 500],
-        inventory_options = [(10,10), (10,5), (5,5), (8,3)],
+        inventory_options = [(10,10), (10,5), (5,5), (8,3)], 
         seed=None):
     """
     Used in cantileverenv_V0.py (agent playable setting)
@@ -202,12 +202,12 @@ def set_multiple_cantilever_env_framegrid(
         height_options = [1, 2, 3],
         length_options = [3, 4, 5],
         magnitude_options = [300, 400, 500],
-        inventory_options = [(10,10), (10,5), (5,5), (8,3)],
+        inventory_options = [(10,10), (10,5), (5,5), (8,3)], # each tuple should have element number of free frame type
         num_target_loads = 2,
         seed=None,
         fixed_hlm = None):
     """
-    Used in cantileverenv_V0.py (agent playable setting)
+    Used in cantileverenv_V2.py (agent playable setting)
     Set up the cantilever environment within the frame grid with parametric boundary conditions.
                     y
                      ↑
