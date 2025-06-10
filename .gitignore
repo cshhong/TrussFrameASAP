@@ -6,7 +6,9 @@ test_juliacall.py
 *.png
 videos
 
-# humanplayable
+humanplayable/
+humanplayable_Apr/
+PerformanceMap/
 
 TrussFrameMechanics/_test_juliacall.py
 
@@ -20,3 +22,5 @@ env_notes.md
 test_actionmask.py
 
 test_human_playable.py
+
+env_notes_Apr4.md
