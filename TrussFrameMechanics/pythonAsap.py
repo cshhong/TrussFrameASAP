@@ -27,6 +27,7 @@ def solve_fea(jl, feagraph, frame_length_m):
     loads = [list((v.id, v.load)) for v in list(feagraph.vertices.values())]
 
     element_list_w_section = feagraph.get_element_list_with_section() # list of (v1_idx, v2_idx, section_outer_diameter, section_inner_wall_thickness_ratio)
+    # print(f'pythonAsap solve_fea\n {element_list_w_section=}\n {fixed_idx=}, {loads=}')
     displacement, axial_forces, P_cap_kN =  jl.create_and_solve_model_julia(node_coordinates,     
                                                                              element_list_w_section, 
                                                                              fixed_idx, 
