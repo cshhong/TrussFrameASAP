@@ -1,6 +1,6 @@
 '''
 Multiple target mode
-test make change
+test make change from vm
 '''
 import gymnasium as gym
 # from gym.spaces import Box, Discrete
