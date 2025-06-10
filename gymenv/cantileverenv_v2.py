@@ -1668,48 +1668,48 @@ class CantileverEnv_2(gym.Env):
     #     print(f"Frame grid coordinates: ({frame_x}, {frame_y})")
 
     # Human Playable Mode
-    def on_click(self, event):
-        '''
-        Function triggered at click in human playable mode
-        Change current human action frame location based on snapped click location.
-        cursor location is the centroid of the truss frame.
-        Take next action to add frame to the grid.
-        '''
-        # Check if click is within the grid bounds 
-        if event.xdata is not None and event.ydata is not None:
-            # Get the frame grid coordinates of the cursor location
-            frame_x = int(event.xdata // self.frame_size)
-            frame_y = int(event.ydata // self.frame_size)
-            # check if valid position 
-            if (frame_x, frame_y) in self.valid_pos:
-                self.human_action_frame_coords = (frame_x, frame_y) 
-                print(f"human selected Frame grid coordinates: ({frame_x}, {frame_y})")
-        # if event.inaxes != self.done_button_ax and event.xdata is not None and event.ydata is not None:
+    # def on_click(self, event):
+    #     '''
+    #     Function triggered at click in human playable mode
+    #     Change current human action frame location based on snapped click location.
+    #     cursor location is the centroid of the truss frame.
+    #     Take next action to add frame to the grid.
+    #     '''
+    #     # Check if click is within the grid bounds 
+    #     if event.xdata is not None and event.ydata is not None:
+    #         # Get the frame grid coordinates of the cursor location
+    #         frame_x = int(event.xdata // self.frame_size)
+    #         frame_y = int(event.ydata // self.frame_size)
+    #         # check if valid position 
+    #         if (frame_x, frame_y) in self.valid_pos:
+    #             self.human_action_frame_coords = (frame_x, frame_y) 
+    #             print(f"human selected Frame grid coordinates: ({frame_x}, {frame_y})")
+    #     # if event.inaxes != self.done_button_ax and event.xdata is not None and event.ydata is not None:
     
-    def on_keypress(self, event):
-        '''
-        Function triggered at key press in human playable mode
-        Change current human action frame type based on key press.
-        '''
-        if event.key == '1':
-            self.human_action_frame_type = FrameStructureType.FST_10_10
-        if event.key == '2':
-            self.human_action_frame_type = FrameStructureType.FST_20_20
-        if event.key == 'e':
-            self.human_action_end = True
-        if event.key == 'c':
-            self.human_action_end = False
-        # TODO update frame type text in fig 
-        self.fig.canvas.draw()
+    # def on_keypress(self, event):
+    #     '''
+    #     Function triggered at key press in human playable mode
+    #     Change current human action frame type based on key press.
+    #     '''
+    #     if event.key == '1':
+    #         self.human_action_frame_type = FrameStructureType.FST_c10_10_b10_10
+    #     if event.key == '2':
+    #         self.human_action_frame_type = FrameStructureType.FST_20_20
+    #     if event.key == 'e':
+    #         self.human_action_end = True
+    #     if event.key == 'c':
+    #         self.human_action_end = False
+    #     # TODO update frame type text in fig 
+    #     self.fig.canvas.draw()
 
-    def get_clicked_action(self):
-        '''
-        called in human_play mode to get action based on human click and key press
-        return action integer based on human action frame coords and type
-        '''
-        action = self.action_converter.encode((self.human_action_end, self.human_action_frame_type.idx-1, self.human_action_frame_coords[0], self.human_action_frame_coords[1]))
+    # def get_clicked_action(self):
+    #     '''
+    #     called in human_play mode to get action based on human click and key press
+    #     return action integer based on human action frame coords and type
+    #     '''
+    #     action = self.action_converter.encode((self.human_action_end, self.human_action_frame_type.idx-1, self.human_action_frame_coords[0], self.human_action_frame_coords[1]))
 
-        return action
+    #     return action
     
     # Debugging
     def print_framegrid(self):
