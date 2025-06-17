@@ -631,7 +631,7 @@ class CantileverEnv_2(gym.Env):
             # reward -= 2*len(self.curr_fea_graph.failed_elements) # large penalty by number of failed elements 
 
             # Explicit 90P Utilization reward - if the frame count is the same, design with higher utilization is superior
-            if len(self.curr_fea_graph.failed_elements) == 0:
+            # if len(self.curr_fea_graph.failed_elements) == 0:
             #     reward += 2 * round(self.utilization_ninety_percentile/100, 2) # reward for utilization at 90P percentile
             
             # reward += self.num_target_loads * 2 # completion reward (long horizon)
