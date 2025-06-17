@@ -181,11 +181,12 @@ class CantileverEnv_2(gym.Env):
                  max_episode_length = 40,
                  env_idx = 0,
                  rand_init_seed = None,
-                 bc_height_options=[1,2],
-                 bc_length_options=[3,4,5],
-                 bc_loadmag_options=[300,400,500],
-                 bc_inventory_options=[(10,10), (10,5), (5,5), (8,3)],
-                 num_target_loads = 2,
+                #  bc_height_options=[1,2],
+                #  bc_length_options=[3,4,5],
+                #  bc_loadmag_options=[300,400,500],
+                #  bc_inventory_options=[(10,10), (10,5), (5,5), (8,3)],
+                 bcs = None, # List of boundary condition dictionaries
+                #  num_target_loads = 2,
                  bc_fixed = None,
                  vis_utilization = False,
                  baseline_mode=False,
@@ -237,10 +238,11 @@ class CantileverEnv_2(gym.Env):
         # Boundary Conditions
         self.frame_length_m = 3.0 # actual length of frame in meters used in truss analysis
         # from args
-        self.bc_height_options = bc_height_options
-        self.bc_length_options = bc_length_options
-        self.bc_loadmag_options = bc_loadmag_options
-        self.bc_inventory_options = bc_inventory_options
+        # self.bc_height_options = bc_height_options
+        # self.bc_length_options = bc_length_options
+        # self.bc_loadmag_options = bc_loadmag_options
+        # self.bc_inventory_options = bc_inventory_options
+        self.bcs = bcs # List of boundary condition dictionaries
         self.allowable_deflection = 0 # decided in generate_bc
 
         # Initialize current state
@@ -329,7 +331,7 @@ class CantileverEnv_2(gym.Env):
     def reset(self, seed=None, **kwargs):
         '''
         Create boundary condition within environment with 
-            generate_bc.set_cantilever_env_framegrid(self.frame_grid_size_x)
+            generate_bc.set_cantilever_bcs(self.frame_grid_size_x)
         that returns support_frames, targetload_frames within the frame grid
         self.frames, self.valid_pos, self.curr_frame_grid, self.curr_fea_graph is updated
 
@@ -434,17 +436,23 @@ class CantileverEnv_2(gym.Env):
         # Get boundary conditions
         # support_frames : dictionary (x_frame, y_frame)  cell location within frame grid of support frames
         # targetload_frames : dictionary of ((x_frame,y_frame) : [x_forcemag, y_forcemag, z_forcemag] (force is applied in the negative y direction).
-        # cantilever_length : length of cantilever in number of frames
+        # inventory_dict : dictionary of {FrameStructureType : inventory value} where FrameStructureType is a free frame type
+        # max_cantilever_length_f : length of cantilever in number of frames
         support_frames, targetload_frames, inventory_dict, max_cantilever_length_f = \
-            generate_bc.set_multiple_cantilever_env_framegrid(
-                                                                self.frame_grid_size_x,
-                                                                height_options = self.bc_height_options,
-                                                                length_options = self.bc_length_options,
-                                                                magnitude_options = self.bc_loadmag_options,
-                                                                inventory_options = self.bc_inventory_options,
-                                                                num_target_loads = self.num_target_loads,
-                                                                fixed_hlm=self.bc_fixed,
-                                                            )
+            generate_bc.set_cantilever_bcs(
+                                            bcs = self.bcs,
+                                            frame_grid_size_x=self.frame_grid_size_x,
+                                            seed=self.rand_init_seed,
+            )
+            # generate_bc.set_multiple_cantilever_env_framegrid(
+            #                                                     self.frame_grid_size_x,
+            #                                                     height_options = self.bc_height_options,
+            #                                                     length_options = self.bc_length_options,
+            #                                                     magnitude_options = self.bc_loadmag_options,
+            #                                                     inventory_options = self.bc_inventory_options,
+            #                                                     num_target_loads = self.num_target_loads,
+            #                                                     fixed_hlm=self.bc_fixed,
+            #                                                 )
         
         self.num_target_loads = len(targetload_frames) # number of target loads in the environment
         self.max_cantilever_length_f = max_cantilever_length_f
