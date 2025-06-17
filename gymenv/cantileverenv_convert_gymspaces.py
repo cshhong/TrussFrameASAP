@@ -1,6 +1,6 @@
 '''
-Encode and Decode gym observation and action spaces for canilever-v0 environment
-Because cleanRL only uses gym.spaces.Discrete (discrete) spaces
+Encode and Decode gym observation and action spaces for cantilever-v0~2 environment
+** Because cleanRL only uses gym.spaces.Discrete (discrete) spaces
     - MultiDiscrete values with individual bounds are encoded into a single integer
 
 '''
