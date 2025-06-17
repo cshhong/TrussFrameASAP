@@ -474,7 +474,7 @@ class CantileverEnv_2(gym.Env):
         target_condition = [item for (x_frame, y_frame), forces in targetload_frames.items() for item in (x_frame, y_frame, forces[1])] # list of (x_frame, y_frame, y_forcemag) of target loads
         # Create network condition tuple
         inventory_condition = list(inventory_dict.values()) # list of inventory values
-        target_condition_short = [item for (x_frame, y_frame), forces in targetload_frames.items() for item in (x_frame, y_frame)]
+        target_condition_short = [item for (x_frame, y_frame), forces in targetload_frames.items() for item in (x_frame, y_frame)] # concatenated (frame_x, frame_y) of target loads
         # self.network_condition = target_condition + inventory_condition
         self.network_condition = target_condition_short
 
