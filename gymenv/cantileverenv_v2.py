@@ -1,6 +1,8 @@
 '''
-Multiple target mode
-test make change from vm
+Multiple target mode (more than 2)
+TODO check connected, for more than two targets, more than two supports
+TODO more than two targets init
+TODO more than one support init
 '''
 import gymnasium as gym
 # from gym.spaces import Box, Discrete
