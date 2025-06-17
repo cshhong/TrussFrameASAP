@@ -457,11 +457,13 @@ class CantileverEnv_2(gym.Env):
         FrameStructureType.EXTERNAL_FORCE.node_load = list(targetload_frames.values())[0]
 
         target_condition = [item for (x_frame, y_frame), forces in targetload_frames.items() for item in (x_frame, y_frame, forces[1])] # list of (x_frame, y_frame, y_forcemag) of target loads
+        # Create network condition tuple
         inventory_condition = list(inventory_dict.values()) # list of inventory values
         target_condition_short = [item for (x_frame, y_frame), forces in targetload_frames.items() for item in (x_frame, y_frame)]
-        # self.bc_condition = target_condition + inventory_condition
-        self.bc_condition = target_condition_short
+        # self.network_condition = target_condition + inventory_condition
+        self.network_condition = target_condition_short
 
+        # Set CSV condition value
         self.csv_bc = target_condition
         self.csv_inventory = inventory_condition
 
