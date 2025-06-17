@@ -81,7 +81,6 @@ def set_cantilever_env(board_size_x, square_size, seed=None):
 
     return default_frames, support_nodes, target_load
 
-
 def set_cantilever_env_framegrid(
         frame_grid_size_x, 
         height_options = [1, 2, 3],
@@ -314,5 +313,75 @@ def set_multiple_cantilever_env_framegrid(
             if length > max_cantilever_length:
                 max_cantilever_length = length
 
+
+    return support_frames, target_frames, inventory, max_cantilever_length
+
+def set_cantilever_bcs(
+        bcs=None, # list of Boundary Condition Dictionaries 
+        frame_grid_size_x= 10,
+        seed=None,
+        ):
+    """
+    Used in cantileverenv_V2.py (agent playable setting)
+    Return boundary condition information to create supports, target load frames and set inventory for the episode
+    Input:
+        list of boundary condition dictionaries where 
+            Boundary Condition Dictionaries
+                targets: List[Tuple[int, int, float]]
+                supports: List[Tuple[int, int]]
+                inventory: Tuple[int, ...]
+    
+    Output: 
+        one set of boundary conditions from bc list 
+            - support_frames : list of tuples (x_frame, y_frame) 
+            - targetload_frames : dictionary ((x_frame, y_frame) : [x_forcemag, y_forcemag, z_forcemag]) tuples (force is applied in the negative y direction).
+            - inventory : dictionary of FrameStructureType Free frame type : count 
+            - max_cantilever_length: int, maximum length of the cantilever in frames
+    """
+
+    # If a seed is provided, set the random seed for reproducibility
+    if seed is not None:
+        random.seed(seed)
+
+    # Select a random boundary condition from the list
+    if bcs is None or len(bcs) == 0:
+        raise ValueError("Boundary conditions list is empty or None. Please provide a valid list of boundary conditions.")
+    bc = random.choice(bcs)
+
+    ## Set inventory dictionary
+    # Get free frame types
+    free_frame_types = FrameStructureType.get_free_frame_types() # list of FrameStructureType
+    num_free_frame_types = len(free_frame_types)
+
+    assert len(bc['inventory']) == num_free_frame_types, \
+        f"Inventory options must have {num_free_frame_types} elements for each FrameStructureType, got {len(bc['inventory'])}."
+    
+    # Create inventory dictionary from inventory options
+    inventory = {
+        frame_type: bc['inventory'][i] # key is FrameStructureType, value is count
+        for i, frame_type in enumerate(free_frame_types)
+    }
+
+    ## Set origin coordinates for support frames and target load frames
+    origin_frame_x = int(frame_grid_size_x // FRAME_SIZE)
+    origin_frame_y = 0  # Base of the cantilever, first row of the frame grid
+
+    ## Set support frames
+    # Create support frames from the bc['supports'] list
+    support_frames = [
+        (origin_frame_x + x, origin_frame_y + y) for x, y in bc['supports']
+    ]
+
+    ## Set target load frames
+    # Create target load frames from the bc['targets'] list
+    target_frames = dict()
+    max_cantilever_length = max(abs(y) for _, y, _ in bc['targets']) if bc['targets'] else 0 # max abs(y) value from targets 
+
+    for x, y, magnitude in bc['targets']:
+        # Set target load frame within the frame grid
+        load_x_frame = origin_frame_x + x
+        load_y_frame = origin_frame_y + y
+        # Target load in negative y direction (z assumed to be zero)
+        target_frames[(load_x_frame, load_y_frame)] = [0, -magnitude, 0]
 
     return support_frames, target_frames, inventory, max_cantilever_length
