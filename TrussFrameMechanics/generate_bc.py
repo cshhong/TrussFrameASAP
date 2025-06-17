@@ -6,7 +6,7 @@ import random
 from TrussFrameMechanics.trussframe import FrameStructureType
 
 CELL_SIZE = 1
-FRAME_SIZE = 2
+FRAME_SIZE = 2 # one truss frame is 2x2 cells
 
 def set_cantilever_env(board_size_x, square_size, seed=None):
     """
