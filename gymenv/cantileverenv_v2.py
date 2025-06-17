@@ -289,7 +289,7 @@ class CantileverEnv_2(gym.Env):
         self.reset_env_bool = False # boolean to indicate if env is reset (before taking first action) to initialize random actions
 
         # Set boundary conditions ; support, target load, inventory
-        self.num_target_loads = num_target_loads
+        # self.num_target_loads = num_target_loads
         self.bc_fixed = bc_fixed # fixed boundary conditions used to condition actor, critic network
         self.target_x_bounds = None # (left, right) set at initBoundaryCondition to prevent going beyond target x
 
@@ -446,6 +446,7 @@ class CantileverEnv_2(gym.Env):
                                                                 fixed_hlm=self.bc_fixed,
                                                             )
         
+        self.num_target_loads = len(targetload_frames) # number of target loads in the environment
         self.max_cantilever_length_f = max_cantilever_length_f
         self.allowable_deflection = self.frame_length_m * max_cantilever_length_f / 120 # length of cantilever(m) / 120
         # self.extr_load_mag = list(targetload_frames.values())[0] # magnitude of external load in kN (x,y,z)
