@@ -165,7 +165,8 @@ class CantileverEnv_2(gym.Env):
                 End bool : 0,1 (False, True)
                 Free Frame index : 2, 3  (light, medium) (follows FrameStructureType index)
                 Frame x, y : 0 to self.frame_grid_size_x, self.frame_grid_size_y
-            
+            Action is encoded as an integer using ActionBijectiveMapping object because cleanRL only uses gym.spaces.Discrete (discrete) spaces (does not support multidiscrete space)
+
     '''
     metadata = {"render_modes": [None, "debug_all", "debug_valid", "rgb_list", "debug_end", "rgb_end", "rgb_end_interval", "rgb_end_interval_nofail", "human_playable"], 
                 "render_fps": 1,
