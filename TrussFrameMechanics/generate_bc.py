@@ -318,7 +318,8 @@ def set_multiple_cantilever_env_framegrid(
 
 def set_cantilever_bcs(
         bcs=None, # list of Boundary Condition Dictionaries 
-        frame_grid_size_x= 10,
+        frame_grid_size_x= None,
+        frame_grid_size_y= None,
         seed=None,
         ):
     """
@@ -338,7 +339,10 @@ def set_cantilever_bcs(
             - inventory : dictionary of FrameStructureType Free frame type : count 
             - max_cantilever_length: int, maximum length of the cantilever in frames
     """
-
+    # Assert that framegrid size is provided
+    if frame_grid_size_x is None or frame_grid_size_y is None:
+        raise ValueError("Frame grid size must be provided. Please set frame_grid_size_x and frame_grid_size_y.")
+    
     # If a seed is provided, set the random seed for reproducibility
     if seed is not None:
         random.seed(seed)
@@ -367,10 +371,12 @@ def set_cantilever_bcs(
     origin_frame_y = 0  # Base of the cantilever, first row of the frame grid
 
     ## Set support frames
-    # Create support frames from the bc['supports'] list
-    support_frames = [
-        (origin_frame_x + x, origin_frame_y + y) for x, y in bc['supports']
-    ]
+    # Validate and create support frames in a single loop
+    support_frames = []
+    for x, y in bc['supports']:
+        if y < 0 or y >= frame_grid_size_y:
+            raise ValueError(f"Support frame y-coordinate {y} is out of bounds. Must be between 0 and {frame_grid_size_y - 1}.")
+        support_frames.append((origin_frame_x + x, origin_frame_y + y))
 
     ## Set target load frames
     # Create target load frames from the bc['targets'] list
@@ -378,9 +384,14 @@ def set_cantilever_bcs(
     max_cantilever_length = max(abs(y) for _, y, _ in bc['targets']) if bc['targets'] else 0 # max abs(y) value from targets 
 
     for x, y, magnitude in bc['targets']:
+        # Validate y bounds
+        if y < 1 or y >= frame_grid_size_y:
+            raise ValueError(f"Target frame y-coordinate {y} is out of bounds. Must be between 1 and {frame_grid_size_y - 1}.")
+        
         # Set target load frame within the frame grid
         load_x_frame = origin_frame_x + x
         load_y_frame = origin_frame_y + y
+        
         # Target load in negative y direction (z assumed to be zero)
         target_frames[(load_x_frame, load_y_frame)] = [0, -magnitude, 0]
 

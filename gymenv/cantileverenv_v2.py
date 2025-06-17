@@ -447,6 +447,7 @@ class CantileverEnv_2(gym.Env):
             generate_bc.set_cantilever_bcs(
                                             bcs = self.bcs,
                                             frame_grid_size_x=self.frame_grid_size_x,
+                                            frame_grid_size_y= self.frame_grid_size_y,
                                             seed=self.rand_init_seed,
             )
             # generate_bc.set_multiple_cantilever_env_framegrid(
