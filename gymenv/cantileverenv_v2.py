@@ -33,7 +33,6 @@ import TrussFrameMechanics.pythonAsap as pythonAsap
 
 from . import cantileverenv_convert_gymspaces as convert_gymspaces
 
-import juliacall
 # from pythonAsap import solve_truss_from_graph # for human playable version
 
 import matplotlib.patches as patches
@@ -47,6 +46,10 @@ matplotlib.use('Agg')  # prevent python memory accumulate
 import numpy as np
 import torch
 import copy
+
+print('importing juliacall...')
+import juliacall
+print('imported juliacall!')
 
 import random
 
@@ -629,7 +632,7 @@ class CantileverEnv_2(gym.Env):
 
             # Explicit 90P Utilization reward - if the frame count is the same, design with higher utilization is superior
             if len(self.curr_fea_graph.failed_elements) == 0:
-                reward += 2 * round(self.utilization_ninety_percentile/100, 2) # reward for utilization at 90P percentile
+            #     reward += 2 * round(self.utilization_ninety_percentile/100, 2) # reward for utilization at 90P percentile
             
             # reward += self.num_target_loads * 2 # completion reward (long horizon)
             reward += self.num_target_loads * 3 # completion reward (long horizon)
