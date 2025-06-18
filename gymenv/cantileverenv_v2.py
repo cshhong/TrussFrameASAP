@@ -260,7 +260,7 @@ class CantileverEnv_2(gym.Env):
         self.valid_pos = set() # set of frame_grid coordinates (frame_x, frame_y) in which new frame can be placed 
         self.render_valid_action = False
         # if episode ends without being connected, large negative reward is given.
-        self.target_loads_met = {} # dictionary of (center board coordinate of target frame, bool) indicating if target load is met
+        self.support_target_adjacency = None # adjacency matrix where rows are supports, columns are target load frame locations 
         self.is_connected = False # whether the support is connected to (all) the target loads,
         self.is_connected_fraction = 0 # fraction of target loads connected to support
 
@@ -300,7 +300,7 @@ class CantileverEnv_2(gym.Env):
         self.bc_fixed = bc_fixed # fixed boundary conditions used to condition actor, critic network
         self.target_x_bounds = None # (left, right) set at initBoundaryCondition to prevent going beyond target x
 
-        self.initBoundaryConditions() # set self.allowable_deflection, self.inventory_dict, self.frames, self.curr_frame_grid, self.target_loads_met, FrameStructureType.EXTERNAL_FORCE.node_load
+        self.initBoundaryConditions() # set self.allowable_deflection, self.inventory_dict, self.frames, self.curr_frame_grid, self.support_target_adjacency, FrameStructureType.EXTERNAL_FORCE.node_load
         self.set_action_converter(self.inventory_dict) # set self.action_converter
         self.set_gym_spaces(self.action_converter) # set self.observation_space, self.action_space
 
@@ -353,14 +353,14 @@ class CantileverEnv_2(gym.Env):
         self.curr_fea_graph = FEAGraph() #FEAGraph object
         self.valid_pos = set()
 
-        self.target_loads_met = {}
+        self.support_target_adjacency = None
 
         # Reset the Vertex ID counter
         Vertex._id_counter = 1
 
         self.max_cantilever_length_f = 0 # used to limit random init in training function 
         # Set boundary conditions ; support, target load, inventory
-        self.initBoundaryConditions() # set self.cantiliver_length_f , self.allowable_deflection, self.inventory_dict, self.frames, self.curr_frame_grid, self.target_loads_met, FrameStructureType.EXTERNAL_FORCE.node_load
+        self.initBoundaryConditions() # set self.cantiliver_length_f , self.allowable_deflection, self.inventory_dict, self.frames, self.curr_frame_grid, self.support_target_adjacency, FrameStructureType.EXTERNAL_FORCE.node_load
 
         self.eps_terminate_valid = False
 
@@ -432,7 +432,7 @@ class CantileverEnv_2(gym.Env):
             - self.inventory_dict
             - self.frames (add support frame)
             - self.curr_frame_grid, self.curr_fea_graph, (populate with support and target frames)
-            - self.target_loads_met : dictionary of (center coordinate of frame, bool) indicating if target load is met
+            - self.support_target_adjacency : adjacency matrix where rows are supports, columns are target load frame locations 
             - FrameStructureType.EXTERNAL_FORCE.node_load (set load value)
 
         Set frame grid, frame graph, fea graph accordingly 
@@ -511,7 +511,7 @@ class CantileverEnv_2(gym.Env):
             
             self.update_frame_grid(new_t_frame, t_load_mag=t_load_mag)
             self.update_fea_graph(new_t_frame, t_load_mag) 
-            self.target_loads_met[t_center_board] = False
+            # self.support_target_adjacency[t_center_board] = False
             
             # init light frame under target
             t_support_center_board = (t_center_board[0], t_center_board[1] - 2)
