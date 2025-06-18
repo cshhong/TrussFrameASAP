@@ -296,7 +296,6 @@ class CantileverEnv_2(gym.Env):
         self.reset_env_bool = False # boolean to indicate if env is reset (before taking first action) to initialize random actions
 
         # Set boundary conditions ; support, target load, inventory
-        # self.num_target_loads = num_target_loads
         self.bc_fixed = bc_fixed # fixed boundary conditions used to condition actor, critic network
         self.target_x_bounds = None # (left, right) set at initBoundaryCondition to prevent going beyond target x
 
@@ -395,8 +394,6 @@ class CantileverEnv_2(gym.Env):
                     
                     # Iterate through each row in the CSV file
                     for row in csv_reader:
-                        # debug print Episode and Number of Failed Elements value
-                        # print(f"Episode: {row['Episode']}, Number of Failed Elements: {row['Number of Failed Elements']} Utilization Max : {row['Utilization Max']}")
                         # Dynamically find the "Frame Grid" value
                         if "Frame Grid" in row:
                             frame_grid_string = row["Frame Grid"]
@@ -450,15 +447,6 @@ class CantileverEnv_2(gym.Env):
                                             frame_grid_size_y= self.frame_grid_size_y,
                                             seed=self.rand_init_seed,
             )
-            # generate_bc.set_multiple_cantilever_env_framegrid(
-            #                                                     self.frame_grid_size_x,
-            #                                                     height_options = self.bc_height_options,
-            #                                                     length_options = self.bc_length_options,
-            #                                                     magnitude_options = self.bc_loadmag_options,
-            #                                                     inventory_options = self.bc_inventory_options,
-            #                                                     num_target_loads = self.num_target_loads,
-            #                                                     fixed_hlm=self.bc_fixed,
-            #                                                 )
         
         self.num_target_loads = len(targetload_frames) # number of target loads in the environment
         self.max_cantilever_length_f = max_cantilever_length_f
@@ -468,7 +456,7 @@ class CantileverEnv_2(gym.Env):
         self.bc_inventory = copy.deepcopy(inventory_dict) # does not change after reset
         self.n_all_inventory = sum(inventory_dict.values())
 
-        # set FrameStructureType.EXTERNAL_FORCE magnitude values TODO where is this used? 
+        # set FrameStructureType.EXTERNAL_FORCE magnitude values used to update feagraph
         FrameStructureType.EXTERNAL_FORCE.node_load = list(targetload_frames.values())[0]
 
         target_condition = [item for (x_frame, y_frame), forces in targetload_frames.items() for item in (x_frame, y_frame, forces[1])] # list of (x_frame, y_frame, y_forcemag) of target loads
