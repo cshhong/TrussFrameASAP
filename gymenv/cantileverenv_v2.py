@@ -1270,7 +1270,17 @@ class CantileverEnv_2(gym.Env):
                     # arrow_head_y = arrow_tail_y - arrow_dy
 
                     if force_magnitude > 0:
-                        self.ax.text(arrow_tail_x, arrow_tail_y + 0.1, f"{force_magnitude:.0f} kN", color='black', fontsize=12)
+                        # self.ax.text(arrow_tail_x, arrow_tail_y + 0.1, f"{force_magnitude:.0f} kN", color='black', fontsize=12)
+                        self.ax.text(
+                                    arrow_tail_x - 0.2, 
+                                    arrow_tail_y + 1, 
+                                    f"{force_magnitude:.0f} kN", 
+                                    color='black', 
+                                    fontsize=12, 
+                                    rotation=45,  # Rotate the text by 45 degrees (adjust as needed)
+                                    horizontalalignment='left',  # Align text horizontally from the left
+                                    verticalalignment='center'   # Align text vertically from the center
+                                )
 
                     self.ax.arrow(arrow_tail_x, arrow_tail_y, arrow_dx, arrow_dy+0.2, head_width=0.3, head_length=0.2, fc='black', ec='black', linewidth=linewidth, linestyle = linestyle)
     
