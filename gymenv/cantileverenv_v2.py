@@ -685,46 +685,41 @@ class CantileverEnv_2(gym.Env):
         return obs, reward, terminated, truncated, info
         
     
-    def check_is_connected_multiple(self, frame_x, frame_y):
-        '''
-        Used in get_action_mask to forward check given action whether structure is connected (support and target load)
-        unidirectional, so only have to check if current frame is below target
-        Input : frame center coordinates (frame_x, frame_y)
-        Output : copy of self.target_loads_met with updated boolean values
-        '''
-        # # check if top-right, or top-left node of frame changes current self.target_loads_met values
-        # # given temporary changed values, if all are true, return True
-        temp_target_loads_met = self.target_loads_met.copy()
-        center = self.frame_to_board(frame_x, frame_y) # get center board coordinates
-        for target in self.target_loads_met:
-            # if center is below target
-            if (center[1] == target[1] - 2) and (center[0] == target[0]):
-                temp_target_loads_met[target] = True
-        return temp_target_loads_met
-    
-    def check_is_connected_bidirectional_temp(self, frame_x, frame_y):
+    def check_is_connected_temp(self, frame_x, frame_y):
         '''
         Used in get_action_mask to temporarily forward check given action whether structure is connected (support and target load)
-        bidirectional, so have to path find with current frames in board 
         Input : frame center coordinates (frame_x, frame_y)
-        Output : copy of self.target_loads_met with updated boolean values
+        Output : copy of self.support_target_adjacency with updated boolean values
         '''
-        temp_target_loads_met = copy.deepcopy(self.target_loads_met)
-        # check targets that are not connected 
-        unconnected_targets = [target for target, met in temp_target_loads_met.items() if not met]
-        # start from support, find path to target_support given current frames
-        support_board = [coord for tup in self.support_board for coord in tup] # unpack support_board list and tuple
-        support_frame = self.board_to_frame(*support_board)
-
-        for target in unconnected_targets:
-            target_support_frame = self.board_to_frame(target[0], target[1]-2)
-            temp_connected = self.check_connected_path_temp(support_frame, target_support_frame, frame_x, frame_y)
-            if temp_connected:
-                temp_target_loads_met[target] = True
-                 # function to check if current board has path from support to target load
+        temp_target_loads_met = copy.deepcopy(self.support_target_adjacency)
+        # Only check (support, targets) that are currently not connected
+        # from self.support_target_adjacency get (support_frame, target load frame) pairs that are not connected
+        # Go through all support-target pairs that are currently not connected
+        for i, support_pos in enumerate(self.support_frame):
+            for j, target in enumerate(self.target_load_frame):
+                target_pos, target_load_mag = target # (x,y) on frame grid, magnitude in kN
+                if not self.support_target_adjacency[i][j]:
+                    target_support_frame = (target_pos[0], target_pos[1]-1) # check if connected with default frame created under target load
+                    temp_connected = self.check_connected_single_path(support_pos, target_support_frame, frame_x, frame_y)
+                    if temp_connected:
+                        temp_target_loads_met[i][j] = True
         return temp_target_loads_met
+
+        # # check targets that are not connected 
+        # unconnected_targets = [target for target, met in temp_target_loads_met.items() if not met]
+        # # start from support, find path to target_support given current frames
+        # support_board = [coord for tup in self.support_board for coord in tup] # unpack support_board list and tuple
+        # support_frame = self.board_to_frame(*support_board)
+
+        # for target in unconnected_targets:
+        #     target_support_frame = self.board_to_frame(target[0], target[1]-2) # check if connected with default frame created under target load
+        #     temp_connected = self.check_connected_single_path(support_frame, target_support_frame, frame_x, frame_y)
+        #     if temp_connected:
+        #         temp_target_loads_met[target] = True
+        #          # function to check if current board has path from support to target load
+        # return temp_target_loads_met
     
-    def check_connected_path_temp(self, support_frame, target_support_frame, frame_x=None, frame_y=None):
+    def check_connected_single_path(self, support_frame, target_support_frame, frame_x=None, frame_y=None):
         '''
         Lookahead to check if there is path from support to target load, given hypothetical frame
         '''
