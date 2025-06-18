@@ -1778,15 +1778,17 @@ class CantileverEnv_2(gym.Env):
         # Get all raw valid action vectors based on current state (end_bool, freeframe_idx, frame_x, frame_y) using self.valid_pos and self.inventory_dict, self.is_connected
         exists_end_action = False
         valid_actions = []
+        # Iterate over all free frame types in the inventory dictionary
         for freeframe_type in FrameStructureType.get_free_frame_types():
             freeframe_idx_zero = freeframe_type.idx - 2 # convert FrameStructureType to start with index 0
-            if self.inventory_dict[freeframe_type] > 0:
+            if self.inventory_dict[freeframe_type] > 0: # check if inventory is not 0
                 for frame_x, frame_y in self.valid_pos:
                     # look ahead to check if support and target loads are connected
-                    temp_is_connected = self.check_is_connected_bidirectional_temp(frame_x, frame_y) # dictionary of target center, boolean 
-
+                    temp_is_connected = self.check_is_connected_temp(frame_x, frame_y) # adjacency matrix of support, target loads with boolean values
+                    # check if all values of temp_is_connected are True
                     # with hypothetical frame, all targets are connected add only end action
-                    if all(temp_is_connected.values()): # check if all values in the dictionary are true
+                    # if all(temp_is_connected.values()): # check if all values in the dictionary are true
+                    if np.all(temp_is_connected):
                         # for end_bool in [False, True]:
                             # valid_actions.append((end_bool, freeframe_idx, frame_x, frame_y))
                         valid_actions.append((True, freeframe_idx_zero, frame_x, frame_y)) # only add action to end if connected
