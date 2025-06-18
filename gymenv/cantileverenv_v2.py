@@ -721,7 +721,7 @@ class CantileverEnv_2(gym.Env):
     
     def check_connected_single_path(self, support_frame, target_support_frame, frame_x=None, frame_y=None):
         '''
-        Lookahead to check if there is path from support to target load, given hypothetical frame
+        Lookahead to check if there is path from single support, target load pair, given hypothetical frame
         '''
         free_frame_types = FrameStructureType.get_free_frame_types() # get free frame types
         free_frame_types_idx = [frame_type.idx for frame_type in free_frame_types] # get free frame types indices
