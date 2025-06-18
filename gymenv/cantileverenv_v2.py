@@ -1304,6 +1304,19 @@ class CantileverEnv_2(gym.Env):
                     arrow_dy = -1.0
                     linestyle =':'
                     linewidth = 1.0
+            
+        # For external loads without force, draw a circle center of the frame
+        for target in self.target_load_frame:
+            target_pos, target_load_mag = target
+            if target_load_mag == [0, 0, 0]:
+                x, y = self.frame_to_board(target_pos[0], target_pos[1]-1)
+                # Draw a circle at the target position
+                rect = patches.Rectangle((x - self.frame_size//2, y - self.frame_size//2), 
+                                        self.frame_size, self.frame_size, 
+                                        linewidth=0, edgecolor='green', facecolor='green', alpha=0.3)
+                self.ax.add_patch(rect)
+
+
     # Render 
     def render_frame(self):
         '''
