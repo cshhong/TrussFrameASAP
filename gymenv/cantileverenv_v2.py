@@ -606,6 +606,7 @@ class CantileverEnv_2(gym.Env):
 
         action_tuple = self.action_converter.decode(action) # int to action tuple
         end, freeframe_idx, frame_x, frame_y = action_tuple
+        # print(f'freeframe_idx : {freeframe_idx}, frame_x : {frame_x}, frame_y : {frame_y}, end : {end}')
         end_bool = True if end==1 else False # end is only possible when support and target loads are connected
         
         # Apply action
