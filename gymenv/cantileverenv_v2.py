@@ -1820,8 +1820,9 @@ class CantileverEnv_2(gym.Env):
                         # for end_bool in [False, True]:
                             # valid_actions.append((end_bool, freeframe_idx, frame_x, frame_y))
                         valid_actions.append((True, freeframe_idx_zero, frame_x, frame_y)) # only add action to end if connected
+                        # valid_actions.append((False, freeframe_idx_zero, frame_x, frame_y)) # only add action to end if connected
                         exists_end_action = True
-                        valid_actions = [action for action in valid_actions if action[0] is True]
+                        # valid_actions = [action for action in valid_actions if action[0] is True]
                     else:
                         if not exists_end_action: # Add action with end_bool=False only if no end_bool=True action exists
                             valid_actions.append((False, freeframe_idx_zero, frame_x, frame_y))
