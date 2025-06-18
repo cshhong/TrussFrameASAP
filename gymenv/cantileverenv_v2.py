@@ -790,7 +790,7 @@ class CantileverEnv_2(gym.Env):
         
         self.frames.append(new_frame)
 
-        self.update_target_loads_met_bidirectional() # updates self.target_loads_met and self.is_connected_fraction
+        self.update_target_loads_met() # updates self.support_target_adjacency and self.is_connected_fraction
     
     ## Update Current State
     def update_inventory_dict(self, new_frame):
