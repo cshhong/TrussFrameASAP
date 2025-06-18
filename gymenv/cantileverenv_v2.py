@@ -186,12 +186,7 @@ class CantileverEnv_2(gym.Env):
                  max_episode_length = 40,
                  env_idx = 0,
                  rand_init_seed = None,
-                #  bc_height_options=[1,2],
-                #  bc_length_options=[3,4,5],
-                #  bc_loadmag_options=[300,400,500],
-                #  bc_inventory_options=[(10,10), (10,5), (5,5), (8,3)],
                  bcs = None, # List of boundary condition dictionaries
-                #  num_target_loads = 2,
                  bc_fixed = None,
                  vis_utilization = False,
                  baseline_mode=False,
@@ -202,8 +197,6 @@ class CantileverEnv_2(gym.Env):
                  render_from_csv_mode = False,
                  render_from_csv_path = None,
                  ):
-        # super().__init__()
-
         # Calculate the size of the frame grid based on the frame size
         self.frame_grid_size_x = frame_grid_size_x
         self.frame_grid_size_y = frame_grid_size_y
@@ -243,10 +236,6 @@ class CantileverEnv_2(gym.Env):
         # Boundary Conditions
         self.frame_length_m = 3.0 # actual length of frame in meters used in truss analysis
         # from args
-        # self.bc_height_options = bc_height_options
-        # self.bc_length_options = bc_length_options
-        # self.bc_loadmag_options = bc_loadmag_options
-        # self.bc_inventory_options = bc_inventory_options
         self.bcs = bcs # List of boundary condition dictionaries
         self.allowable_deflection = 0 # decided in generate_bc
 
@@ -700,20 +689,6 @@ class CantileverEnv_2(gym.Env):
                         temp_target_loads_met[i][j] = True
         return temp_target_loads_met
 
-        # # check targets that are not connected 
-        # unconnected_targets = [target for target, met in temp_target_loads_met.items() if not met]
-        # # start from support, find path to target_support given current frames
-        # support_board = [coord for tup in self.support_board for coord in tup] # unpack support_board list and tuple
-        # support_frame = self.board_to_frame(*support_board)
-
-        # for target in unconnected_targets:
-        #     target_support_frame = self.board_to_frame(target[0], target[1]-2) # check if connected with default frame created under target load
-        #     temp_connected = self.check_connected_single_path(support_frame, target_support_frame, frame_x, frame_y)
-        #     if temp_connected:
-        #         temp_target_loads_met[target] = True
-        #          # function to check if current board has path from support to target load
-        # return temp_target_loads_met
-    
     def check_connected_single_path(self, support_frame, target_support_frame, frame_x=None, frame_y=None):
         '''
         Lookahead to check if there is path from single support, target load pair, given hypothetical frame
@@ -855,76 +830,6 @@ class CantileverEnv_2(gym.Env):
                             self.curr_frame_grid[x_adj, y_adj] == FrameStructureType.EXTERNAL_FORCE.idx:
                             self.valid_pos.add((x_adj, y_adj))
 
-    # def _update_fea_graph(self, new_frame, t_load_mag=[0.0, 0.0, 0.0]):
-    #     '''
-    #     Input 
-    #         new_frame : TrussFrameRL object (centroid, frame type)
-
-    #     Given new TrussFrameRL object, update self.curr_feagraph (FEAgraph object) where 
-    #         self.vertices : dictionary of vertices with coordinate as key and Vertex object as value
-    #         self.edges : adjacency list of tuples of vertex indices pairs
-    #         self.maximal_edges : dictionary where key is direction and value is list of MaximalEdge objects 
-    #         {
-    #             'horizontal': [],
-    #             'vertical': [],
-    #             'LB_RT': [],
-    #             'LT_RB': []
-    #         }
-    #         self.load : A list of tuples (node.id, [load.x, load.y, load.z]) 
-
-    #     Update current FEAgraph with added truss frame so that existing node indices are preserved
-    #     1. merge overlapping new nodes with existing nodes
-    #     2. check line overlap with existing edge using maximal edge representation 
-    #     3. update edge list with new line segments
-
-    #     '''
-    #     # Calculate the positions of the four vertices
-    #     half_size = self.frame_size // 2
-    #     vert_pos = [
-    #         (new_frame.x - half_size, new_frame.y - half_size),  # Bottom-left
-    #         (new_frame.x + half_size, new_frame.y - half_size),  # Bottom-right
-    #         (new_frame.x + half_size, new_frame.y + half_size),  # Top-right
-    #         (new_frame.x - half_size, new_frame.y + half_size)   # Top-left
-    #     ]
-
-    #     if new_frame.type_structure == FrameStructureType.EXTERNAL_FORCE: # target frame
-    #         target_load_pos = vert_pos[0], vert_pos[1] # bottom right, top right vertices of target frame
-    #         for pos in target_load_pos:
-    #             self.curr_fea_graph.external_loads[pos] = [l / 2 for l in t_load_mag] # distribute load to two nodes
-    #         # print(f'added external load to fea graph : {target_load_pos}')
-    #     else: # SUPPORT_FRAME, FST_10_10, FST_20_20
-    #         new_vertices = [] # Vertex object in order of bottom-left, bottom-right, top-right, top-left
-    #         for i, pos in enumerate(vert_pos):
-    #             # If new node overlaps with existing node, merge (preserve existing node attributes - id, is_free)
-    #             if pos in self.curr_fea_graph.vertices:
-    #                 new_v = self.curr_fea_graph.vertices[pos] # get overlapping existing node
-    #                 # allow change free->fixed but not fixed->free
-    #                 if new_frame.type_structure == FrameStructureType.SUPPORT_FRAME:
-    #                     new_v.is_free = False
-    #             else: # If node does not overlap with existing node, create new node 
-    #                 is_free = None
-    #                 if new_frame.type_structure == FrameStructureType.FST_10_10 or new_frame.type_structure == FrameStructureType.FST_20_20: # Free 
-    #                     is_free = True
-    #                 elif new_frame.type_structure == FrameStructureType.SUPPORT_FRAME: # Support
-    #                     if i==0 or i==1: # Bottom left, Bottom right are fixed 
-    #                         is_free = False
-    #                         self.curr_fea_graph.supports.append(pos) # add to list of supports
-    #                     else: # Top left, Top right are free
-    #                         is_free = True
-    #                 new_v = Vertex(pos, is_free=is_free, load=new_frame.type_structure.node_load)
-                    
-    #                 # additionally check if meets with external load, and if so, combine load
-    #                 if pos in self.curr_fea_graph.external_loads:
-    #                     new_v.load = [x + y for x, y in zip(new_v.load, self.curr_fea_graph.external_loads[pos])]
-
-    #                 # add new node to fea graph
-    #                 self.curr_fea_graph.vertices[pos] = new_v 
-    #             # add to new vertices to combine edges                    
-    #             new_vertices.append(new_v) 
-
-    #         # Check line overlap with existing edge  
-    #         self.curr_fea_graph.combine_and_merge_edges(frame_type_shape=new_frame.type_shape,new_vertices=new_vertices, frame_structure_type=new_frame.type_structure)
-
     def update_fea_graph(self, new_frame, t_load_mag=[0.0, 0.0, 0.0]):
         '''
         DEBUG to use FrameStructureType.is_free_nodes that boolean values for (bottom_left, bottom_right, top_left, top_right) nodes in frame
@@ -1007,7 +912,6 @@ class CantileverEnv_2(gym.Env):
 
             # Check line overlap with existing edge  
             self.curr_fea_graph.combine_and_merge_edges(new_vertices=new_vertices, frame_structure_type=new_frame.type_structure)
-
             # print(f'updating fea graph with new frame {new_frame}')
             # print(f'{self.curr_fea_graph.vertices=}')
 
@@ -1075,21 +979,6 @@ class CantileverEnv_2(gym.Env):
         count = self.support_target_adjacency.sum()
         self.is_connected_fraction = count / total if total > 0 else 0.0
 
-
-        # unconnected_targets = [target for target, met in self.support_target_adjacency.items() if not met]
-        
-        # # start from support, find path to target_support given current frames
-        # support_board = [coord for tup in self.support_board for coord in tup] # unpack support_board list and tuple
-        # support_frame = self.board_to_frame(*support_board)
-
-        # for target in unconnected_targets:
-        #     target_support_frame = self.board_to_frame(target[0], target[1]-2)
-        #     temp_connected = self.check_connected_single_path(support_frame, target_support_frame)
-        #     if temp_connected:
-        #         self.support_target_adjacency[target] = True
-
-        # self.is_connected_fraction = sum(self.support_target_adjacency.values()) / len(self.support_target_adjacency)
-
     ## Drawing
     def draw_truss_analysis(self):
         '''
@@ -1155,17 +1044,6 @@ class CantileverEnv_2(gym.Env):
             else:
                 self.ax.plot([start_coord[0], end_coord[0]], [start_coord[1], end_coord[1]],
                     color='red', linestyle='-', linewidth=2)
-                
-        # # Highlight max displacement
-        # # Add text to highlight the max displacement
-        # maxd_x_coord, maxd_y_coord = displaced_vertices[max_disp[0]]
-        # maxd_value = max_disp[1]
-        # self.max_deflection = max_disp[1]
-        
-        # # Draw circle around max deflected node max_disp = (V.id, d_mag) 
-        # max_v_id, max_d_mag = max_disp
-        # max_x_new, max_y_new = displaced_vertices[max_v_id]
-        # self.ax.add_patch(patches.Circle((max_x_new, max_y_new), radius=0.2, color='red', alpha=0.3))
         
         # Overlay utilization on each edge
         if self.vis_utilization == True:
@@ -1239,7 +1117,6 @@ class CantileverEnv_2(gym.Env):
         #                             self.frame_size, self.frame_size, 
         #                             linewidth=0, facecolor=(1, 0, 0, 0.2))
         #     self.ax.add_patch(rect)
-            
 
         # Draw external forces as red arrows
         # self.curr_fea_graph.external_loads.items() are list of (coord, loads)
@@ -1333,7 +1210,6 @@ class CantileverEnv_2(gym.Env):
             self.click_event_id = self.fig.canvas.mpl_connect('button_press_event', self.on_click)
             # Connect the keypress event (select frame type)
             self.key_event_id = self.fig.canvas.mpl_connect('key_press_event', self.on_keypress)
-
 
         # Draw grid lines
         # for i in range(0, self.board_size_x + 1, 2):
@@ -1505,34 +1381,10 @@ class CantileverEnv_2(gym.Env):
                 ha='left',   
                 transform=self.ax.transAxes  # Use axis coordinates
             )
-            # # Inventory text
-            # self.ax.text(
-            #     0.575, -0.125,  
-            #     'Inventory :',
-            #     color='black',
-            #     fontsize=caption_fontsize_small,
-            #     ha='left',   
-            #     transform=self.ax.transAxes  # Use axis coordinates
-            # )
-            # # Inventory value
-            # self.ax.text(
-            #     0.7, -0.125,
-            #     f'light ({self.bc_inventory[FrameStructureType.FST_10_10]})     medium ({self.bc_inventory[FrameStructureType.FST_20_20]})',
-            #     color='gray',
-            #     fontsize=caption_fontsize_small,
-            #     ha='left',   
-            #     transform=self.ax.transAxes  # Use axis coordinates
-            # )
         else:
             pass
             # print(f'Displacement is empty!')
 
-        # # Interactive (debug_all Mode)
-        # if self.render_mode == 'debug_all':
-        #     # Ensure the canvas is available
-        #     self.fig.canvas.draw()
-        #     self.click_event_id = self.fig.canvas.mpl_connect('button_press_event', self.on_click)
-        
         margin = 1
         self.ax.set_xlim([-margin, self.board_size_x + margin])
         self.ax.set_ylim([-margin, self.board_size_y + margin])
@@ -1687,76 +1539,6 @@ class CantileverEnv_2(gym.Env):
         frame_y = center_board_y // self.frame_size
         return (frame_x, frame_y)
 
-    
-
-    # # Interactive (debug_all mode)
-    # def get_cursor_location(self, event):
-    #     """
-    #     Get user cursor location within the canvas, translate that to frame grid coordinates within the environment.
-    #     """
-    #     # Get the cursor location within the canvas
-    #     canvas_x, canvas_y = event.x, event.y
-
-    #     # Translate canvas coordinates to frame grid coordinates
-    #     inv = self.fig.transFigure.inverted()
-    #     fig_x, fig_y = inv.transform((canvas_x, canvas_y))
-
-    #     # Assuming the canvas coordinates are normalized (0 to 1)
-    #     frame_x = int(fig_x * self.frame_grid_size_x)
-    #     frame_y = int(fig_y * self.frame_grid_size_y - 1)
-
-    #     return frame_x, frame_y
-
-    # def on_click(self, event):
-    #     frame_x, frame_y = self.get_cursor_location(event)
-    #     self.click_frame_x = frame_x
-    #     self.click_frame_y = frame_y
-    #     print(f"Frame grid coordinates: ({frame_x}, {frame_y})")
-
-    # Human Playable Mode
-    # def on_click(self, event):
-    #     '''
-    #     Function triggered at click in human playable mode
-    #     Change current human action frame location based on snapped click location.
-    #     cursor location is the centroid of the truss frame.
-    #     Take next action to add frame to the grid.
-    #     '''
-    #     # Check if click is within the grid bounds 
-    #     if event.xdata is not None and event.ydata is not None:
-    #         # Get the frame grid coordinates of the cursor location
-    #         frame_x = int(event.xdata // self.frame_size)
-    #         frame_y = int(event.ydata // self.frame_size)
-    #         # check if valid position 
-    #         if (frame_x, frame_y) in self.valid_pos:
-    #             self.human_action_frame_coords = (frame_x, frame_y) 
-    #             print(f"human selected Frame grid coordinates: ({frame_x}, {frame_y})")
-    #     # if event.inaxes != self.done_button_ax and event.xdata is not None and event.ydata is not None:
-    
-    # def on_keypress(self, event):
-    #     '''
-    #     Function triggered at key press in human playable mode
-    #     Change current human action frame type based on key press.
-    #     '''
-    #     if event.key == '1':
-    #         self.human_action_frame_type = FrameStructureType.FST_c10_10_b10_10
-    #     if event.key == '2':
-    #         self.human_action_frame_type = FrameStructureType.FST_20_20
-    #     if event.key == 'e':
-    #         self.human_action_end = True
-    #     if event.key == 'c':
-    #         self.human_action_end = False
-    #     # TODO update frame type text in fig 
-    #     self.fig.canvas.draw()
-
-    # def get_clicked_action(self):
-    #     '''
-    #     called in human_play mode to get action based on human click and key press
-    #     return action integer based on human action frame coords and type
-    #     '''
-    #     action = self.action_converter.encode((self.human_action_end, self.human_action_frame_type.idx-1, self.human_action_frame_coords[0], self.human_action_frame_coords[1]))
-
-    #     return action
-    
     # Debugging
     def print_framegrid(self):
         '''
@@ -2052,13 +1834,6 @@ class CantileverEnv_2(gym.Env):
         used when self.valid_pos has not been updated at each step but only self.curr_frame_grid is updated
         get all valid positions based on current self.frame_grid
         '''
-        # for all frames, 
-        # get adjacent 4 cells
-        # add if
-        # within frame grid bounds
-        # does not go beyond target cell x value
-        # not existing frame 
-        # does not go below support 
         valid_positions = []
         rows, cols = len(self.curr_frame_grid), len(self.curr_frame_grid[0])
         for i in range(rows):
