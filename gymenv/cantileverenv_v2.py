@@ -1769,7 +1769,7 @@ class CantileverEnv_2(gym.Env):
         in other words valid actions are defined as intersection of following cases
             - frame_x, frame_y in valid position (tangent cells to existing design)
             - freeframe_idx inventory is not 0 (other frame types are not used up)
-            - end_bool = False if support and target loads are connected and True/False if not connectedif not connected
+            - end_bool = False if support and target loads are not connected and True/False if connected
         action mask is used in rollout as env.sample(mask=curr_mask)
 
         """
