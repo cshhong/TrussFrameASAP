@@ -486,6 +486,10 @@ class CantileverEnv_2(gym.Env):
         self.support_board = [] # board coordinates of support frames
         self.target_support_board = [] # list of board coordinates of target support frames
 
+        self.support_frame = [] # order preserved list of support frames 
+        self.target_load_frame = [] # # order preserved list of target frames ((frame_x, frame_y), load_mag)
+        self.support_target_adjacency = np.zeros((len(support_frames), len(targetload_frames)), dtype=bool) # adjacency matrix where rows are supports, columns are target load frame locations
+
         # set target_x_bounds 
         self.target_x_bounds = (min([coord[0] for coord in targetload_frames.keys()]), max([coord[0] for coord in targetload_frames.keys()]))
 
@@ -494,6 +498,7 @@ class CantileverEnv_2(gym.Env):
             s_board_coords = self.frame_to_board(*s_frame_coords) # convert from frame grid coords to board coords
             new_s_frame = TrussFrameRL(s_board_coords, type_structure=FrameStructureType.SUPPORT_FRAME)
             self.support_board.append(s_board_coords)
+            self.support_frame.append(s_frame_coords)
             self.frames.append(new_s_frame)
             self.update_frame_grid(new_s_frame)
             self.update_fea_graph(new_s_frame)
@@ -512,6 +517,7 @@ class CantileverEnv_2(gym.Env):
             t_support_center_board = (t_center_board[0], t_center_board[1] - 2)
             new_t_frame_support = TrussFrameRL(t_support_center_board, type_structure=FrameStructureType.default_type)
             self.target_support_board.append(t_support_center_board)
+            self.target_load_frame.append((t_frame_coord, t_load_mag)) # append target frame coordinates in order of creation
             if t_support_center_board not in self.support_board:
                 self.frames.append(new_t_frame_support)
                 self.update_inventory_dict(new_t_frame_support)
