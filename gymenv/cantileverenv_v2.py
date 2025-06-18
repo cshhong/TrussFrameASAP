@@ -1067,24 +1067,38 @@ class CantileverEnv_2(gym.Env):
         self.max_deflection_node_idx, self.max_deflection = self.curr_fea_graph.get_max_deflection() # update max_deflection
 
 
-    def update_target_loads_met_bidirectional(self):
+    def update_target_loads_met(self):
         '''
-        given updated grid, update target loads that were not previously connected
-        Update self.target_loads_met and self.is_connected_fraction in place
+        given updated frame grid, update target loads that were not previously connected
+        Update self.support_target_adjacency and self.is_connected_fraction in place
         '''
-        unconnected_targets = [target for target, met in self.target_loads_met.items() if not met]
+        for i, support_pos in enumerate(self.support_frame):
+            for j, target in enumerate(self.target_load_frame):
+                target_pos, target_load_mag = target # (x,y) on frame grid, magnitude in kN
+                if not self.support_target_adjacency[i][j]:
+                    target_support_frame = (target_pos[0], target_pos[1]-1) # check if connected with default frame created under target load
+                    temp_connected = self.check_connected_single_path(support_pos, target_support_frame)
+                    if temp_connected:
+                        self.support_target_adjacency[i][j] = True
         
-        # start from support, find path to target_support given current frames
-        support_board = [coord for tup in self.support_board for coord in tup]# unpack support_board list and tuple
-        support_frame = self.board_to_frame(*support_board)
+        total = self.support_target_adjacency.size
+        count = self.support_target_adjacency.sum()
+        self.is_connected_fraction = count / total if total > 0 else 0.0
 
-        for target in unconnected_targets:
-            target_support = self.board_to_frame(target[0], target[1]-2)
-            temp_connected = self.check_connected_path_temp(support_frame, target_support)
-            if temp_connected:
-                self.target_loads_met[target] = True
 
-        self.is_connected_fraction = sum(self.target_loads_met.values()) / len(self.target_loads_met)
+        # unconnected_targets = [target for target, met in self.support_target_adjacency.items() if not met]
+        
+        # # start from support, find path to target_support given current frames
+        # support_board = [coord for tup in self.support_board for coord in tup] # unpack support_board list and tuple
+        # support_frame = self.board_to_frame(*support_board)
+
+        # for target in unconnected_targets:
+        #     target_support_frame = self.board_to_frame(target[0], target[1]-2)
+        #     temp_connected = self.check_connected_single_path(support_frame, target_support_frame)
+        #     if temp_connected:
+        #         self.support_target_adjacency[target] = True
+
+        # self.is_connected_fraction = sum(self.support_target_adjacency.values()) / len(self.support_target_adjacency)
 
     ## Drawing
     def draw_truss_analysis(self):
